@@ -40,6 +40,8 @@ ENV APP_ROOT=/app \
     TZ=Asia/Shanghai \
     PORT=3000 \
     DOTNET_CLI_TELEMETRY_OPTOUT=1
+# 数据目录（数据卷挂在这里）属于运行平台的用户，新建的数据卷会继承这个属主
+RUN mkdir -p /data && chown "$APP_UID" /data
 # 镜像自带的非 root 用户
 USER $APP_UID
 EXPOSE 3000

@@ -1,10 +1,25 @@
 # 部署：先在 .env 里写好 TEACHER_PASSWORD（参考 .env.example），再 docker compose up -d
 # HTTPS 由 Nginx Proxy Manager 负责，它在 npm_proxy 网络里转发到 iot-sim:80；步骤见 deploy/README.md
 services:
+  # 启动前把数据卷交给平台用户（Docker 新建数据卷时属主是 root，平台用普通用户运行，写不进去）
+  init-data:
+    image: iot-sim:latest
+    # 和 app 同一个镜像（构建有缓存，不会重复构建）；写上 build，新服务器上就不会去 Docker Hub 拉这个镜像
+    build: .
+    user: root
+    command: ["sh", "-c", "chown -R \"$$APP_UID\" /data"]
+    volumes:
+      - data:/data
+    restart: "no"
+    networks: [default]
+
   app:
     image: iot-sim:latest
     build: .
     restart: unless-stopped
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
     environment:
       # 老师账号（只有一个）；学生账号由老师在网页上导入名单
       TEACHER_USERNAME: ${TEACHER_USERNAME:-admin}
