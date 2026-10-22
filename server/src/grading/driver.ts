@@ -16,6 +16,8 @@ export class ProgramDriver {
   private readonly nodes = new Map<string, ControlNode>()
   private readonly parents = new Map<string, ControlNode>()
   readonly messageBoxes: { text: string; caption: string }[] = []
+  /** 程序用 Image.Save 保存的图片路径 */
+  readonly savedImages: string[] = []
   readonly exceptions: string[] = []
   console = ''
   exited = false
@@ -105,6 +107,9 @@ export class ProgramDriver {
       }
       case 'device':
         this.board.applyDevice(message)
+        break
+      case 'imageSaved':
+        this.savedImages.push(message.path)
         break
       case 'console':
         this.console += message.text

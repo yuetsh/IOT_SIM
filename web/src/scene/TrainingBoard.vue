@@ -77,6 +77,10 @@ const relays = computed(() => props.board?.relays ?? [])
 const streetLampOn = computed(() => props.board?.zigbee[1] === true)
 const alarmOn = computed(() => relays.value[0] === true)
 const ledText = computed(() => props.board?.ledText ?? '')
+const camera = computed(() => props.board?.camera ?? { on: false, x: 3, y: 1 })
+const cameraTitle = computed(() =>
+  camera.value.on ? `网络摄像头：正在传送画面（云台左右 ${camera.value.x + 1}/7，上下 ${camera.value.y + 1}/3）` : '网络摄像头（项目 4 使用）：未开启',
+)
 </script>
 
 <template>
@@ -121,7 +125,7 @@ const ledText = computed(() => props.board?.ledText ?? '')
       </div>
       <div class="device warning-light" :class="{ on: alarmOn }" title="警示灯（ADAM-4150 DO0）">警示灯</div>
       <div class="beam" :class="{ broken: digital.infrared }" @click="toggle('infrared')" />
-      <div class="device camera" title="网络摄像头（项目 4 使用）">
+      <div class="device camera" :class="{ on: camera.on }" :title="cameraTitle">
         <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 7h11a2 2 0 0 1 2 2v1.5l3.5-2.5v8L17 13.5V15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" /></svg>
       </div>
       <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">
@@ -401,6 +405,12 @@ button {
 
 .camera {
   color: var(--muted);
+}
+
+.camera.on {
+  color: #4cd964;
+  border-color: #4cd96488;
+  box-shadow: 0 0 10px 2px #4cd96444;
 }
 
 /* LED 屏 */

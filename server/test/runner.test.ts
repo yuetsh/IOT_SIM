@@ -318,6 +318,41 @@ test('项目4 任务1：红外对射被遮挡时显示"发现入侵"', async () 
   await even('发现入侵')
 }, 30000)
 
+test('项目4 任务2：打开摄像机显示画面，转动后画面变化，有人翻墙时画面变化，拍照保存到 Camera 文件夹', async () => {
+  const { runner, id } = await startSample('p4-t2-网络摄像机')
+  const pictures = () => runner.next('patch', (m) => m.changes.some((c) => c.id === id('pictureBox1') && c.prop === 'Image'), 5000)
+  const imageOf = (patch: Extract<RunnerMessage, { type: 'patch' }>) =>
+    patch.changes.find((c) => c.id === id('pictureBox1') && c.prop === 'Image')!.value as { key: string; width: number; height: number }
+
+  runner.send({ type: 'action', id: id('txt_ip'), action: 'text', value: '192.168.2.50' })
+  const first = pictures()
+  const cameraOn = runner.next('device', (m) => m.device === 'camera' && m.action === 'on' && m.data === true)
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+  await cameraOn
+  const center = imageOf(await first)
+  expect(center).toMatchObject({ width: 640, height: 480 })
+  // 图片数据先于（或随）属性变化发给浏览器，同一张图只发一次
+  const sent = runner.messages.filter((m) => m.type === 'image' && m.key === center.key)
+  expect(sent.length).toBe(1)
+  expect(sent[0]).toMatchObject({ mime: 'image/jpeg' })
+
+  const up = pictures()
+  const pan = runner.next('device', (m) => m.device === 'camera' && m.action === 'pan')
+  runner.send({ type: 'action', id: id('btn_up'), action: 'click' })
+  expect((await pan).data).toEqual([3, 0])
+  expect(imageOf(await up).key).not.toBe(center.key)
+
+  const intruder = pictures()
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [false, false, false, true] })
+  const withIntruder = imageOf(await intruder)
+
+  const saved = runner.next('imageSaved')
+  runner.send({ type: 'action', id: id('btn_camera'), action: 'click' })
+  const photo = await saved
+  expect(photo.path).toMatch(/^Camera\/\d{8}_\d{2} \d{2} \d{2}\.jpg$/)
+  expect(photo.image).toBe(withIntruder.key)
+}, 30000)
+
 test('项目4 任务3：开报警灯——实训台 DO0 动作，窗体上的报警灯亮', async () => {
   const { runner, id } = await startSample('p4-t3-报警灯')
   await openAdam4150(runner, id)
@@ -483,6 +518,32 @@ test('ListBox：点某一项先选中（SelectedIndexChanged）再触发 Click�
   expect(output).toBe('changed=1,乙\nclick\ndouble=乙\n')
 }, 30000)
 
+test('图片：程序所在目录可写，Image.Save / FromFile 往返，文件夹不存在时和 GDI+ 一样报一般性错误', async () => {
+  const { runner } = await runMain(
+    'image',
+    `
+        string dir = AppDomain.CurrentDomain.BaseDirectory;
+        Console.WriteLine("base=" + dir.EndsWith("/bin/Debug/") + "," + (Directory.GetCurrentDirectory() + "/" == dir));
+        // 1×1 的 PNG
+        byte[] png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+        Image image = Image.FromStream(new MemoryStream(png));
+        Directory.CreateDirectory(dir + "Pics");
+        image.Save(dir + "Pics/a.png", ImageFormat.Png);
+        Image back = Image.FromFile("Pics/a.png");
+        Console.WriteLine("size=" + back.Width + "x" + back.Height + "," + back.RawFormat);
+        try { image.Save(dir + "NoSuchDir/b.png"); }
+        catch (System.Runtime.InteropServices.ExternalException ex) { Console.WriteLine("error=" + ex.Message); }`,
+    'using System.Drawing;\nusing System.Drawing.Imaging;',
+  )
+  expect((await runner.waitFor('compiled')).diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(output).toContain('base=True,True')
+  expect(output).toContain('size=1x1,Png')
+  expect(output).toContain('error=GDI+ 中发生一般性错误。')
+  expect(runner.messages.filter((m) => m.type === 'imageSaved').map((m) => (m as { path: string }).path)).toEqual(['Pics/a.png'])
+}, 30000)
+
 test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读', async () => {
   process.env.SIM_TEST_SECRET = '不该被看到'
   const { runner } = await runMain(
@@ -493,7 +554,8 @@ test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别�
         Console.WriteLine("home=" + Directory.Exists("/home"));
         Console.WriteLine("secret=" + (Environment.GetEnvironmentVariable("SIM_TEST_SECRET") ?? "null"));
         Console.WriteLine("procs=" + Directory.GetDirectories("/proc").Count(d => char.IsDigit(Path.GetFileName(d)[0])));
-        try { File.WriteAllText("hack.txt", "x"); Console.WriteLine("write=ok"); } catch (Exception) { Console.WriteLine("write=denied"); }
+        // 工程目录在沙箱里挂在 /sim/app（当前目录是可写的程序目录 bin/Debug，不是工程目录）
+        try { File.WriteAllText("/sim/app/hack.txt", "x"); Console.WriteLine("write=ok"); } catch (Exception) { Console.WriteLine("write=denied"); }
         File.WriteAllText("/tmp/ok.txt", "x");
         Console.WriteLine("tmp=" + File.Exists("/tmp/ok.txt"));`,
   )
@@ -525,7 +587,7 @@ test('内存上限：不停分配内存的程序得到 OutOfMemoryException，�
   expect(megabytes).toBeLessThanOrEqual(config.heapLimitMb)
 }, 30000)
 
-test('编译检查：网络、启动程序、反射、dynamic 给出中文报错；AssemblyInfo.cs 里的特性不受影响', async () => {
+test('编译检查：网络、启动程序、反射、dynamic、AppDomain 给出中文报错；AssemblyInfo.cs 里的特性、BaseDirectory 不受影响', async () => {
   const dir = resolve(ROOT, '.runs/test-policy')
   await rm(dir, { recursive: true, force: true })
   await Bun.write(
@@ -541,6 +603,8 @@ static class Program
         var client = new HttpClient();
         typeof(string).GetMethod("Trim", Type.EmptyTypes).Invoke("x", null);
         dynamic d = 1;
+        string path = AppDomain.CurrentDomain.BaseDirectory + "Camera/";
+        AppDomain.CurrentDomain.GetAssemblies();
     }
 }
 `,
@@ -562,6 +626,7 @@ using System.Runtime.InteropServices;
     [9, '平台不允许使用 System.Net.Http.HttpClient（网络访问）'],
     [10, '平台不允许使用 System.Reflection.MethodBase.Invoke（反射）'],
     [11, '平台不允许使用 dynamic（dynamic 动态调用）'],
+    [13, '平台不允许使用 System.AppDomain.GetAssemblies（加载程序集）'],
   ])
   expect(result.diagnostics.filter((d) => d.file.includes('AssemblyInfo'))).toEqual([])
 }, 30000)

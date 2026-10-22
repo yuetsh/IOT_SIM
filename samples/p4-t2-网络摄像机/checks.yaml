@@ -1,0 +1,40 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 能正确打开、关闭摄像机
+  steps:
+    - text: { control: txt_ip, value: 192.168.2.50 }
+    - click: btn_open
+    - expect: { control: btn_open, text: 关, desc: 按钮文字变成"关" }
+    - expect: { camera: on }
+    - click: btn_open
+    - expect: { control: btn_open, text: 开, desc: 按钮文字变回"开" }
+    - expect: { camera: off }
+
+- title: 能正确显示图像
+  steps:
+    - text: { control: txt_ip, value: 192.168.2.50 }
+    - click: btn_open
+    - expect: { control: pictureBox1, image: true, within: 3s, desc: 显示摄像机拍到的图像 }
+
+- title: 能控制摄像机上下左右旋转
+  steps:
+    - text: { control: txt_ip, value: 192.168.2.50 }
+    - click: btn_open
+    - click: btn_up
+    - expect: { camera: up, desc: 点"↑"后向上转 }
+    - click: btn_left
+    - expect: { camera: left, desc: 点"←"后向左转 }
+    - click: btn_down
+    - click: btn_down
+    - expect: { camera: down, desc: 点"↓"后向下转 }
+    - click: btn_right
+    - click: btn_right
+    - expect: { camera: right, desc: 点"→"后向右转 }
+
+- title: 能抓拍摄像机当前图像
+  steps:
+    - text: { control: txt_ip, value: 192.168.2.50 }
+    - click: btn_open
+    - expect: { control: pictureBox1, image: true, within: 3s, desc: 显示摄像机拍到的图像 }
+    - click: btn_camera
+    - expect: { savedImage: Camera/, desc: 把照片保存到 Camera 文件夹 }

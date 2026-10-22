@@ -151,6 +151,26 @@
   color: #fff;
 }
 
+.wf-picturebox {
+  overflow: hidden;
+}
+
+.wf-picturebox img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  user-select: none;
+}
+
+.wf-picturebox-border-FixedSingle {
+  border: 1px solid #646464;
+}
+
+.wf-picturebox-border-Fixed3D {
+  border: 2px inset #a0a0a0;
+}
+
 .wf-listbox {
   overflow-y: auto;
   overflow-x: hidden;

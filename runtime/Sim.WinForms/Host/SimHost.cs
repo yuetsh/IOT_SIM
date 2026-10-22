@@ -75,6 +75,42 @@ public static class SimHost
         _output.WriteLine(new JsonObject { ["type"] = "patch", ["changes"] = changes }.ToJsonString(JsonOptions));
     }
 
+    // ---------- 图片 ----------
+
+    private static readonly HashSet<string> SentImages = new();
+
+    /// <summary>
+    /// 学生程序的"程序所在目录"（AppDomain.CurrentDomain.BaseDirectory），可写，程序结束后清掉。
+    /// 运行器启动时设定；保存的图片按相对这里的路径显示在网页的照片列表里。
+    /// </summary>
+    public static string AppBaseDirectory { get; set; } = AppContext.BaseDirectory;
+
+    /// <summary>图片在浏览器端的编号；第一次用到时先把图片数据发过去，浏览器缓存后同一张图不再重发</summary>
+    public static string ImageKey(System.Drawing.Image image)
+    {
+        var key = image.SimKey;
+        bool isNew;
+        lock (SentImages) isNew = SentImages.Add(key);
+        if (isNew)
+        {
+            Send(new JsonObject
+            {
+                ["type"] = "image",
+                ["key"] = key,
+                ["mime"] = image.MimeType,
+                ["data"] = Convert.ToBase64String(image.Data),
+            });
+        }
+        return key;
+    }
+
+    /// <summary>学生程序用 Image.Save 保存了图片：网页的照片列表里显示出来</summary>
+    public static void ImageSaved(string fullPath, System.Drawing.Image image)
+    {
+        var path = fullPath.StartsWith(AppBaseDirectory, StringComparison.Ordinal) ? fullPath[AppBaseDirectory.Length..] : fullPath;
+        Send(new JsonObject { ["type"] = "imageSaved", ["path"] = path, ["image"] = ImageKey(image) });
+    }
+
     public static void SendConsole(string text) => Send(new JsonObject { ["type"] = "console", ["text"] = text });
 
     public static void SendDevice(string device, string action, object? data)

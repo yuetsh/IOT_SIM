@@ -15,6 +15,12 @@ export interface OpenForm {
   modal: boolean
 }
 
+/** 学生程序保存的图片（如摄像头照片），path 相对程序所在目录 */
+export interface SavedImage {
+  path: string
+  image: string
+}
+
 export interface PendingMessageBox {
   requestId: number
   text: string
@@ -34,10 +40,14 @@ export function createRunSession() {
     messageBoxes: [] as PendingMessageBox[],
     /** 虚拟实训台，由服务器推送；连接建立前为 null */
     board: null as BoardState | null,
+    /** 本次运行保存的图片，显示在运行区的照片列表里；下次运行时清空 */
+    savedImages: [] as SavedImage[],
     metrics: { compileMs: 0, startMs: 0, lastRoundTripMs: 0 },
   })
   /** id → 控件节点，patch 按 id 修改节点属性 */
   const nodes = shallowReactive(new Map<string, ControlNode>())
+  /** 图片编号 → 网址（blob:）。运行器每张图只发一次，控件属性里只带编号 */
+  const images = shallowReactive(new Map<string, string>())
   let socket: WebSocket | undefined
   /** 正在建立或已建立的连接；同时多处调用 connect() 时共用同一个 */
   let connecting: Promise<void> | undefined
@@ -76,7 +86,10 @@ export function createRunSession() {
     state.errors = []
     state.forms = []
     state.messageBoxes = []
+    state.savedImages = []
     nodes.clear()
+    for (const url of images.values()) URL.revokeObjectURL(url)
+    images.clear()
     send({ type: 'run', files })
   }
 
@@ -173,6 +186,14 @@ export function createRunSession() {
       case 'messageBox':
         state.messageBoxes.push(message)
         break
+      case 'image': {
+        const bytes = Uint8Array.from(atob(message.data), (c) => c.charCodeAt(0))
+        images.set(message.key, URL.createObjectURL(new Blob([bytes], { type: message.mime })))
+        break
+      }
+      case 'imageSaved':
+        state.savedImages.push({ path: message.path, image: message.image })
+        break
       case 'board':
         state.board = message.state
         break
@@ -197,7 +218,7 @@ export function createRunSession() {
     socket?.close()
   }
 
-  return { state, connect, run, stop, act, replyMessageBox, setBoard, resetBoard, close }
+  return { state, images, connect, run, stop, act, replyMessageBox, setBoard, resetBoard, close }
 }
 
 export type RunSession = ReturnType<typeof createRunSession>

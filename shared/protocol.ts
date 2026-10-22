@@ -62,6 +62,8 @@ export interface BoardState {
   /** ZigBee 继电器节点 0、1（教材用节点 1 控制路灯） */
   zigbee: boolean[]
   ledText: string
+  /** 网络摄像机：是否在传画面，云台位置（左右 0–6、上下 0–2，开始时在正中） */
+  camera: { on: boolean; x: number; y: number }
 }
 
 export type AnalogKey = keyof BoardState['analog']
@@ -92,7 +94,11 @@ export type RunnerMessage =
   | { type: 'controlAdded'; parentId: string; index: number; node: ControlNode }
   | { type: 'controlRemoved'; id: string }
   | { type: 'messageBox'; requestId: number; text: string; caption: string; buttons: string; icon: string }
-  /** 学生程序操作了实训台输出：led/text、adam4150/do、zigbee/relay，data 见 DeviceCtrlHelper.cs */
+  /** 图片数据（base64），同一张图只发一次；控件属性和 imageSaved 里用 key 引用 */
+  | { type: 'image'; key: string; mime: string; data: string }
+  /** 学生程序用 Image.Save 保存了图片；path 相对程序所在目录，如 Camera/20241022_10 30 00.jpg */
+  | { type: 'imageSaved'; path: string; image: string }
+  /** 学生程序操作了实训台输出：led/text、adam4150/do、zigbee/relay、camera/on、camera/pan，data 见 DeviceCtrlHelper.cs、IPCameraHelper.cs */
   | { type: 'device'; device: string; action: string; data: unknown }
   | { type: 'console'; text: string }
   | { type: 'exception'; message: string; detail: string }

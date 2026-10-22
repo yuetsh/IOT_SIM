@@ -15,6 +15,7 @@ export function defaultBoardState(): BoardState {
     relays: [false, false, false, false, false],
     zigbee: [false, false],
     ledText: '',
+    camera: { on: false, x: 3, y: 1 },
   }
 }
 
@@ -69,9 +70,23 @@ export class Board {
         this.state.zigbee[relay] = on === 1
         return true
       }
+      case 'camera/on':
+        this.state.camera.on = message.data === true
+        return true
+      case 'camera/pan': {
+        const [x, y] = message.data as [number, number]
+        this.state.camera.x = x
+        this.state.camera.y = y
+        return true
+      }
       default:
         return false
     }
+  }
+
+  /** 学生程序结束：摄像头不再传画面，云台回到正中（下次运行的程序从正中开始） */
+  programExited() {
+    this.state.camera = { on: false, x: 3, y: 1 }
   }
 
   reset() {

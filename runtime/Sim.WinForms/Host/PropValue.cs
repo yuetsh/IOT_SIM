@@ -31,6 +31,7 @@ public static class PropValue
             ["underline"] = f.Underline,
             ["strikeout"] = f.Strikeout,
         },
+        Image image => new JsonObject { ["key"] = SimHost.ImageKey(image), ["width"] = image.Width, ["height"] = image.Height },
         Padding p => new JsonObject { ["left"] = p.Left, ["top"] = p.Top, ["right"] = p.Right, ["bottom"] = p.Bottom },
         IEnumerable list => ListOf(list),
         _ => JsonValueOf(value.ToString() ?? ""),

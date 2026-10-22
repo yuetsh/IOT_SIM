@@ -17,6 +17,7 @@ public class DeviceCtrlHelper
     public static ADAM4017Helper adam4017Helper = new();
     public static ADAM4150Helper adam4150Helper = new();
     public static ZigBeeHelper zigBeeHelper = new();
+    public static IPCameraHelper ipCameraHelper = new();
 }
 
 public class SerialPortHelper

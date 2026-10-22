@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // 按控件类型渲染一个 WinForms 控件及其子控件。
 // 用户操作只通过 act() 上报，由运行器按真实 WinForms 的顺序触发事件。
-import { computed, ref } from 'vue'
+import { computed, inject, ref, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
 import { boxCss, displayText } from './format'
+import { RUN_IMAGES, type ImageValue } from './images'
 import LedControl from './LedControl.vue'
 
 const props = defineProps<{
@@ -48,6 +49,24 @@ function selectItem(index: number) {
   dropDownOpen.value = false
   act({ action: 'select', index })
 }
+
+// PictureBox：按 SizeMode 摆放图片
+const runImages = inject(RUN_IMAGES, new Map<string, string>())
+const image = computed(() => p.value.Image as ImageValue | null | undefined)
+const imageUrl = computed(() => (image.value ? runImages.get(image.value.key) : undefined))
+const imageStyle = computed((): CSSProperties => {
+  const natural = { width: `${image.value?.width ?? 0}px`, height: `${image.value?.height ?? 0}px` }
+  switch (p.value.SizeMode) {
+    case 'StretchImage':
+      return { width: '100%', height: '100%', objectFit: 'fill' }
+    case 'Zoom':
+      return { width: '100%', height: '100%', objectFit: 'contain' }
+    case 'CenterImage':
+      return { ...natural, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
+    default:
+      return natural
+  }
+})
 
 // ListBox
 const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) ?? 12}px`)
@@ -130,6 +149,17 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
     >
       {{ item }}
     </div>
+  </div>
+
+  <!-- PictureBox -->
+  <div
+    v-else-if="node.type === 'PictureBox'"
+    class="wf-control wf-picturebox"
+    :class="`wf-picturebox-border-${p.BorderStyle ?? 'None'}`"
+    :style="style"
+    @click="act({ action: 'click' })"
+  >
+    <img v-if="imageUrl" :src="imageUrl" :style="imageStyle" alt="" draggable="false" />
   </div>
 
   <!-- CheckBox / RadioButton：自绘勾选框，状态完全由运行器决定（点击只上报，不在浏览器里自行切换） -->

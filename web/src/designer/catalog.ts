@@ -180,6 +180,28 @@ export const CONTROLS: ControlDef[] = [
     initial: () => [['FormattingEnabled', bool(true)], ['ItemHeight', int(12)], ['Size', size(120, 88)]],
   },
   {
+    type: `${FORMS}.PictureBox`,
+    label: '图片框',
+    group: '常用控件',
+    namePrefix: 'pictureBox',
+    defaultEvent: 'Click',
+    props: [
+      ...COMMON_PROPS.filter((p) => p.name !== 'Text' && p.name !== 'ForeColor' && p.name !== 'Font'),
+      {
+        name: 'SizeMode', label: '显示方式', description: '图片在图片框里怎样显示', type: 'enum', enumType: `${FORMS}.PictureBoxSizeMode`,
+        options: ['Normal', 'StretchImage', 'AutoSize', 'CenterImage', 'Zoom'],
+        optionLabels: { Normal: '原样放在左上角', StretchImage: '拉伸填满', AutoSize: '图片框随图片大小', CenterImage: '居中', Zoom: '按比例缩放' },
+        default: enumValue(`${FORMS}.PictureBoxSizeMode`, 'Normal'), category: '外观',
+      },
+      {
+        name: 'BorderStyle', label: '边框', description: '边框', type: 'enum', enumType: `${FORMS}.BorderStyle`,
+        options: ['None', 'FixedSingle', 'Fixed3D'], optionLabels: { None: '无', FixedSingle: '单线', Fixed3D: '立体' }, default: enumValue(`${FORMS}.BorderStyle`, 'None'), category: '外观',
+      },
+    ],
+    events: COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
+    initial: () => [['Size', size(100, 50)], ['TabStop', bool(false)]],
+  },
+  {
     type: `${FORMS}.CheckBox`,
     label: '复选框',
     group: '常用控件',

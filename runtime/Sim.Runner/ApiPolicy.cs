@@ -41,6 +41,13 @@ internal static class ApiPolicy
         ["System.Runtime.InteropServices.NativeMemory"] = "调用本机代码",
     };
 
+    /// <summary>不允许的类型里单独放行的成员：教材用 AppDomain.CurrentDomain.BaseDirectory 拼出保存照片的路径</summary>
+    private static readonly HashSet<string> AllowedMembers = new()
+    {
+        "System.AppDomain.CurrentDomain",
+        "System.AppDomain.BaseDirectory",
+    };
+
     public static IEnumerable<Diagnostic> Check(CSharpCompilation compilation)
     {
         foreach (var tree in compilation.SyntaxTrees)
@@ -69,6 +76,7 @@ internal static class ApiPolicy
         if (symbol is IDynamicTypeSymbol) return "dynamic 动态调用";
         // using 指令里的命名空间不算：VS 生成的 AssemblyInfo.cs 会 using System.Runtime.InteropServices
         if (symbol is INamespaceSymbol) return null;
+        if (symbol is IPropertySymbol && AllowedMembers.Contains($"{symbol.ContainingType.ToDisplayString()}.{symbol.Name}")) return null;
         var type = symbol as INamedTypeSymbol ?? symbol.ContainingType;
         // 方法的返回值、参数类型由调用处检查；这里看符号本身属于哪个类型
         for (var t = type; t != null; t = t.ContainingType)

@@ -28,6 +28,12 @@ export type Expectation =
   | { kind: 'relay'; index: number; on: boolean }
   | { kind: 'zigbee'; index: number; on: boolean }
   | { kind: 'messageBox'; text: string }
+  /** 图片框里显示了图片 */
+  | { kind: 'image'; control: string }
+  /** 摄像头在传画面（on）/ 已关闭（off），或云台比开始时朝某个方向转过 */
+  | { kind: 'camera'; state: 'on' | 'off' | 'up' | 'down' | 'left' | 'right' }
+  /** 程序用 Image.Save 保存了图片，路径包含这段文字（如 Camera/） */
+  | { kind: 'savedImage'; path: string }
   | { kind: 'console'; text: string }
 
 /** 期望默认最多等多久（毫秒）；依赖定时器的检查在规则里写 within */
@@ -59,6 +65,12 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
   if ('led' in raw) return { kind: 'led', text: str(raw.led, where, ' LED 屏应显示的文字') }
   if ('messageBox' in raw) return { kind: 'messageBox', text: str(raw.messageBox, where, '提示框应包含的文字') }
   if ('console' in raw) return { kind: 'console', text: str(raw.console, where, '控制台应输出的文字') }
+  if ('camera' in raw) {
+    const state = String(raw.camera)
+    if (!['on', 'off', 'up', 'down', 'left', 'right'].includes(state)) throw new Error(`${where}：camera 要写 on、off、up、down、left 或 right`)
+    return { kind: 'camera', state: state as Extract<Expectation, { kind: 'camera' }>['state'] }
+  }
+  if ('savedImage' in raw) return { kind: 'savedImage', path: str(raw.savedImage, where, '保存的图片路径应包含的文字') }
   if ('relay' in raw) return { kind: 'relay', index: Number(raw.relay), on: bool(raw.on, where, 'on') }
   if ('zigbee' in raw) return { kind: 'zigbee', index: Number(raw.zigbee), on: bool(raw.on, where, 'on') }
 
@@ -69,6 +81,7 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
     return { kind: 'matches', control, pattern: new RegExp(source), source }
   }
   if ('unchanged' in raw) return { kind: 'unchanged', control, ms: duration(raw.unchanged, where) }
+  if ('image' in raw) return { kind: 'image', control }
   for (const [key, prop] of Object.entries(PROP_KEYS)) {
     if (key in raw) return { kind: 'prop', control, prop, value: STRING_PROPS.has(prop) ? String(raw[key]) : bool(raw[key], where, key) }
   }

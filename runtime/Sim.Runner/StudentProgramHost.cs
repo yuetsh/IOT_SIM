@@ -34,6 +34,8 @@ internal static class StudentProgramHost
         CultureInfo.CurrentCulture = zhCN;
         CultureInfo.CurrentUICulture = zhCN;
 
+        UseWritableBaseDirectory(dir);
+
         var assembly = AssemblyLoadContext.Default.LoadFromStream(
             new MemoryStream(File.ReadAllBytes(Path.Combine(dir, CompileServer.AssemblyFile))),
             new MemoryStream(File.ReadAllBytes(Path.Combine(dir, CompileServer.PdbFile))));
@@ -79,6 +81,28 @@ internal static class StudentProgramHost
         // 服务器关闭了标准输入：结束运行
         Environment.Exit(0);
         return 0;
+    }
+
+    /// <summary>
+    /// 学生程序的"程序所在目录"：和在 VS 里按 F5 一样是工程下的 bin/Debug/，也是当前目录，可以写文件
+    /// （教材把摄像头照片存到 AppDomain.CurrentDomain.BaseDirectory + "Camera/"）。
+    /// 沙箱里工程目录只读，改用沙箱自己的临时目录；两种情况下文件都在程序结束后清掉。
+    /// </summary>
+    private static void UseWritableBaseDirectory(string projectDir)
+    {
+        string baseDir;
+        try
+        {
+            baseDir = Directory.CreateDirectory(Path.Combine(projectDir, "bin", "Debug")).FullName;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            baseDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "StudentApp", "bin", "Debug")).FullName;
+        }
+        baseDir = Path.TrimEndingDirectorySeparator(baseDir) + Path.DirectorySeparatorChar;
+        AppContext.SetData("APP_CONTEXT_BASE_DIRECTORY", baseDir);
+        Directory.SetCurrentDirectory(baseDir);
+        SimHost.AppBaseDirectory = baseDir;
     }
 
     /// <summary>读取浏览器发来的操作，排队到界面线程执行</summary>

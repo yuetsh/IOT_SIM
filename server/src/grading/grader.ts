@@ -11,6 +11,9 @@ const START_TIMEOUT = 10_000
 
 const RELAY_NAMES = ['报警灯', '照明灯', '路灯', '插座 1', '插座 2']
 const ZIGBEE_NAMES = ['ZigBee 节点 0', '照明灯 1']
+/** 摄像头云台开始时的位置（见 IPCameraHelper.cs） */
+const CAMERA_START = { x: 3, y: 1 }
+const CAMERA_WORDS = { on: '开启（传送画面）', off: '关闭', up: '向上转', down: '向下转', left: '向左转', right: '向右转' }
 
 // ---------- 并发限制 ----------
 let running = 0
@@ -160,6 +163,14 @@ function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'uncha
       return driver.messageBoxes.some((box) => box.text.includes(e.text))
     case 'console':
       return driver.console.includes(e.text)
+    case 'image':
+      return Boolean(props(e.control)?.Image)
+    case 'camera': {
+      const { on, x, y } = driver.board.state.camera
+      return { on, off: !on, up: y < CAMERA_START.y, down: y > CAMERA_START.y, left: x < CAMERA_START.x, right: x > CAMERA_START.x }[e.state]
+    }
+    case 'savedImage':
+      return driver.savedImages.some((path) => path.includes(e.path))
   }
 }
 
@@ -195,5 +206,13 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
     }
     case 'console':
       return `期望${prefix}控制台${desc ?? `输出"${e.text}"`}，实际输出${quote(driver.console.trim())}`
+    case 'image':
+      return `期望${prefix} ${e.control} ${desc ?? '显示图片'}，实际是空的`
+    case 'camera':
+      return `期望${prefix}网络摄像机${desc ?? CAMERA_WORDS[e.state]}，实际${driver.board.state.camera.on ? '开着' : '没有开启'}${e.state === 'on' || e.state === 'off' ? '' : '、云台没有朝这个方向转'}`
+    case 'savedImage': {
+      const saved = driver.savedImages.map((p) => `"${p}"`).join('、')
+      return `期望${prefix}${desc ?? `保存图片到"${e.path}"`}，${saved ? `实际保存的是 ${saved}` : '实际没有保存图片'}`
+    }
   }
 }

@@ -31,7 +31,7 @@ async function prepare(id: string, name: string, edit?: { file: string; from: st
 
 describe('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
-  test('每个示例都有评分规则', () => expect(ids.length).toBe(12))
+  test('每个示例都有评分规则', () => expect(ids.length).toBe(13))
   for (const id of ids) {
     test(id, async () => {
       const result = await grade(await prepare(id, id), await checksOf(id))
@@ -78,6 +78,14 @@ describe('改坏的代码', () => {
     const stop = result.results.find((r) => r.title === '再点按钮能关闭串口、停止定时器')!
     expect(stop.passed).toBe(false)
     expect(stop.message).toStartWith('期望 txt_time 不再更新时间（定时器应已停止），实际从')
+  }, 60000)
+
+  test('摄像机：忘了绑定画面事件', async () => {
+    const id = 'p4-t2-网络摄像机'
+    const dir = await prepare(id, 'camera', { file: 'Form1.cs', from: 'DeviceCtrlHelper.ipCameraHelper.ImageRead += ipCameraHelper_ImageRead;', to: '' })
+    const result = await grade(dir, await checksOf(id))
+    expect(result.results.map((r) => r.passed)).toEqual([true, false, true, false])
+    expect(result.results[1].message).toBe('期望3 秒内 pictureBox1 显示摄像机拍到的图像，实际是空的')
   }, 60000)
 
   test('关闭时忘了挂起线程', async () => {

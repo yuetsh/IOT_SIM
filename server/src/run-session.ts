@@ -108,6 +108,8 @@ export class RunSession {
       clearTimeout(timeout)
       if (this.proc !== proc) return
       this.proc = undefined
+      this.board.programExited()
+      this.sendBoard()
       const cpuMessage = cpuLimitMessage(code, proc.signalCode)
       if (cpuMessage) this.send({ type: 'console', text: cpuMessage })
       this.send({ type: 'exited', code })
@@ -159,6 +161,8 @@ export class RunSession {
     if (!proc) return
     proc.kill()
     await proc.exited
+    this.board.programExited()
+    this.sendBoard()
   }
 
   private async cleanup() {

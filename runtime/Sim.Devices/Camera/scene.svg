@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="800" viewBox="0 0 1840 800">
+  <!-- 网络摄像机看到的场景：从校园里望向东围墙。摄像机视野 640×480，左右 7 档、上下 3 档（见 build-frames.ts）。
+       #intruder 是翻墙的人，实训台红外对射被遮挡时显示，同时对射光束断开（#beam）。 -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7cb9e8"/>
+      <stop offset="1" stop-color="#d4ecfa"/>
+    </linearGradient>
+    <linearGradient id="lawn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8cc66d"/>
+      <stop offset="1" stop-color="#6aa84f"/>
+    </linearGradient>
+    <pattern id="bricks" width="60" height="30" patternUnits="userSpaceOnUse">
+      <rect width="60" height="30" fill="#c96f4a"/>
+      <path d="M0 15h60M0 30h60M30 0v15M0 15v15M60 15v15" stroke="#a65638" stroke-width="2"/>
+    </pattern>
+    <g id="tree">
+      <rect x="-7" y="-10" width="14" height="70" fill="#7a5230"/>
+      <circle cx="0" cy="-50" r="48" fill="#4f9a45"/>
+      <circle cx="-30" cy="-25" r="34" fill="#5aa84f"/>
+      <circle cx="30" cy="-25" r="34" fill="#468c3e"/>
+    </g>
+    <g id="pine">
+      <rect x="-6" y="-10" width="12" height="40" fill="#6b4a2b"/>
+      <path d="M0 -130 L45 -10 H-45 Z" fill="#3f7f45"/>
+      <path d="M0 -150 L35 -60 H-35 Z" fill="#4a8f4f"/>
+    </g>
+    <g id="cloud" fill="#ffffff" opacity="0.92">
+      <ellipse cx="0" cy="0" rx="70" ry="26"/>
+      <ellipse cx="-40" cy="8" rx="45" ry="20"/>
+      <ellipse cx="45" cy="6" rx="50" ry="22"/>
+      <ellipse cx="5" cy="-18" rx="40" ry="24"/>
+    </g>
+  </defs>
+
+  <!-- 天空和云 -->
+  <rect width="1840" height="460" fill="url(#sky)"/>
+  <circle cx="1620" cy="110" r="46" fill="#ffe27a"/>
+  <use href="#cloud" x="210" y="110"/>
+  <use href="#cloud" x="760" y="70" transform="scale(1)"/>
+  <use href="#cloud" x="1250" y="150"/>
+  <use href="#cloud" x="1700" y="250"/>
+  <use href="#cloud" x="420" y="260"/>
+
+  <!-- 墙外远处的楼房 -->
+  <g fill="#b9c7d6">
+    <rect x="40" y="250" width="150" height="220"/>
+    <rect x="230" y="300" width="110" height="170"/>
+    <rect x="1450" y="230" width="170" height="240"/>
+    <rect x="1660" y="290" width="130" height="180"/>
+  </g>
+  <g fill="#e6eef6">
+    <rect x="60" y="270" width="24" height="18"/><rect x="104" y="270" width="24" height="18"/><rect x="148" y="270" width="24" height="18"/>
+    <rect x="60" y="310" width="24" height="18"/><rect x="104" y="310" width="24" height="18"/><rect x="148" y="310" width="24" height="18"/>
+    <rect x="60" y="350" width="24" height="18"/><rect x="104" y="350" width="24" height="18"/><rect x="148" y="350" width="24" height="18"/>
+    <rect x="1470" y="250" width="26" height="20"/><rect x="1520" y="250" width="26" height="20"/><rect x="1570" y="250" width="26" height="20"/>
+    <rect x="1470" y="295" width="26" height="20"/><rect x="1520" y="295" width="26" height="20"/><rect x="1570" y="295" width="26" height="20"/>
+    <rect x="1470" y="340" width="26" height="20"/><rect x="1520" y="340" width="26" height="20"/><rect x="1570" y="340" width="26" height="20"/>
+  </g>
+
+  <!-- 墙外的教学楼（对面学校） -->
+  <rect x="560" y="200" width="620" height="270" fill="#f2e3c9"/>
+  <rect x="540" y="185" width="660" height="22" fill="#c98b5a"/>
+  <rect x="820" y="140" width="100" height="50" fill="#f2e3c9"/>
+  <rect x="810" y="130" width="120" height="14" fill="#c98b5a"/>
+  <circle cx="870" cy="166" r="16" fill="#ffffff" stroke="#8a6a4a" stroke-width="3"/>
+  <path d="M870 166 V156 M870 166 H878" stroke="#8a6a4a" stroke-width="3"/>
+  <g fill="#7fa6c8">
+    <rect x="590" y="225" width="50" height="40"/><rect x="670" y="225" width="50" height="40"/><rect x="750" y="225" width="50" height="40"/>
+    <rect x="940" y="225" width="50" height="40"/><rect x="1020" y="225" width="50" height="40"/><rect x="1100" y="225" width="50" height="40"/>
+    <rect x="590" y="295" width="50" height="40"/><rect x="670" y="295" width="50" height="40"/><rect x="750" y="295" width="50" height="40"/>
+    <rect x="940" y="295" width="50" height="40"/><rect x="1020" y="295" width="50" height="40"/><rect x="1100" y="295" width="50" height="40"/>
+    <rect x="590" y="365" width="50" height="40"/><rect x="670" y="365" width="50" height="40"/><rect x="750" y="365" width="50" height="40"/>
+    <rect x="940" y="365" width="50" height="40"/><rect x="1020" y="365" width="50" height="40"/><rect x="1100" y="365" width="50" height="40"/>
+  </g>
+  <rect x="835" y="380" width="70" height="90" fill="#8a6a4a"/>
+
+  <!-- 墙外的树 -->
+  <use href="#pine" x="420" y="470"/>
+  <use href="#pine" x="1300" y="470"/>
+  <use href="#pine" x="1380" y="475"/>
+
+  <!-- 东围墙 -->
+  <rect x="0" y="440" width="1840" height="140" fill="url(#bricks)"/>
+  <rect x="0" y="428" width="1840" height="16" fill="#e8d8c4"/>
+  <g fill="#b5603f">
+    <rect x="0" y="420" width="40" height="160"/>
+    <rect x="460" y="420" width="40" height="160"/>
+    <rect x="920" y="420" width="40" height="160"/>
+    <rect x="1380" y="420" width="40" height="160"/>
+    <rect x="1800" y="420" width="40" height="160"/>
+  </g>
+  <g fill="#e8d8c4">
+    <rect x="-6" y="412" width="52" height="12"/><rect x="454" y="412" width="52" height="12"/>
+    <rect x="914" y="412" width="52" height="12"/><rect x="1374" y="412" width="52" height="12"/>
+    <rect x="1794" y="412" width="52" height="12"/>
+  </g>
+
+  <!-- 墙头的红外对射：两个探头和红色光束 -->
+  <g>
+    <rect x="474" y="384" width="16" height="28" rx="3" fill="#3a3f47"/>
+    <rect x="478" y="390" width="8" height="6" fill="#e04040"/>
+    <rect x="1384" y="384" width="16" height="28" rx="3" fill="#3a3f47"/>
+    <rect x="1388" y="390" width="8" height="6" fill="#e04040"/>
+    <path id="beam" d="M490 393 H1384" stroke="#ff3b3b" stroke-width="2" stroke-dasharray="10 6" opacity="0.8"/>
+    <g id="beam-broken" display="none" stroke="#ff3b3b" stroke-width="2" stroke-dasharray="10 6" opacity="0.8">
+      <path d="M490 393 H880"/>
+    </g>
+  </g>
+
+  <!-- 翻墙的人 -->
+  <g id="intruder" display="none">
+    <!-- 腿：一条跨在墙头，一条垂在墙里侧 -->
+    <path d="M905 430 L870 470 L880 520" stroke="#2f3b55" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M915 430 L955 455 L985 440" stroke="#2f3b55" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="882" cy="526" rx="16" ry="8" fill="#222"/>
+    <!-- 身体 -->
+    <path d="M890 360 Q910 350 930 362 L925 435 H895 Z" fill="#2c2c2c"/>
+    <!-- 手臂撑在墙头 -->
+    <path d="M895 372 L860 410 L870 428" stroke="#2c2c2c" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M928 372 L955 405 L945 428" stroke="#2c2c2c" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- 头和帽子 -->
+    <circle cx="910" cy="332" r="22" fill="#e9b88f"/>
+    <path d="M887 330 Q910 296 934 330 Z" fill="#1d1d1d"/>
+    <rect x="895" y="328" width="30" height="7" fill="#1d1d1d"/>
+    <!-- 背包 -->
+    <rect x="922" y="372" width="22" height="34" rx="5" fill="#8b3a3a"/>
+  </g>
+
+  <!-- 墙里侧：草地、小路、路灯、树、灌木 -->
+  <rect x="0" y="580" width="1840" height="220" fill="url(#lawn)"/>
+  <path d="M0 640 Q600 610 1000 650 T1840 630 V700 Q1300 720 900 700 T0 720 Z" fill="#d9c9a8"/>
+  <g fill="#3f8a3a">
+    <ellipse cx="120" cy="590" rx="90" ry="30"/>
+    <ellipse cx="700" cy="592" rx="110" ry="28"/>
+    <ellipse cx="1160" cy="590" rx="100" ry="30"/>
+    <ellipse cx="1640" cy="592" rx="120" ry="30"/>
+  </g>
+  <use href="#tree" x="300" y="640"/>
+  <use href="#tree" x="1560" y="650"/>
+  <g>
+    <rect x="1236" y="470" width="10" height="200" fill="#505a66"/>
+    <path d="M1241 476 Q1241 450 1275 450 H1290" stroke="#505a66" stroke-width="8" fill="none"/>
+    <rect x="1280" y="446" width="34" height="12" rx="4" fill="#3d4652"/>
+    <ellipse cx="1297" cy="460" rx="14" ry="4" fill="#fff6c4"/>
+  </g>
+  <g fill="#6aa84f">
+    <circle cx="40" cy="770" r="6"/><circle cx="520" cy="760" r="5"/><circle cx="980" cy="775" r="6"/>
+    <circle cx="1420" cy="765" r="5"/><circle cx="1780" cy="772" r="6"/>
+  </g>
+</svg>

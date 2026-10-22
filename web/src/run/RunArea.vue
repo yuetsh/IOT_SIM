@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // 运行区：学生程序的窗体（在一块"桌面"上）、提示框、虚拟实训台，以及编译错误和控制台输出。
 // 实验页和老师的评阅页共用。
+import { provide, ref } from 'vue'
 import TrainingBoard from '../scene/TrainingBoard.vue'
 import FormWindow from '../winforms/FormWindow.vue'
+import { RUN_IMAGES } from '../winforms/images'
 import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
 import type { RunSession } from './session'
 
@@ -10,6 +12,10 @@ const props = defineProps<{ session: RunSession }>()
 const emit = defineEmits<{ diagnostic: [file: string, line: number, column: number] }>()
 
 const state = props.session.state
+provide(RUN_IMAGES, props.session.images)
+
+/** 照片列表里点开看大图 */
+const viewing = ref<{ path: string; url: string } | null>(null)
 </script>
 
 <template>
@@ -32,6 +38,26 @@ const state = props.session.state
       <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
     </div>
     <TrainingBoard :board="state.board" @set="session.setBoard" @reset="session.resetBoard" />
+    <div v-if="state.savedImages.length" class="photos">
+      <div class="photos-title">程序保存的图片（{{ state.savedImages.length }}）<span>只在这次运行中保留</span></div>
+      <div class="photos-list">
+        <figure
+          v-for="(photo, i) in state.savedImages"
+          :key="i"
+          :title="`${photo.path}（点击查看大图）`"
+          @click="viewing = { path: photo.path, url: session.images.get(photo.image) ?? '' }"
+        >
+          <img :src="session.images.get(photo.image)" alt="" />
+          <figcaption>{{ photo.path }}</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div v-if="viewing" class="photo-viewer" @click="viewing = null">
+      <figure>
+        <img :src="viewing.url" alt="" />
+        <figcaption>{{ viewing.path }}（点击任意处关闭）</figcaption>
+      </figure>
+    </div>
     <div class="output">
       <div
         v-for="(d, i) in state.diagnostics"
@@ -76,6 +102,75 @@ const state = props.session.state
   align-items: center;
   justify-content: center;
   color: rgb(255 255 255 / 0.7);
+}
+
+.photos {
+  font-size: 12px;
+}
+
+.photos-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.photos-title span {
+  margin-left: 8px;
+  font-weight: normal;
+  color: #6b7280;
+}
+
+.photos-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.photos-list figure {
+  flex: none;
+  width: 120px;
+  margin: 0;
+  cursor: zoom-in;
+}
+
+.photos-list img {
+  display: block;
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid #d1d5db;
+}
+
+.photos-list figcaption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4b5563;
+}
+
+.photo-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.6);
+  cursor: zoom-out;
+}
+
+.photo-viewer figure {
+  margin: 0;
+  max-width: 90vw;
+  text-align: center;
+  color: #fff;
+}
+
+.photo-viewer img {
+  max-width: 90vw;
+  max-height: 80vh;
+  border-radius: 4px;
 }
 
 .output {
