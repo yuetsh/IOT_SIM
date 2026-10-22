@@ -5,11 +5,13 @@ import { cp, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ControlNode, RunnerInput, RunnerMessage } from '@iot/shared'
 import { compileService } from '../src/compile-service'
-import { ROOT, RUNNER_DLL } from '../src/runner-process'
+import { config, ROOT } from '../src/config'
+import { cpuLimitMessage, runCommand } from '../src/sandbox'
 
 class Runner {
   readonly messages: RunnerMessage[] = []
   private proc?: Bun.Subprocess<'pipe', 'pipe', 'inherit'>
+  private reading?: Promise<void>
   private waiters: { match: (m: RunnerMessage) => boolean; resolve: (m: RunnerMessage) => void }[] = []
 
   /** 与服务器相同的流程：先由编译服务编译，成功后启动运行进程 */
@@ -18,8 +20,9 @@ class Runner {
     const compiled = await compileService.compile(projectDir)
     runner.receive({ type: 'compiled', ...compiled })
     if (compiled.ok) {
-      runner.proc = Bun.spawn(['dotnet', RUNNER_DLL, 'run', projectDir], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' })
-      void runner.read()
+      const { cmd, env } = runCommand(projectDir, {})
+      runner.proc = Bun.spawn(cmd, { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit', env })
+      runner.reading = runner.read()
     }
     return runner
   }
@@ -86,6 +89,13 @@ class Runner {
 
   kill() {
     this.proc?.kill()
+  }
+
+  /** 等程序自己结束、输出全部读完 */
+  async finished() {
+    await this.proc!.exited
+    await this.reading
+    return { code: this.proc!.exitCode, signal: this.proc!.signalCode }
   }
 }
 
@@ -323,4 +333,111 @@ test('项目5 任务1：有火焰时显示"发现火情！"', async () => {
   await openAdam4150(runner, id)
   runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [false, true, false, false] })
   await runner.next('patch', (m) => m.changes.some((c) => c.id === id('txt_even') && c.value === '发现火情！'), 5000)
+}, 30000)
+
+/** 把一段 Main 方法体写成工程并运行，收集它的控制台输出 */
+async function runMain(name: string, body: string, usings = '') {
+  const dir = resolve(ROOT, '.runs', `test-${name}`)
+  await rm(dir, { recursive: true, force: true })
+  await Bun.write(
+    `${dir}/Program.cs`,
+    `using System;\nusing System.IO;\nusing System.Linq;\n${usings}\nstatic class Program\n{\n    static void Main()\n    {\n${body}\n    }\n}\n`,
+  )
+  runner = await Runner.start(dir)
+  return { runner, dir }
+}
+
+test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读', async () => {
+  process.env.SIM_TEST_SECRET = '不该被看到'
+  const { runner } = await runMain(
+    'sandbox',
+    `
+        Console.WriteLine("passwd=" + File.Exists("/etc/passwd"));
+        Console.WriteLine("runs=" + Directory.Exists(${JSON.stringify(config.runsDir)}));
+        Console.WriteLine("home=" + Directory.Exists("/home"));
+        Console.WriteLine("secret=" + (Environment.GetEnvironmentVariable("SIM_TEST_SECRET") ?? "null"));
+        Console.WriteLine("procs=" + Directory.GetDirectories("/proc").Count(d => char.IsDigit(Path.GetFileName(d)[0])));
+        try { File.WriteAllText("hack.txt", "x"); Console.WriteLine("write=ok"); } catch (Exception) { Console.WriteLine("write=denied"); }
+        File.WriteAllText("/tmp/ok.txt", "x");
+        Console.WriteLine("tmp=" + File.Exists("/tmp/ok.txt"));`,
+  )
+  expect((await runner.waitFor('compiled')).ok).toBe(true)
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(output).toContain('passwd=False')
+  expect(output).toContain('runs=False')
+  expect(output).toContain('home=False')
+  expect(output).toContain('secret=null')
+  // 只能看到 bwrap 和自己
+  expect(Number(/procs=(\d+)/.exec(output)?.[1])).toBeLessThanOrEqual(2)
+  expect(output).toContain('write=denied')
+  expect(output).toContain('tmp=True')
+}, 30000)
+
+test('内存上限：不停分配内存的程序得到 OutOfMemoryException，而不是吃光服务器内存', async () => {
+  const { runner } = await runMain(
+    'heap',
+    `
+        var blocks = new System.Collections.Generic.List<byte[]>();
+        try { while (true) blocks.Add(new byte[1 << 20]); }
+        catch (OutOfMemoryException) { Console.WriteLine("oom=" + blocks.Count); }`,
+  )
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  const megabytes = Number(/oom=(\d+)/.exec(output)?.[1])
+  expect(megabytes).toBeGreaterThan(50)
+  expect(megabytes).toBeLessThanOrEqual(config.heapLimitMb)
+}, 30000)
+
+test('编译检查：网络、启动程序、反射、dynamic 给出中文报错；AssemblyInfo.cs 里的特性不受影响', async () => {
+  const dir = resolve(ROOT, '.runs/test-policy')
+  await rm(dir, { recursive: true, force: true })
+  await Bun.write(
+    `${dir}/Program.cs`,
+    `using System;
+using System.Diagnostics;
+using System.Net.Http;
+static class Program
+{
+    static void Main()
+    {
+        Process.Start("sh");
+        var client = new HttpClient();
+        typeof(string).GetMethod("Trim", Type.EmptyTypes).Invoke("x", null);
+        dynamic d = 1;
+    }
+}
+`,
+  )
+  await Bun.write(
+    `${dir}/Properties/AssemblyInfo.cs`,
+    `using System.Reflection;
+using System.Runtime.InteropServices;
+[assembly: AssemblyTitle("WindowsFormsApplication1")]
+[assembly: ComVisible(false)]
+[assembly: Guid("0a1b2c3d-1111-2222-3333-444455556666")]
+`,
+  )
+  const result = await compileService.compile(dir)
+  expect(result.ok).toBe(false)
+  const denied = result.diagnostics.filter((d) => d.code === 'SIM001')
+  expect(denied.map((d) => [d.line, d.message])).toEqual([
+    [8, '平台不允许使用 System.Diagnostics.Process.Start（启动其他程序）'],
+    [9, '平台不允许使用 System.Net.Http.HttpClient（网络访问）'],
+    [10, '平台不允许使用 System.Reflection.MethodBase.Invoke（反射）'],
+    [11, '平台不允许使用 dynamic（dynamic 动态调用）'],
+  ])
+  expect(result.diagnostics.filter((d) => d.file.includes('AssemblyInfo'))).toEqual([])
+}, 30000)
+
+test.skipIf(config.sandbox === 'none')('CPU 时间上限：死循环的程序到时被结束，并提示检查死循环', async () => {
+  const limit = config.cpuLimitSeconds
+  config.cpuLimitSeconds = 2
+  try {
+    const { runner } = await runMain('cpu', '        long i = 0;\n        while (true) i++;')
+    const { code, signal } = await runner.finished()
+    expect(cpuLimitMessage(code, signal)).toContain('死循环')
+  } finally {
+    config.cpuLimitSeconds = limit
+  }
 }, 30000)

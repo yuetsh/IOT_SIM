@@ -1,8 +1,3 @@
-import { resolve } from 'node:path'
-
-export const ROOT = resolve(import.meta.dir, '../..')
-export const RUNNER_DLL = resolve(ROOT, 'runtime/Sim.Runner/bin/Debug/net10.0/Sim.Runner.dll')
-
 /** 逐行读取子进程输出 */
 export async function readLines(stream: ReadableStream<Uint8Array>, onLine: (line: string) => void) {
   const decoder = new TextDecoder()

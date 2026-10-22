@@ -1,0 +1,10 @@
+# 只把构建需要的源码送进 Docker
+**/node_modules
+**/bin
+**/obj
+**/dist
+.runs
+.git
+docs
+*.pdf
+.env

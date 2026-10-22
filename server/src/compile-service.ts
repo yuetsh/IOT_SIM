@@ -1,6 +1,7 @@
 import type { Subprocess } from 'bun'
 import type { Diagnostic } from '@iot/shared'
-import { RUNNER_DLL, readLines } from './runner-process'
+import { config } from './config'
+import { readLines } from './runner-process'
 
 export interface CompileResult {
   ok: boolean
@@ -37,11 +38,11 @@ class CompileService {
   /** 服务器启动时调用，提前完成编译器的加载和预热 */
   start() {
     if (this.ready) return this.ready
-    const proc = Bun.spawn(['dotnet', RUNNER_DLL, 'compile-server'], {
+    const proc = Bun.spawn(['dotnet', config.runnerDll, 'compile-server'], {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'inherit',
-      env: { ...process.env, DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' },
+      env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME ?? '/tmp', DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' },
     })
     this.proc = proc
     this.ready = new Promise<void>((resolveReady) => {

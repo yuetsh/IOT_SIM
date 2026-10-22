@@ -16,3 +16,6 @@ obj/
 .vscode/
 .idea/
 .DS_Store
+
+# 部署配置（含访问口令）
+.env

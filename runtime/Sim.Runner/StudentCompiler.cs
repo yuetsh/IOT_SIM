@@ -55,15 +55,16 @@ internal static class StudentCompiler
         using var pdbStream = new MemoryStream();
         var emit = compilation.Emit(peStream, pdbStream,
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
+        var denied = ApiPolicy.Check(compilation).ToList();
 
         var diagnostics = new JsonArray();
-        foreach (var diagnostic in emit.Diagnostics
+        foreach (var diagnostic in emit.Diagnostics.Concat(denied)
                      .Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
                      .OrderBy(d => d.Severity == DiagnosticSeverity.Error ? 0 : 1))
         {
             diagnostics.Add(ToJson(diagnostic));
         }
-        return new Result(emit.Success, peStream.ToArray(), pdbStream.ToArray(), diagnostics);
+        return new Result(emit.Success && denied.Count == 0, peStream.ToArray(), pdbStream.ToArray(), diagnostics);
     }
 
     private static JsonObject ToJson(Diagnostic diagnostic)

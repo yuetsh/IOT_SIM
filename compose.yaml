@@ -1,0 +1,55 @@
+# 部署：先在 .env 里写好 ACCESS_PASSWORD（参考 .env.example），再 docker compose up -d
+# HTTPS 由 Nginx Proxy Manager 负责，它在 npm_proxy 网络里转发到 iot-sim:80；步骤见 deploy/README.md
+services:
+  app:
+    image: iot-sim:latest
+    build: .
+    restart: unless-stopped
+    environment:
+      ACCESS_PASSWORD: ${ACCESS_PASSWORD:?请在 .env 里设置 ACCESS_PASSWORD}
+      # 以下可在 .env 里调整，说明见 deploy/README.md
+      SIM_MAX_RUNS: ${SIM_MAX_RUNS:-150}
+      SIM_HEAP_LIMIT_MB: ${SIM_HEAP_LIMIT_MB:-128}
+      SIM_CPU_LIMIT_SECONDS: ${SIM_CPU_LIMIT_SECONDS:-120}
+      SIM_MAX_RUN_MINUTES: ${SIM_MAX_RUN_MINUTES:-60}
+    # 容器文件系统只读，只有 /tmp（学生工程的临时目录）可写
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      # bubblewrap 要创建用户命名空间、挂载新的 /proc，Docker 默认的 seccomp 规则和 /proc 遮罩会拦住它。
+      # 放开后，学生程序仍然在 bubblewrap 里：断网、看不到其他进程和文件、不是 root。
+      - seccomp=unconfined
+      - apparmor=unconfined
+      - systempaths=unconfined
+    # 整个平台的资源上限（两个班同时运行约需 1.5 GB），可在 .env 里用 APP_MEM_LIMIT 调整
+    mem_limit: ${APP_MEM_LIMIT:-4g}
+    pids_limit: 4096
+    expose: ["3000"]
+    networks: [default]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    expose:
+      - 80
+    networks:
+      default:
+      npm_proxy:
+        # NPM 里转发到 http://iot-sim:80
+        aliases: [iot-sim]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  npm_proxy:
+    external: true

@@ -4,9 +4,14 @@ import type { Subprocess } from 'bun'
 import type { ClientMessage, RunnerInput, RunnerMessage, ServerMessage, SourceFile } from '@iot/shared'
 import { Board } from './board'
 import { compileService } from './compile-service'
-import { ROOT, RUNNER_DLL, readLines } from './runner-process'
+import { config } from './config'
+import { readLines } from './runner-process'
+import { cpuLimitMessage, runCommand, sandboxError } from './sandbox'
 
-const RUNS_DIR = join(ROOT, '.runs')
+const RUNS_DIR = config.runsDir
+
+/** 全站正在运行的学生程序数 */
+let liveRuns = 0
 
 /** 服务器启动时清掉上次异常退出遗留的运行目录 */
 export async function cleanupStaleRuns() {
@@ -37,6 +42,7 @@ export class RunSession {
   }
 
   private async startNow(files: SourceFile[]) {
+    if (sandboxError) throw new Error(sandboxError)
     await this.dispose()
     const generation = ++this.generation
     await mkdir(RUNS_DIR, { recursive: true })
@@ -61,20 +67,24 @@ export class RunSession {
       await this.cleanup()
       return
     }
+    if (liveRuns >= config.maxRuns) {
+      this.send({ type: 'serverError', message: '服务器繁忙：同时运行的程序太多，请稍后再试' })
+      this.send({ type: 'status', state: 'stopped' })
+      await this.cleanup()
+      return
+    }
 
-    const proc = Bun.spawn(['dotnet', RUNNER_DLL, 'run', dir], {
-      stdin: 'pipe',
-      stdout: 'pipe',
-      stderr: 'pipe',
-      env: {
-        ...process.env,
-        DOTNET_CLI_TELEMETRY_OPTOUT: '1',
-        DOTNET_NOLOGO: '1',
-        // 启动时就带上传感器读数，学生程序第一次 SetData() 前不必等消息
-        SIM_BOARD: JSON.stringify(this.board.runnerInputs()),
-      },
-    })
+    // 启动时就带上传感器读数，学生程序第一次 SetData() 前不必等消息
+    const { cmd, env } = runCommand(dir, { SIM_BOARD: JSON.stringify(this.board.runnerInputs()) })
+    const proc = Bun.spawn(cmd, { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', env })
     this.proc = proc
+    liveRuns++
+    // 运行太久自动结束，防止忘了关的程序一直占着服务器
+    const timeout = setTimeout(() => {
+      if (this.proc !== proc) return
+      this.send({ type: 'console', text: `\n程序已运行 ${config.maxRunMinutes} 分钟，自动结束。\n` })
+      proc.kill()
+    }, config.maxRunMinutes * 60_000)
 
     void readLines(proc.stdout, (line) => {
       let message: RunnerMessage
@@ -94,8 +104,12 @@ export class RunSession {
     void readLines(proc.stderr, (line) => this.send({ type: 'serverError', message: line }))
 
     proc.exited.then(async (code) => {
+      liveRuns--
+      clearTimeout(timeout)
       if (this.proc !== proc) return
       this.proc = undefined
+      const cpuMessage = cpuLimitMessage(code, proc.signalCode)
+      if (cpuMessage) this.send({ type: 'console', text: cpuMessage })
       this.send({ type: 'exited', code })
       this.send({ type: 'status', state: 'stopped' })
       await this.cleanup()

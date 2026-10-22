@@ -5,7 +5,8 @@ import { cp, mkdir, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ControlNode, RunnerMessage } from '@iot/shared'
 import { compileService } from '../src/compile-service'
-import { ROOT, RUNNER_DLL, readLines } from '../src/runner-process'
+import { config, ROOT } from '../src/config'
+import { readLines } from '../src/runner-process'
 
 const COUNT = Number(process.argv[2] ?? 100)
 const dir = resolve(ROOT, '.runs/load-test')
@@ -47,7 +48,7 @@ const startAt = performance.now()
 const instances: Instance[] = []
 const shown: Promise<void>[] = []
 for (let i = 0; i < COUNT; i++) {
-  const proc = Bun.spawn(['dotnet', RUNNER_DLL, 'run', dir], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' })
+  const proc = Bun.spawn(['dotnet', config.runnerDll, 'run', dir], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' })
   const instance: Instance = { proc }
   instances.push(instance)
   shown.push(

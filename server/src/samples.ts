@@ -1,8 +1,9 @@
 import { readdir } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import type { SourceFile } from '@iot/shared'
+import { config } from './config'
 
-const SAMPLES_DIR = resolve(import.meta.dir, '../../samples')
+const SAMPLES_DIR = config.samplesDir
 
 export interface SampleInfo {
   id: string

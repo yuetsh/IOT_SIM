@@ -1,0 +1,17 @@
+# HTTPS 由 Nginx Proxy Manager 负责，Caddy 只在 80 端口收 HTTP，转发给应用（包括 WebSocket /ws）。
+{
+	auto_https off
+	servers {
+		# NPM 在 Docker 内网里，信任它带来的 X-Forwarded-For，取到学生的真实 IP。
+		# 如果 NPM 前面还有公网上的 CDN，把 CDN 的 IP 段加在 private_ranges 后面。
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
+	}
+}
+
+:80 {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		header_up X-Real-IP {client_ip}
+	}
+}

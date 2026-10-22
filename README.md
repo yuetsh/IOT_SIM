@@ -13,10 +13,11 @@
 | `runtime/` | .NET 10：仿真 WinForms（`Sim.WinForms`）、教材设备类库（`Sim.Devices`）、运行器（`Sim.Runner`） |
 | `samples/` | 示例工程（按教材任务整理） |
 | `docs/` | 设计方案（`设计方案.md`）、教材逐任务摘要（`教材摘要/`） |
+| `deploy/` | 部署：Caddyfile、部署脚本和说明（`deploy/README.md`） |
 
 ## 本地开发
 
-需要 Bun 和 .NET 10 SDK。
+需要 Bun 和 .NET 10 SDK；装了 bubblewrap（`bwrap`）时，学生程序在本机也会放进沙箱运行，和服务器一致。
 
 ```bash
 bun install                 # 安装前端和后端依赖
@@ -33,6 +34,10 @@ bun test              # 端到端测试：编译并运行示例，模拟浏览�
 cd ../web && bun test src   # 窗体设计器：Designer.cs 读写、编辑操作、插入事件处理方法
 bun test/load.ts 100  # 压力测试：同时运行 100 个学生程序
 ```
+
+## 部署
+
+Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。在开发机执行 `deploy/deploy.sh 用户@服务器`，详见 [deploy/README.md](deploy/README.md)。
 
 ## 运行器的两种模式
 
@@ -65,8 +70,8 @@ bun test/load.ts 100  # 压力测试：同时运行 100 个学生程序
 - 代码编辑器（Monaco）：C# 高亮、编译错误波浪线、点错误跳到对应行、F5 运行 / Shift+F5 停止、草稿自动保存在浏览器本地。
 - 窗体设计器（仿 VS，界面中文）：工具箱、拖放与改大小、属性窗口、事件窗口、双击生成事件处理方法、撤销 / 重做；读写 VS 格式的 Designer.cs。
 - 多窗体：新建、删除窗体；运行时多个窗口可切换前后。
+- 部署：bubblewrap 沙箱（断网、只读、看不到其他进程，限制内存、CPU 时间和运行时长）、编译时禁止网络 / 反射 / 启动进程等 API、访问口令、Docker Compose 部署脚本。
 
 尚未完成：
 
-- 学生代码目前直接在本机进程里运行，**还没有沙箱**，只能在本机开发时使用；部署前要改为在 Docker 容器中运行。
 - 教材项目 4–8 的其余任务（需要摄像头、线程 API、ListBox、数据库、TrackBar、PictureBox、图表）、账号和班级、自动评测。
