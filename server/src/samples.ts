@@ -32,3 +32,11 @@ export async function loadSample(id: string): Promise<SourceFile[] | null> {
   }
   return files.length > 0 ? files.sort((a, b) => a.path.localeCompare(b.path)) : null
 }
+
+/** 示例的评分规则（checks.yaml 原文）；没有规则返回 null */
+export async function loadChecks(id: string): Promise<string | null> {
+  const path = resolve(SAMPLES_DIR, id, 'checks.yaml')
+  if (!path.startsWith(`${SAMPLES_DIR}/`)) return null
+  const file = Bun.file(path)
+  return (await file.exists()) ? file.text() : null
+}

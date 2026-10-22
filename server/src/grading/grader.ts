@@ -1,11 +1,11 @@
 // 自动评分：编译一次学生工程，每个检查项各启动一次程序，按步骤操作并核对结果。
-// 服务器只有 2 核，全站同时最多跑 GRADE_CONCURRENCY 个检查，其余排队。
+// 检查大部分时间在等定时器，CPU 主要花在编译和启动程序上；2 核的服务器全站同时跑 GRADE_CONCURRENCY 个检查，其余排队。
 import type { CheckResult, ControlNode, GradeResult } from '@iot/shared'
 import { compileService } from '../compile-service'
 import type { Check, Expectation, Step } from './checks'
 import { ProgramDriver } from './driver'
 
-const GRADE_CONCURRENCY = 2
+const GRADE_CONCURRENCY = 6
 /** 程序启动后多久内应该显示出窗体 */
 const START_TIMEOUT = 10_000
 
@@ -92,7 +92,9 @@ async function runStep(driver: ProgramDriver, step: Step) {
       const items = ((node.props.Items as unknown[] | undefined) ?? []).map(String)
       const index = items.indexOf(step.item)
       if (index < 0) {
-        throw new Failure(`下拉框 ${step.control} 里没有"${step.item}"（现在的选项：${items.length ? items.join('、') : '空'}）`)
+        // 串口列表是空的：最常见的原因是没有填充
+        const hint = items.length === 0 && /^COM\d+$/.test(step.item) ? '。串口列表要在窗体的 Load 事件或下拉框的 Click 事件里用 SerialPort.GetPortNames() 填充' : ''
+        throw new Failure(`下拉框 ${step.control} 里没有"${step.item}"（现在的选项：${items.length ? items.join('、') : '空'}）${hint}`)
       }
       driver.act(node, { action: 'select', index })
       await driver.settle()

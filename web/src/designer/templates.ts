@@ -1,5 +1,6 @@
-// 新建窗体：生成与 VS（中文版、.NET Framework 4.5）新建窗体并保存一次后相同的两个文件。
+// 工程模板：新建窗体（与 VS 中文版新建窗体并保存一次后相同的两个文件），以及布置作业时学生的起点工程。
 import type { SourceFile } from '@iot/shared'
+import { generateDesigner, parseDesigner } from './document'
 
 /** 工程的命名空间：取 Program.cs（没有就取任意 .cs）里的 namespace */
 export function projectNamespace(files: SourceFile[]): string {
@@ -103,4 +104,30 @@ ${blockHeader(name)}
     { path: `${name}.cs`, content: code },
     { path: `${name}.Designer.cs`, content: designer },
   ]
+}
+
+export type StartMode = 'blank' | 'ui'
+
+/**
+ * 布置作业时学生的起点工程（由参考答案生成）：
+ * - blank：空白工程，只有 Program.cs 和一个空的 Form1，学生从搭界面做起；
+ * - ui：界面已做好，保留每个窗体的控件和属性，去掉事件绑定，窗体代码只剩构造函数，
+ *   学生在设计器里双击控件生成事件处理方法、写代码。其他类（如 PublicData）也要学生自己写。
+ */
+export function assignmentTemplate(files: SourceFile[], mode: StartMode): SourceFile[] {
+  const namespace = projectNamespace(files)
+  const program = files.find((f) => f.path === 'Program.cs')
+  if (mode === 'blank') {
+    const startup = startupForm(files)
+    const programText = program && startup ? program.content.replace(new RegExp(`new\\s+${startup}\\s*\\(`, 'u'), 'new Form1(') : undefined
+    return [...(programText ? [{ path: 'Program.cs', content: programText }] : []), ...newFormFiles(namespace, 'Form1')]
+  }
+  const result: SourceFile[] = program ? [{ ...program }] : []
+  for (const designer of files.filter((f) => f.path.endsWith('.Designer.cs'))) {
+    const doc = parseDesigner(designer.content)
+    for (const block of doc.blocks) block.stmts = block.stmts.filter((s) => s.kind !== 'event')
+    const [code] = newFormFiles(namespace, doc.className)
+    result.push({ path: designer.path.replace(/\.Designer\.cs$/, '.cs'), content: code.content }, { path: designer.path, content: generateDesigner(doc) })
+  }
+  return result
 }

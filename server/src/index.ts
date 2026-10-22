@@ -4,6 +4,7 @@ import { ensureTeacher, tokenUser } from './auth'
 import { compileService } from './compile-service'
 import { config } from './config'
 import { openDatabase } from './db'
+import { createGradingQueue } from './grading/queue'
 import { cleanupStaleRuns, RunSession } from './run-session'
 import { checkSandbox, sandboxError } from './sandbox'
 
@@ -13,7 +14,7 @@ if (sandboxError) console.error(sandboxError)
 
 const db = openDatabase()
 ensureTeacher(db)
-const app = createApp(db)
+const app = createApp(db, createGradingQueue(db))
 
 interface SocketData {
   session?: RunSession

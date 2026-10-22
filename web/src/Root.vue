@@ -6,7 +6,8 @@ import { NConfigProvider, NDialogProvider, NMessageProvider, zhCN } from 'naive-
   <NConfigProvider :locale="zhCN">
     <NMessageProvider>
       <NDialogProvider>
-        <RouterView />
+        <!-- 换一个作业时重新创建页面（同一页面里只换参数时 Vue 默认会复用组件） -->
+        <RouterView :key="$route.path" />
       </NDialogProvider>
     </NMessageProvider>
   </NConfigProvider>

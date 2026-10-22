@@ -4,13 +4,17 @@ import { createApp } from '../src/app'
 import { ensureTeacher } from '../src/auth'
 import { config } from '../src/config'
 import { openDatabase } from '../src/db'
+import { createGradingQueue, type GradingQueue } from '../src/grading/queue'
+import { loadSample } from '../src/samples'
 
 let app: ReturnType<typeof createApp>
+let queue: GradingQueue
 
 beforeEach(() => {
   const db = openDatabase(':memory:')
   ensureTeacher(db)
-  app = createApp(db)
+  queue = createGradingQueue(db)
+  app = createApp(db, queue)
 })
 
 /** 一个浏览器：记住访问令牌和刷新令牌 */
@@ -236,5 +240,102 @@ describe('令牌', () => {
     expect((await t.get('/api/me')).status).toBe(401)
     t.accessToken = 'not-a-token'
     expect((await t.get('/api/me')).status).toBe(401)
+  })
+})
+
+describe('作业', () => {
+  const SAMPLE = 'p4-t3-报警灯'
+  const scoring = { auto: [10, 10], manual: [{ title: '窗体界面', points: 10 }] }
+
+  /** 老师建班、导入一个学生、布置报警灯作业；返回老师、学生和作业 id */
+  async function setup(deadline: number | null = null) {
+    const t = await teacher()
+    const classId = await classWithStudents(t, [{ username: 's1', name: '甲', password: 'p1' }])
+    const template = (await loadSample(SAMPLE))!
+    const created = await t.post('/api/teacher/assignments', { classId, sampleId: SAMPLE, title: '控制报警灯', startMode: 'ui', template, scoring, deadline })
+    expect(created.status).toBe(200)
+    const student = new Browser()
+    await student.login('s1', 'p1')
+    return { t, student, classId, assignmentId: created.body.id as number, files: template }
+  }
+
+  test('分值项数要和评分规则一致', async () => {
+    const t = await teacher()
+    const classId = await classWithStudents(t, [])
+    const result = await t.post('/api/teacher/assignments', {
+      classId,
+      sampleId: SAMPLE,
+      title: '控制报警灯',
+      startMode: 'ui',
+      template: [],
+      scoring: { auto: [10], manual: [] },
+      deadline: null,
+    })
+    expect(result.status).toBe(400)
+    expect(result.body.message).toBe('自动评分项应有 2 项')
+    expect((await t.get(`/api/teacher/samples/${encodeURIComponent(SAMPLE)}/checks`)).body).toEqual(['能正确打开报警灯', '能正确关闭报警灯'])
+  })
+
+  test('学生能看到自己班的作业和起点工程，别的班看不到', async () => {
+    const { t, assignmentId } = await setup()
+    const s1 = new Browser()
+    await s1.login('s1', 'p1')
+    const list = (await s1.get('/api/assignments')).body
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({ title: '控制报警灯', checkTitles: ['能正确打开报警灯', '能正确关闭报警灯'], latest: null })
+    expect((await s1.get(`/api/assignments/${assignmentId}`)).body.template.length).toBeGreaterThan(0)
+
+    const { body: other } = await t.post('/api/teacher/classes', { name: '另一个班' })
+    await t.post(`/api/teacher/classes/${other.id}/import`, { rows: [{ username: 's2', name: '乙', password: 'p2' }] })
+    const s2 = new Browser()
+    await s2.login('s2', 'p2')
+    expect((await s2.get('/api/assignments')).body).toEqual([])
+    expect((await s2.get(`/api/assignments/${assignmentId}`)).status).toBe(404)
+  })
+
+  test('提交后排队评分，评完得到每项结果和分数；老师能看到提交情况', async () => {
+    const { t, student, assignmentId, files } = await setup()
+    const submitted = await student.post(`/api/assignments/${assignmentId}/submit`, { files })
+    expect(submitted.body.status).toBe('pending')
+    // 上一份还没评完时不能再交
+    expect((await student.post(`/api/assignments/${assignmentId}/submit`, { files })).status).toBe(409)
+
+    await queue.idle()
+    const graded = (await student.get(`/api/assignments/${assignmentId}/submission`)).body
+    expect(graded).toMatchObject({ status: 'done', autoScore: 20 })
+    expect(graded.result.results.map((r: any) => r.passed)).toEqual([true, true])
+
+    const submissions = (await t.get(`/api/teacher/assignments/${assignmentId}/submissions`)).body
+    expect(submissions).toEqual([expect.objectContaining({ username: 's1', status: 'done', autoScore: 20, count: 1 })])
+    expect((await t.get(`/api/teacher/classes/${(await t.get('/api/teacher/classes')).body[0].id}/assignments`)).body[0]).toMatchObject({
+      studentCount: 1,
+      submittedCount: 1,
+    })
+  }, 60000)
+
+  test('只做对一部分时按通过的项得分；老师改分值后重新算分', async () => {
+    const { t, student, assignmentId, files } = await setup()
+    const broken = files.map((f) => (f.path === 'Form1.cs' ? { ...f, content: f.content.replace('AlarmOnOff("Alarm", false);', '') } : f))
+    await student.post(`/api/assignments/${assignmentId}/submit`, { files: broken })
+    await queue.idle()
+    const graded = (await student.get(`/api/assignments/${assignmentId}/submission`)).body
+    expect(graded.autoScore).toBe(10)
+    expect(graded.result.results[1]).toMatchObject({ title: '能正确关闭报警灯', passed: false })
+
+    await t.patch(`/api/teacher/assignments/${assignmentId}`, { title: '控制报警灯', deadline: null, scoring: { ...scoring, auto: [30, 20] } })
+    expect((await student.get(`/api/assignments/${assignmentId}/submission`)).body.autoScore).toBe(30)
+  }, 60000)
+
+  test('过了截止时间不能提交', async () => {
+    const { student, assignmentId, files } = await setup(Date.now() - 1000)
+    const result = await student.post(`/api/assignments/${assignmentId}/submit`, { files })
+    expect(result.status).toBe(400)
+    expect(result.body.message).toBe('已经过了截止时间，不能再提交')
+  })
+
+  test('删除作业后学生看不到', async () => {
+    const { t, student, assignmentId } = await setup()
+    await t.delete(`/api/teacher/assignments/${assignmentId}`)
+    expect((await student.get('/api/assignments')).body).toEqual([])
   })
 })

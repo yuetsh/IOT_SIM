@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// 主页面：选择示例工程 → 编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
+// 实验页：编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
+// 两种用法：自由练习（选择示例工程）；做作业（/assignments/:id，从作业起点开始，可以提交评分）。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NInput, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag } from 'naive-ui'
-import type { SourceFile } from '@iot/shared'
+import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage } from 'naive-ui'
+import type { Assignment, SourceFile, Submission } from '@iot/shared'
 import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
 import { formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
@@ -12,9 +13,12 @@ import { api } from '../api'
 import { currentUser, logout } from '../auth'
 import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import { createRunSession } from '../run/session'
+import GradeResultView from '../grading/GradeResultView.vue'
 import TrainingBoard from '../scene/TrainingBoard.vue'
 import FormWindow from '../winforms/FormWindow.vue'
 import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
+
+const props = defineProps<{ assignmentId?: string }>()
 
 const session = createRunSession()
 const { state } = session
@@ -64,6 +68,9 @@ const modified = ref(false)
 const editorRef = ref<InstanceType<typeof CodeEditor>>()
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
+/** 当前工程的作品保存在服务器上的哪个 key */
+const workKey = ref<string>()
 
 const STATUS_TEXT = { idle: '未运行', compiling: '编译中…', running: '运行中', stopped: '已停止' } as const
 const statusType = computed(() => ({ idle: 'default', compiling: 'warning', running: 'success', stopped: 'default' })[state.status] as 'default' | 'warning' | 'success')
@@ -87,6 +94,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown, { capture
 onMounted(async () => {
   // 一打开页面就连接服务器，实训台在运行程序之前就能显示和调节
   void session.connect()
+  if (props.assignmentId) {
+    await loadAssignment()
+    return
+  }
   const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
   samples.value = list.map((s) => ({ label: s.title, value: s.id }))
   // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生）
@@ -94,20 +105,78 @@ onMounted(async () => {
   if (initial) await loadSample(initial.id)
 })
 
-async function loadSample(id: string, discardWork = false) {
+/** 打开一个工程：服务器上有保存的作品就用作品，没有就用原始代码；discardWork 表示丢弃作品恢复原始代码 */
+async function openProject(key: string, original: () => Promise<SourceFile[]>, discardWork: boolean) {
   await flushSave()
-  sampleId.value = id
-  void router.replace({ query: { sample: id } })
+  workKey.value = key
   designerHistory.clear()
-  const key = sampleWorkKey(id)
   if (discardWork) await deleteWork(key).catch(() => {})
   const work = discardWork ? null : await loadWork(key).catch(() => null)
   modified.value = work !== null
   saveState.value = work ? 'saved' : 'idle'
-  files.value = work ?? (await api<SourceFile[]>('GET', `/api/samples/${encodeURIComponent(id)}`))
+  files.value = work ?? (await original())
   // 和 VS 一样，默认打开主窗体的设计器
   activeTab.value = forms.value[0]?.tab ?? files.value.find((f) => f.path !== 'Program.cs')?.path ?? files.value[0]?.path
 }
+
+async function loadSample(id: string, discardWork = false) {
+  sampleId.value = id
+  void router.replace({ query: { sample: id } })
+  await openProject(sampleWorkKey(id), () => api<SourceFile[]>('GET', `/api/samples/${encodeURIComponent(id)}`), discardWork)
+}
+
+// ---------- 作业 ----------
+const assignment = ref<Assignment | null>(null)
+const submission = ref<Submission | null>(null)
+const resultOpen = ref(false)
+const submitting = ref(false)
+const pastDeadline = computed(() => !!assignment.value?.deadline && Date.now() > assignment.value.deadline)
+const autoTotal = computed(() => assignment.value?.scoring.auto.reduce((a, b) => a + b, 0) ?? 0)
+let pollTimer: ReturnType<typeof setTimeout> | undefined
+
+async function loadAssignment(discardWork = false) {
+  const detail = await api<{ assignment: Assignment; template: SourceFile[]; latest: Submission | null }>(
+    'GET',
+    `/api/assignments/${props.assignmentId}`,
+  ).catch((e: Error) => {
+    message.error(e.message)
+    return null
+  })
+  if (!detail) return
+  assignment.value = detail.assignment
+  submission.value = detail.latest
+  if (detail.latest?.status === 'pending') pollSubmission()
+  await openProject(`assignment:${props.assignmentId}`, async () => detail.template.map((f) => ({ ...f })), discardWork)
+}
+
+async function submit() {
+  if (!assignment.value || submitting.value) return
+  submitting.value = true
+  try {
+    await flushSave()
+    submission.value = await api<Submission>('POST', `/api/assignments/${assignment.value.id}/submit`, { files: files.value })
+    resultOpen.value = true
+    pollSubmission()
+  } catch (e) {
+    message.error((e as Error).message)
+  } finally {
+    submitting.value = false
+  }
+}
+
+/** 评分中时每 2 秒查一次结果 */
+function pollSubmission() {
+  clearTimeout(pollTimer)
+  pollTimer = setTimeout(async () => {
+    const latest = await api<Submission | null>('GET', `/api/assignments/${props.assignmentId}/submission`).catch(() => submission.value)
+    submission.value = latest
+    if (latest?.status === 'pending') pollSubmission()
+  }, 2000)
+}
+onBeforeUnmount(() => clearTimeout(pollTimer))
+
+const formatTime = (ms: number) =>
+  new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 // ---------- 自动保存到服务器 ----------
 /** idle：还没改过；pending：有改动等待保存；saving：正在保存；saved：已保存；error：保存失败（下次改动时重试） */
@@ -124,11 +193,11 @@ function scheduleSave() {
 /** 立即保存还没保存的改动（切换示例、离开页面之前） */
 async function flushSave(keepalive = false) {
   clearTimeout(saveTimer)
-  if (saveState.value !== 'pending' || !sampleId.value) return
+  if (saveState.value !== 'pending' || !workKey.value) return
   saveState.value = 'saving'
   const snapshot = files.value.map((f) => ({ ...f }))
   try {
-    await saveWork(sampleWorkKey(sampleId.value), snapshot, keepalive)
+    await saveWork(workKey.value, snapshot, keepalive)
     // 保存期间又有改动时保持 pending，等下一次保存
     if (saveState.value === 'saving') saveState.value = 'saved'
   } catch {
@@ -236,7 +305,8 @@ async function showDiagnostic(file: string, line: number, column: number) {
 }
 
 function restoreOriginal() {
-  if (sampleId.value) void loadSample(sampleId.value, true)
+  if (props.assignmentId) void loadAssignment(true)
+  else if (sampleId.value) void loadSample(sampleId.value, true)
 }
 
 function run() {
@@ -248,34 +318,69 @@ function run() {
 <template>
   <div class="page">
     <header class="toolbar">
-      <strong>物联网编程仿真平台</strong>
-      <NSelect
-        class="sample-select"
-        :value="sampleId"
-        :options="samples"
-        placeholder="选择示例工程"
-        @update:value="loadSample"
-      />
+      <template v-if="assignmentId">
+        <RouterLink to="/assignments" class="nav-link">← 我的作业</RouterLink>
+        <strong class="assignment-title">{{ assignment?.title }}</strong>
+        <span v-if="assignment?.deadline" class="deadline" :class="{ past: pastDeadline }">
+          {{ pastDeadline ? '已截止' : '截止' }} {{ formatTime(assignment.deadline) }}
+        </span>
+      </template>
+      <template v-else>
+        <strong>物联网编程仿真平台</strong>
+        <NSelect
+          class="sample-select"
+          :value="sampleId"
+          :options="samples"
+          placeholder="选择示例工程"
+          @update:value="loadSample"
+        />
+      </template>
       <NButton type="primary" :disabled="running" title="F5" @click="run">▶ 运行</NButton>
       <NButton :disabled="!running" title="Shift+F5" @click="session.stop">■ 停止</NButton>
+      <template v-if="assignment">
+        <NButton
+          type="warning"
+          :loading="submitting"
+          :disabled="submission?.status === 'pending' || (pastDeadline && currentUser?.role === 'student')"
+          title="提交后自动评分，截止前可以改了再交"
+          @click="submit"
+        >
+          提交
+        </NButton>
+        <NButton v-if="submission" size="small" quaternary @click="resultOpen = true">
+          {{ submission.status === 'pending' ? '评分中…' : submission.status === 'done' ? `得分 ${submission.autoScore} / ${autoTotal}` : '评分出错' }}
+        </NButton>
+      </template>
       <NPopconfirm v-if="modified" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
         <template #trigger>
-          <NButton quaternary size="small">恢复原始代码</NButton>
+          <NButton quaternary size="small">{{ assignmentId ? '恢复到作业起点' : '恢复原始代码' }}</NButton>
         </template>
-        你对这个示例的修改将全部丢弃，确定恢复吗？
+        {{ assignmentId ? '你在这个作业上写的代码将全部丢弃（已提交的不受影响），确定恢复吗？' : '你对这个示例的修改将全部丢弃，确定恢复吗？' }}
       </NPopconfirm>
       <span class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
       <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
-      <span class="metrics">
+      <span v-if="!assignmentId" class="metrics">
         编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
         {{ state.metrics.lastRoundTripMs }} ms
       </span>
+      <span v-else class="spacer" />
+      <RouterLink v-if="!assignmentId && currentUser?.role === 'student'" to="/assignments" class="nav-link">我的作业</RouterLink>
       <span class="user">
         {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
       </span>
       <RouterLink v-if="currentUser?.role === 'teacher'" to="/teacher" class="nav-link">班级管理</RouterLink>
       <NButton quaternary size="small" @click="signOut">退出</NButton>
     </header>
+
+    <NModal
+      v-if="assignment && submission"
+      v-model:show="resultOpen"
+      preset="card"
+      :title="`评分结果：${assignment.title}`"
+      style="width: 560px; max-width: calc(100vw - 32px)"
+    >
+      <GradeResultView :assignment="assignment" :submission="submission" />
+    </NModal>
 
     <main class="workspace" :class="{ designing: activeForm }">
       <section class="editor">
@@ -386,6 +491,24 @@ function run() {
   margin-left: auto;
   color: #6b7280;
   font-size: 12px;
+}
+
+.spacer {
+  margin-left: auto;
+}
+
+.assignment-title {
+  white-space: nowrap;
+}
+
+.deadline {
+  color: #6b7280;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.deadline.past {
+  color: #dc2626;
 }
 
 .save-state {

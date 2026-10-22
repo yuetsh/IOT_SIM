@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// 老师的班级管理：建班、导入学生名单（CSV）、查看和重置密码、导出名单发给学生。
+// 老师的班级管理：建班、导入学生名单（CSV）、查看和重置密码、导出名单发给学生；布置作业、查看提交情况。
 import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NDataTable, NEmpty, NInput, NModal, NPopconfirm, NPopover, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NDataTable, NEmpty, NInput, NModal, NPopconfirm, NPopover, NTabPane, NTabs, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
+import AssignmentsPanel from '../teacher/AssignmentsPanel.vue'
 import { decodeCsv, parseCsv, toRoster, type RosterRow } from '../teacher/roster'
 
 interface ClassInfo {
@@ -264,16 +265,24 @@ async function signOut() {
             </template>
             只能删除没有学生的班级。确定删除"{{ selected.name }}"吗？
           </NPopconfirm>
-          <span class="spacer" />
-          <NButton size="small" type="primary" @click="fileInput?.click()">导入名单（CSV）</NButton>
-          <NButton size="small" :disabled="students.length === 0" @click="exportRoster">导出名单（含密码）</NButton>
-          <NButton size="small" quaternary @click="downloadTemplate">下载名单模板</NButton>
-          <input ref="fileInput" type="file" accept=".csv,text/csv" hidden @change="onFileChosen" />
         </div>
-        <p class="tip">
-          名单是 Excel 另存的 CSV，列为"学号、姓名、密码"。密码可以留空，平台会生成 6 位数字密码；导入后点"导出名单"发给学生。学号已存在时更新姓名和班级，密码留空则不变。
-        </p>
-        <NDataTable :columns="columns" :data="students" :row-key="(s: Student) => s.id" size="small" :bordered="false" />
+        <NTabs type="line" default-value="students">
+          <NTabPane name="students" :tab="`学生（${students.length}）`">
+            <div class="students-actions">
+              <NButton size="small" type="primary" @click="fileInput?.click()">导入名单（CSV）</NButton>
+              <NButton size="small" :disabled="students.length === 0" @click="exportRoster">导出名单（含密码）</NButton>
+              <NButton size="small" quaternary @click="downloadTemplate">下载名单模板</NButton>
+              <input ref="fileInput" type="file" accept=".csv,text/csv" hidden @change="onFileChosen" />
+            </div>
+            <p class="tip">
+              名单是 Excel 另存的 CSV，列为"学号、姓名、密码"。密码可以留空，平台会生成 6 位数字密码；导入后点"导出名单"发给学生。学号已存在时更新姓名和班级，密码留空则不变。
+            </p>
+            <NDataTable :columns="columns" :data="students" :row-key="(s: Student) => s.id" size="small" :bordered="false" />
+          </NTabPane>
+          <NTabPane name="assignments" tab="作业">
+            <AssignmentsPanel :class-id="selected.id" />
+          </NTabPane>
+        </NTabs>
       </section>
       <section v-else class="students">
         <NEmpty description="选择或新建一个班级" />
@@ -423,6 +432,12 @@ async function signOut() {
 .students-head h2 {
   margin: 0 4px 0 0;
   font-size: 18px;
+}
+
+.students-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .tip {

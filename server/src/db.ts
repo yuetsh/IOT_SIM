@@ -1,4 +1,4 @@
-// SQLite 数据库：账号、班级、学生作品、平台设置（如 JWT 签名密钥）。
+// SQLite 数据库：账号、班级、学生作品、作业与提交、平台设置（如 JWT 签名密钥）。
 // 表结构用编号迁移：MIGRATIONS 只能在末尾追加，已执行过的不再改动。
 import { Database } from 'bun:sqlite'
 import { mkdirSync } from 'node:fs'
@@ -53,6 +53,37 @@ const MIGRATIONS = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  `,
+  // 作业：布置时保存起点工程和评分规则的快照，以后改示例不影响已布置的作业。
+  // scoring 是 JSON：{ auto: 每个自动评分项的分值（按规则顺序）, manual: [{ title, points }] 老师评分项 }
+  `
+  CREATE TABLE assignments (
+    id INTEGER PRIMARY KEY,
+    class_id INTEGER NOT NULL REFERENCES classes (id) ON DELETE CASCADE,
+    sample_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    start_mode TEXT NOT NULL CHECK (start_mode IN ('blank', 'ui')),
+    template TEXT NOT NULL,
+    checks TEXT NOT NULL,
+    scoring TEXT NOT NULL,
+    deadline INTEGER,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX assignments_class ON assignments (class_id);
+  -- 提交：status 为 pending（排队评分中）、done（已评分）或 error（评分出错）；result 是自动评分结果 JSON
+  CREATE TABLE submissions (
+    id INTEGER PRIMARY KEY,
+    assignment_id INTEGER NOT NULL REFERENCES assignments (id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    files TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'done', 'error')),
+    result TEXT,
+    auto_score REAL,
+    created_at INTEGER NOT NULL,
+    graded_at INTEGER
+  );
+  CREATE INDEX submissions_assignment_user ON submissions (assignment_id, user_id, id);
+  CREATE INDEX submissions_status ON submissions (status);
   `,
 ]
 
