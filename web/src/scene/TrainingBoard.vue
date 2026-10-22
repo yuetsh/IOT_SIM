@@ -20,6 +20,27 @@ const DIGITAL_INPUTS: { key: DigitalKey; label: string }[] = [
 
 const showMore = ref(false)
 
+// 收起后只留一行状态，给窗体显示区腾地方；收起与否记在浏览器本地
+const COLLAPSED_KEY = 'iot-sim:board-collapsed'
+const collapsed = ref(readCollapsed())
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setCollapsed(value: boolean) {
+  collapsed.value = value
+  try {
+    localStorage.setItem(COLLAPSED_KEY, value ? '1' : '0')
+  } catch {
+    // 浏览器禁用本地存储时只是记不住，不影响使用
+  }
+}
+
 // 拖动滑块时先显示本地值，避免服务器回传前滑块跳动；发送做节流
 const dragging = ref<Partial<Record<AnalogKey, number>>>({})
 let pending: Partial<Record<AnalogKey, number>> = {}
@@ -59,7 +80,37 @@ const ledText = computed(() => props.board?.ledText ?? '')
 </script>
 
 <template>
-  <div class="board" :class="{ disconnected: !board }">
+  <!-- 收起时：一行状态，传感器开关仍然可以点 -->
+  <div v-if="collapsed" class="board collapsed" :class="{ disconnected: !board }">
+    <span class="board-name">虚拟实训台</span>
+    <span class="io out warn" :class="{ lit: alarmOn }"><i />警示灯</span>
+    <span class="io out" :class="{ lit: streetLampOn }"><i />照明灯 1</span>
+    <span class="summary-readings">
+      <span v-for="key in ['temperature', 'humidity', 'light'] as AnalogKey[]" :key="key">
+        {{ ANALOG_INFO[key].label }} <b>{{ analog(key) }}{{ ANALOG_INFO[key].unit }}</b>
+      </span>
+    </span>
+    <button
+      v-for="input in DIGITAL_INPUTS"
+      :key="input.key"
+      class="io chip"
+      :class="{ lit: digital[input.key] }"
+      :disabled="!board"
+      :title="`点击切换${input.label}`"
+      @click="toggle(input.key)"
+    >
+      <i />{{ input.label }}
+    </button>
+    <span v-if="ledText" class="summary-led" :title="ledText">LED：{{ ledText }}</span>
+    <button class="link expand" @click="setCollapsed(false)">展开 ▾</button>
+  </div>
+
+  <div v-else class="board" :class="{ disconnected: !board }">
+    <div class="board-header">
+      <span class="board-name">虚拟实训台</span>
+      <button class="link" title="收起后只显示一行状态，给窗体留出更多地方" @click="setCollapsed(true)">收起 ▴</button>
+    </div>
+
     <!-- 顶棚：红外对射、警示灯（DO0）、摄像头 -->
     <div class="ceiling">
       <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">
@@ -218,6 +269,62 @@ const ledText = computed(() => props.board?.ledText ?? '')
   color: var(--text);
   font-size: 12px;
   user-select: none;
+  /* 布局按实训台自身宽度调整（打开设计器时右栏会变窄） */
+  container-type: inline-size;
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -2px 0 -4px;
+}
+
+.board-name {
+  color: var(--muted);
+}
+
+.board.collapsed {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 10px;
+}
+
+.summary-readings {
+  display: flex;
+  gap: 10px;
+}
+
+.summary-readings b {
+  color: #9fd3ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  padding: 1px 6px;
+  background: var(--card);
+  border: 1px solid #4a566a;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.summary-led {
+  min-width: 0;
+  max-width: 16em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #ff6b6b;
+}
+
+.expand {
+  margin-left: auto;
 }
 
 .board.disconnected {
@@ -319,12 +426,31 @@ button {
   animation: led-scroll 12s linear infinite;
 }
 
-/* 传感器 */
+/* 传感器：中等宽度时 4 个开关卡片一行、两个滑块卡片一行；够宽时按实训台顺序排成一行；更窄时每行 2 格 */
 .sensors {
   display: grid;
-  /* 照明灯、人体红外、温湿度（2 格）、光照（2 格）、烟雾、火焰排成一行 */
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+}
+
+.sensors .wide {
+  order: 1;
+}
+
+@container (min-width: 1100px) {
+  .sensors {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .sensors .wide {
+    order: 0;
+  }
+}
+
+@container (max-width: 560px) {
+  .sensors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .card {
@@ -424,9 +550,13 @@ button {
 
 .slider {
   display: grid;
-  grid-template-columns: 3em 1fr 4.5em;
+  grid-template-columns: 4.5em minmax(60px, 1fr) 4.5em;
   align-items: center;
   gap: 6px;
+}
+
+.slider span {
+  white-space: nowrap;
 }
 
 .slider input {
@@ -444,6 +574,21 @@ button {
   display: grid;
   grid-template-columns: 1.2fr 1.5fr 1fr;
   gap: 8px;
+}
+
+/* 窄时串口服务器单独占一行，四个串口横排 */
+@container (max-width: 760px) {
+  .modules {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ports {
+    grid-column: 1 / -1;
+  }
+
+  .ports .port-list {
+    flex-direction: row;
+  }
 }
 
 .module {
@@ -503,6 +648,11 @@ button {
 .io.out.lit i {
   background: #51cf66;
   box-shadow: 0 0 6px #51cf66;
+}
+
+.io.warn.lit i {
+  background: #ff3b30;
+  box-shadow: 0 0 6px #ff3b30;
 }
 
 .port-list {

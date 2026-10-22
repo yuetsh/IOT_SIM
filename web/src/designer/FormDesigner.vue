@@ -566,6 +566,8 @@ const noop = () => {}
 }
 
 .actions button {
+  flex: none;
+  white-space: nowrap;
   padding: 2px 10px;
   border: 1px solid #c5ccd5;
   border-radius: 3px;
@@ -580,7 +582,11 @@ const noop = () => {}
 }
 
 .tips {
+  min-width: 0;
   margin-left: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: #7a838e;
 }
 
