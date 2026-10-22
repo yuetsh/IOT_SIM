@@ -38,6 +38,8 @@ const emit = defineEmits<{
   update: [designerText: string, codeText?: string]
   /** 跳到窗体代码文件的某一行 */
   openCode: [line: number]
+  /** 查看设计器生成的 Designer.cs */
+  openDesignerFile: []
   undo: []
   redo: []
 }>()
@@ -431,6 +433,9 @@ const noop = () => {}
         <button :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</button>
         <button :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</button>
         <span class="tips">拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span>
+        <button class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">
+          查看生成的代码
+        </button>
       </div>
       <div class="window" :class="{ selected: selected === '' }">
         <div class="titlebar" @pointerdown="selected = ''">
@@ -579,6 +584,10 @@ const noop = () => {}
 .actions button:disabled {
   color: #b0b6bf;
   cursor: default;
+}
+
+.view-code {
+  margin-left: auto;
 }
 
 .tips {

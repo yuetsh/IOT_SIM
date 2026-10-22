@@ -35,14 +35,18 @@ const forms = computed(() => {
     // 启动窗体排在最前
     .sort((a, b) => Number(b.code === `${startup}.cs`) - Number(a.code === `${startup}.cs`))
 })
-/** 标签页按窗体分组：每个窗体依次是 [设计]、代码、Designer.cs；其他文件（Program.cs 等）放最后 */
+/**
+ * 标签页按窗体分组：每个窗体依次是 [设计]、代码；其他文件（Program.cs 等）放最后。
+ * Designer.cs 由设计器生成，平时不显示（和 VS 里藏在窗体文件下面一样），
+ * 在设计器里点"查看生成的代码"或点到其中的编译错误时才临时出现，切走后收起。
+ */
 const tabs = computed(() => {
   const grouped = new Set(forms.value.flatMap((f) => [f.code, f.designer]))
   return [
     ...forms.value.flatMap((f) => [
       { name: f.tab, label: `${f.code} [设计]` },
       { name: f.code, label: f.code },
-      { name: f.designer, label: f.designer },
+      ...(activeTab.value === f.designer ? [{ name: f.designer, label: f.designer }] : []),
     ]),
     ...files.value.filter((f) => !grouped.has(f.path)).map((f) => ({ name: f.path, label: f.path })),
   ]
@@ -308,6 +312,7 @@ function run() {
           @undo="designerHistory.undo(activeForm.designer, activeForm.code)"
           @redo="designerHistory.redo(activeForm.designer, activeForm.code)"
           @open-code="openCode"
+          @open-designer-file="activeTab = activeForm.designer"
         />
         <CodeEditor
           v-show="!activeForm"
