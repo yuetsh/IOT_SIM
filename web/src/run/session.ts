@@ -187,7 +187,12 @@ export function createRunSession() {
     }
   }
 
-  return { state, connect, run, stop, act, replyMessageBox, setBoard, resetBoard }
+  /** 离开页面时断开连接：服务器随即结束正在运行的程序 */
+  function close() {
+    socket?.close()
+  }
+
+  return { state, connect, run, stop, act, replyMessageBox, setBoard, resetBoard, close }
 }
 
 export type RunSession = ReturnType<typeof createRunSession>

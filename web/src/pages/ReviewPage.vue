@@ -1,14 +1,17 @@
 <script setup lang="ts">
-// 评阅一个作业：左边是全班学生（提交状态、自动评分、老师评分），右边是选中学生的代码和界面截图、自动评分结果、
-// 规范提示、AI 建议和老师评分。"运行他的程序"在新标签页的实验页里打开学生的代码。
+// 评阅一个作业：左边是全班学生（提交状态、自动评分、老师评分），右边是选中学生的界面截图、运行区、代码，
+// 以及自动评分结果、规范提示、AI 建议和老师评分。"运行"标签页里直接运行学生的程序（换学生时自动停止）；
+// "在新标签页运行"打开完整的实验页，地方更大。
 // AI 建议只是参考：老师采纳（或修改后保存）才成为老师评分，学生才能看到。
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NEmpty, NInput, NInputNumber, NSpin, NTab, NTabs, NTag, useDialog, useMessage } from 'naive-ui'
 import type { AiReview, Assignment, Review, Screenshot, SourceFile, Submission } from '@iot/shared'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
 import CodeEditor from '../editor/CodeEditor.vue'
+import RunArea from '../run/RunArea.vue'
+import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
 import { conventionHints } from '@iot/shared'
 import { downloadCsv } from '../teacher/csv'
@@ -39,14 +42,36 @@ interface Detail {
   submissionCount: number
 }
 
-/** 代码区"界面截图"标签页的名字（不会和文件名冲突） */
+/** 代码区"界面截图""运行"标签页的名字（不会和 .cs 文件名冲突） */
 const SCREENS = '界面截图'
+const RUN = '运行'
 
 const props = defineProps<{ assignmentId: string }>()
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
+
+// ---------- 运行学生的程序 ----------
+const session = createRunSession()
+const editorRef = ref<InstanceType<typeof CodeEditor>>()
+const runState = session.state
+const running = computed(() => runState.status === 'compiling' || runState.status === 'running')
+const STATUS_TEXT = { idle: '未运行', compiling: '编译中…', running: '运行中', stopped: '已停止' } as const
+
+function runProgram() {
+  if (!detail.value?.files || running.value) return
+  void session.run(detail.value.files.map((f) => ({ ...f })))
+}
+
+/** 点编译错误：切到对应文件并跳到出错的行 */
+async function showDiagnostic(file: string, line: number, column: number) {
+  activeFile.value = file
+  await nextTick()
+  editorRef.value?.reveal(file, line, column)
+}
+
+onBeforeUnmount(() => session.close())
 
 const assignment = ref<Assignment | null>(null)
 const rows = ref<Row[]>([])
@@ -88,6 +113,14 @@ onMounted(async () => {
 
 async function select(userId: number | undefined) {
   if (userId === undefined) return
+  // 换学生：停掉上一个学生的程序，清空运行区
+  if (running.value) await session.stop()
+  runState.forms = []
+  runState.messageBoxes = []
+  runState.diagnostics = []
+  runState.errors = []
+  runState.console = ''
+  const wasRunTab = activeFile.value === RUN
   selectedId.value = userId
   void router.replace({ query: { student: userId } })
   detail.value = await api<Detail>('GET', `/api/teacher/assignments/${props.assignmentId}/students/${userId}`).catch((e: Error) => {
@@ -97,10 +130,12 @@ async function select(userId: number | undefined) {
   const manual = assignment.value?.scoring.manual ?? []
   scores.value = manual.map((_, i) => detail.value?.review?.scores[i] ?? null)
   comment.value = detail.value?.review?.comment ?? ''
-  // 默认先看界面截图，没有截图时看第一个窗体的代码
-  activeFile.value = detail.value?.screenshots.length
-    ? SCREENS
-    : (codeFiles.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? codeFiles.value[0]?.path)
+  // 正在看"运行"时换学生，留在"运行"；否则默认先看界面截图，没有截图时看第一个窗体的代码
+  activeFile.value = wasRunTab
+    ? RUN
+    : detail.value?.screenshots.length
+      ? SCREENS
+      : (codeFiles.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? codeFiles.value[0]?.path)
   pollAi()
 }
 
@@ -191,7 +226,7 @@ async function go(step: 1 | -1) {
   message.info(step > 0 ? '后面没有已提交的学生了' : '前面没有已提交的学生了')
 }
 
-function runProgram() {
+function openRunPage() {
   if (detail.value?.submission) window.open(router.resolve(`/teacher/submissions/${detail.value.submission.id}/run`).href, '_blank')
 }
 
@@ -280,7 +315,7 @@ async function signOut() {
           <span class="spacer" />
           <NButton size="small" @click="go(-1)">上一个</NButton>
           <NButton size="small" @click="go(1)">下一个</NButton>
-          <NButton size="small" type="primary" :disabled="!detail.submission" @click="runProgram">运行他的程序</NButton>
+          <NButton size="small" :disabled="!detail.submission" title="在新标签页里打开完整的实验页，地方更大" @click="openRunPage">在新标签页运行</NButton>
         </div>
 
         <NEmpty v-if="!detail.submission" description="还没有提交" class="empty" />
@@ -288,6 +323,7 @@ async function signOut() {
           <div class="code">
             <NTabs :value="activeFile" type="card" size="small" @update:value="(v: string) => (activeFile = v)">
               <NTab v-if="detail.screenshots.length" :name="SCREENS">{{ SCREENS }}</NTab>
+              <NTab :name="RUN">▶ {{ RUN }}</NTab>
               <NTab v-for="f in codeFiles" :key="f.path" :name="f.path">{{ f.path }}</NTab>
             </NTabs>
             <div v-if="activeFile === SCREENS" class="screens">
@@ -296,7 +332,26 @@ async function signOut() {
                 <figcaption>{{ s.form }}</figcaption>
               </figure>
             </div>
-            <CodeEditor v-show="activeFile !== SCREENS" class="editor" :files="codeFiles" :active-file="activeFile" :diagnostics="[]" read-only />
+            <div v-show="activeFile === RUN" class="run-pane">
+              <div class="run-bar">
+                <NButton size="small" type="primary" :disabled="running" @click="runProgram">▶ 运行</NButton>
+                <NButton size="small" :disabled="!running" @click="session.stop">■ 停止</NButton>
+                <NTag size="small" :type="runState.status === 'running' ? 'success' : runState.status === 'compiling' ? 'warning' : 'default'">
+                  {{ STATUS_TEXT[runState.status] }}
+                </NTag>
+                <span class="muted">运行的是学生提交的代码，可以操作窗体和实训台</span>
+              </div>
+              <RunArea class="run-area-host" :session="session" @diagnostic="showDiagnostic" />
+            </div>
+            <CodeEditor
+              v-show="activeFile !== SCREENS && activeFile !== RUN"
+              ref="editorRef"
+              class="editor"
+              :files="codeFiles"
+              :active-file="activeFile"
+              :diagnostics="runState.diagnostics"
+              read-only
+            />
           </div>
 
           <div class="side">
@@ -461,6 +516,28 @@ async function signOut() {
 .score.suggested {
   color: #6b7280;
   font-weight: normal;
+}
+
+.run-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+}
+
+.run-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.run-area-host {
+  flex: 1;
+  min-height: 0;
 }
 
 .screens {
