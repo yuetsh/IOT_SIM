@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // 主页面：选择示例工程 → 编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { NButton, NConfigProvider, NPopconfirm, NSelect, NTab, NTabs, NTag, zhCN } from 'naive-ui'
+import { NButton, NConfigProvider, NInput, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, zhCN } from 'naive-ui'
 import type { SourceFile } from '@iot/shared'
 import FormDesigner from './designer/FormDesigner.vue'
 import { createDesignerHistory } from './designer/history'
+import { formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from './designer/templates'
 import CodeEditor from './editor/CodeEditor.vue'
 import { clearDraft, loadDraft, saveDraft } from './editor/drafts'
 import { createRunSession } from './run/session'
@@ -23,15 +24,26 @@ const activeTab = ref<string>()
 const DESIGN = '设计:'
 
 /** 每个 X.Designer.cs 对应一个设计器标签页，和它的代码文件 X.cs */
-const forms = computed(() =>
-  files.value
+const forms = computed(() => {
+  const startup = startupForm(files.value)
+  return files.value
     .filter((f) => f.path.endsWith('.Designer.cs'))
-    .map((f) => ({ tab: DESIGN + f.path, designer: f.path, code: f.path.replace(/\.Designer\.cs$/, '.cs') })),
-)
-const tabs = computed(() => [
-  ...forms.value.map((f) => ({ name: f.tab, label: `${f.code} [设计]` })),
-  ...files.value.map((f) => ({ name: f.path, label: f.path })),
-])
+    .map((f) => ({ tab: DESIGN + f.path, designer: f.path, code: f.path.replace(/\.Designer\.cs$/, '.cs') }))
+    // 启动窗体排在最前
+    .sort((a, b) => Number(b.code === `${startup}.cs`) - Number(a.code === `${startup}.cs`))
+})
+/** 标签页按窗体分组：每个窗体依次是 [设计]、代码、Designer.cs；其他文件（Program.cs 等）放最后 */
+const tabs = computed(() => {
+  const grouped = new Set(forms.value.flatMap((f) => [f.code, f.designer]))
+  return [
+    ...forms.value.flatMap((f) => [
+      { name: f.tab, label: `${f.code} [设计]` },
+      { name: f.code, label: f.code },
+      { name: f.designer, label: f.designer },
+    ]),
+    ...files.value.filter((f) => !grouped.has(f.path)).map((f) => ({ name: f.path, label: f.path })),
+  ]
+})
 const activeForm = computed(() => forms.value.find((f) => f.tab === activeTab.value))
 /** 代码编辑器显示的文件：设计器打开时保持上一次的代码文件 */
 const activeFile = computed(() => (activeForm.value ? undefined : activeTab.value))
@@ -91,9 +103,56 @@ function updateFile(path: string, content: string) {
   const file = files.value.find((f) => f.path === path)
   if (!file || file.content === content) return
   file.content = content
+  filesChanged()
+}
+
+function filesChanged() {
   modified.value = true
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => sampleId.value && saveDraft(sampleId.value, files.value), 500)
+}
+
+// ---------- 新建、删除窗体 ----------
+const newFormOpen = ref(false)
+const newFormName = ref('')
+const newFormError = computed(() => {
+  const name = newFormName.value.trim()
+  if (!name) return '请输入窗体名'
+  if (!/^[\p{L}_][\p{L}\p{N}_]*$/u.test(name)) return '只能用字母、汉字、数字、下划线，且不能以数字开头'
+  if (formNameTaken(files.value, name)) return `已经有名为“${name}”的窗体或类`
+  return null
+})
+
+function openNewForm(show: boolean) {
+  newFormOpen.value = show
+  if (show) newFormName.value = nextFormName(files.value)
+}
+
+/** 新建窗体：生成 X.cs 和 X.Designer.cs，打开它的设计器 */
+function createForm() {
+  if (newFormError.value) return
+  const created = newFormFiles(projectNamespace(files.value), newFormName.value.trim())
+  files.value.push(...created)
+  filesChanged()
+  newFormOpen.value = false
+  activeTab.value = DESIGN + created[1].path
+}
+
+/** 当前设计器里的窗体能否删除：启动窗体（Program.cs 里 Application.Run 的那个）不能删 */
+const deletableForm = computed(() => {
+  const form = activeForm.value
+  if (!form) return undefined
+  const className = /partial\s+class\s+([\p{L}\p{N}_]+)/u.exec(fileText(form.designer))?.[1]
+  return className && className !== startupForm(files.value) ? form : undefined
+})
+
+function deleteForm() {
+  const form = deletableForm.value
+  if (!form) return
+  files.value = files.value.filter((f) => f.path !== form.designer && f.path !== form.code)
+  designerHistory.clear(form.designer)
+  filesChanged()
+  activeTab.value = forms.value[0]?.tab ?? files.value[0]?.path
 }
 
 /** 设计器改动了 Designer.cs（以及插入事件处理方法时的代码文件） */
@@ -166,9 +225,28 @@ function run() {
 
       <main class="workspace" :class="{ designing: activeForm }">
         <section class="editor">
-          <NTabs v-model:value="activeTab" type="card" size="small">
-            <NTab v-for="tab in tabs" :key="tab.name" :name="tab.name">{{ tab.label }}</NTab>
-          </NTabs>
+          <div class="tab-row">
+            <NTabs v-model:value="activeTab" type="card" size="small" class="file-tabs">
+              <NTab v-for="tab in tabs" :key="tab.name" :name="tab.name">{{ tab.label }}</NTab>
+            </NTabs>
+            <NPopover trigger="click" placement="bottom-end" :show="newFormOpen" @update:show="openNewForm">
+              <template #trigger>
+                <NButton size="small" quaternary>＋ 新建窗体</NButton>
+              </template>
+              <div class="new-form">
+                <div>窗体名（也是类名和文件名）</div>
+                <NInput v-model:value="newFormName" size="small" @keydown.enter="createForm" />
+                <div v-if="newFormError" class="new-form-error">{{ newFormError }}</div>
+                <NButton size="small" type="primary" :disabled="!!newFormError" @click="createForm">创建</NButton>
+              </div>
+            </NPopover>
+            <NPopconfirm v-if="deletableForm" positive-text="删除" negative-text="取消" @positive-click="deleteForm">
+              <template #trigger>
+                <NButton size="small" quaternary>删除窗体</NButton>
+              </template>
+              将删除 {{ deletableForm.code }} 和 {{ deletableForm.designer }}，代码里用到这个窗体的地方需要自己修改。确定删除吗？
+            </NPopconfirm>
+          </div>
           <FormDesigner
             v-if="activeForm"
             class="code"
@@ -287,6 +365,29 @@ body {
 .code {
   flex: 1;
   min-height: 0;
+}
+
+.tab-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.file-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.new-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 220px;
+  font-size: 12px;
+}
+
+.new-form-error {
+  color: #dc2626;
 }
 
 .run-area {

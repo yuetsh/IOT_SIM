@@ -123,17 +123,17 @@ function skipVerbatim(text: string, i: number) {
 
 // ---------- 解析 ----------
 
-const CREATE = /^this\.(\w+) = new ([\w.]+)\(([^()]*)\);$/
-const LAYOUT = /^this\.(?:(\w+)\.)?(SuspendLayout|ResumeLayout|PerformLayout)\((?:false)?\);$/
-const INIT = /^\(\(System\.ComponentModel\.ISupportInitialize\)\(this\.(\w+)\)\)\.(BeginInit|EndInit)\(\);$/
-const EVENT = /^this\.(?:(\w+)\.)?(\w+) \+= new ([\w.]+)\(this\.(\w+)\);$/
-const ADD = /^this\.(?:(\w+)\.)?Controls\.Add\(this\.(\w+)\);$/
-const ITEMS = /^this\.(\w+)\.Items\.AddRange\(new object\[\] \{([\s\S]*)\}\);$/
-const PROP = /^this\.([\w.]+) = ([\s\S]+);$/
+const CREATE = /^this\.([\p{L}\p{N}_]+) = new ([\p{L}\p{N}_.]+)\(([^()]*)\);$/u
+const LAYOUT = /^this\.(?:([\p{L}\p{N}_]+)\.)?(SuspendLayout|ResumeLayout|PerformLayout)\((?:false)?\);$/u
+const INIT = /^\(\(System\.ComponentModel\.ISupportInitialize\)\(this\.([\p{L}\p{N}_]+)\)\)\.(BeginInit|EndInit)\(\);$/u
+const EVENT = /^this\.(?:([\p{L}\p{N}_]+)\.)?([\p{L}\p{N}_]+) \+= new ([\p{L}\p{N}_.]+)\(this\.([\p{L}\p{N}_]+)\);$/u
+const ADD = /^this\.(?:([\p{L}\p{N}_]+)\.)?Controls\.Add\(this\.([\p{L}\p{N}_]+)\);$/u
+const ITEMS = /^this\.([\p{L}\p{N}_]+)\.Items\.AddRange\(new object\[\] \{([\s\S]*)\}\);$/u
+const PROP = /^this\.([\p{L}\p{N}_.]+) = ([\s\S]+);$/u
 
 /** 一个 Designer.cs 文件里窗体类的名字：partial class 后面的标识符 */
 function findFormName(text: string) {
-  const match = /partial\s+class\s+(\w+)/.exec(text)
+  const match = /partial\s+class\s+([\p{L}\p{N}_]+)/u.exec(text)
   if (!match) throw new DesignerParseError('找不到 partial class 声明')
   return match[1]
 }
@@ -157,7 +157,7 @@ export function parseDesigner(text: string): DesignerDocument {
 
   // 第一遍：找出所有创建的控件。只有声明了字段的才算控件——
   // 窗体属性也可能写成 this.ClientSize = new System.Drawing.Size(...)，形式和创建控件一样
-  const fields = new Set([...text.matchAll(/^\s*private\s+[\w.]+\s+(\w+)\s*;/gm)].map((m) => m[1]))
+  const fields = new Set([...text.matchAll(/^\s*private\s+[\p{L}\p{N}_.]+\s+([\p{L}\p{N}_]+)\s*;/gmu)].map((m) => m[1]))
   const controls = new Set<string>()
   for (const piece of pieces) {
     const m = piece.kind === 'stmt' ? CREATE.exec(piece.text) : null
@@ -173,7 +173,7 @@ export function parseDesigner(text: string): DesignerDocument {
       headerLines.push(piece.text)
       // VS 的块头是三行注释："// "、"// 名字"、"// "
       if (headerLines.length === 3) {
-        const name = /^\/\/ (\w+)$/.exec(headerLines[1])?.[1]
+        const name = /^\/\/ ([\p{L}\p{N}_]+)$/u.exec(headerLines[1])?.[1]
         if (!name || headerLines[0].trim() !== '//' || headerLines[2].trim() !== '//') {
           throw new DesignerParseError(`无法识别的注释：${headerLines.join(' ')}`)
         }

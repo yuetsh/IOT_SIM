@@ -39,7 +39,7 @@ function lineOf(text: string, index: number) {
 
 /** 找到 class className 的类体结束 "}" 的位置（跳过字符串、字符和注释） */
 export function classClosingBrace(code: string, className: string): number {
-  const decl = new RegExp(`\\bclass\\s+${className}\\b`).exec(code)
+  const decl = new RegExp(`(?<![\\p{L}\\p{N}_])class\\s+${className}(?![\\p{L}\\p{N}_])`, 'u').exec(code)
   if (!decl) return -1
   let i = code.indexOf('{', decl.index)
   if (i < 0) return -1

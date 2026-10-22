@@ -44,7 +44,8 @@ function reset(prop: PropDef) {
 // ---------- 名称 ----------
 const nameDraft = ref('')
 const nameError = ref<string | null>(null)
-watch(() => props.selected, () => {
+// 切换选中的控件或切换到另一个窗体时刷新
+watch([() => props.selected, () => props.doc.formName], () => {
   nameDraft.value = props.selected || props.doc.formName
   nameError.value = null
 }, { immediate: true })

@@ -236,7 +236,7 @@ export function renameControl(doc: DesignerDocument, from: string, to: string): 
       case 'layout':
         return s.target === from ? { ...s, target: to, text: undefined } : s
       case 'raw':
-        return s.text.includes(`this.${from}`) ? { kind: 'raw', text: s.text.replace(new RegExp(`\\bthis\\.${from}\\b`, 'g'), `this.${to}`) } : s
+        return s.text.includes(`this.${from}`) ? { kind: 'raw', text: s.text.replace(new RegExp(`(?<![\\p{L}\\p{N}_])this\\.${from}(?![\\p{L}\\p{N}_])`, 'gu'), `this.${to}`) } : s
     }
   }
   next.prologue = next.prologue.map(fix)
@@ -245,7 +245,7 @@ export function renameControl(doc: DesignerDocument, from: string, to: string): 
     if (block.name === from) block.name = to
     block.stmts = block.stmts.map(fix)
   }
-  next.tail = next.tail.replace(new RegExp(`(private [\\w.]+ )${from};`), `$1${to};`)
+  next.tail = next.tail.replace(new RegExp(`(private [\\p{L}\\p{N}_.]+ )${from};`, 'u'), `$1${to};`)
   return next
 }
 
@@ -336,7 +336,7 @@ function ensureLayout(doc: DesignerDocument, target: string, op: 'SuspendLayout'
 
 // ---------- 字段声明 ----------
 
-const FIELD = /^([ \t]*)private ([\w.]+) (\w+);[ \t]*$/gm
+const FIELD = /^([ \t]*)private ([\p{L}\p{N}_.]+) ([\p{L}\p{N}_]+);[ \t]*$/gmu
 
 function addField(tail: string, type: string, name: string, eol: string) {
   const fields = [...tail.matchAll(FIELD)]
@@ -354,7 +354,7 @@ function addField(tail: string, type: string, name: string, eol: string) {
 }
 
 function removeField(tail: string, name: string) {
-  return tail.replace(new RegExp(`^[ \\t]*private [\\w.]+ ${name};[ \\t]*\\r?\\n`, 'm'), '')
+  return tail.replace(new RegExp(`^[ \\t]*private [\\p{L}\\p{N}_.]+ ${name};[ \\t]*\\r?\\n`, 'mu'), '')
 }
 
 /** 窗体或控件的显示名：窗体用类名 */

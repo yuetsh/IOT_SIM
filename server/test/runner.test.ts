@@ -237,3 +237,30 @@ test('项目3 任务2：勾选人体开关后，有人经过时 5 秒内路灯�
   const on = await runner.next('device', (m) => m.device === 'zigbee', 7000)
   expect(on.data).toEqual([1, 1])
 }, 30000)
+
+test('项目1 任务1：多窗体——打开增加用户窗体、添加用户、关闭后登录成功，可以再次打开', async () => {
+  const { runner, form: login, id } = await startSample('p1-t1-登录')
+  expect(login.props.Text).toBe('登录')
+
+  runner.send({ type: 'action', id: id('btnAdd'), action: 'click' })
+  const { form: addUser } = await runner.waitFor('formShown', (m) => m.form.props.Text === '增加用户')
+  const addId = (name: string) => findByName(addUser, name).id
+  runner.send({ type: 'action', id: addId('txtNewUser1'), action: 'text', value: 'admin' })
+  runner.send({ type: 'action', id: addId('txtPass1'), action: 'text', value: '123' })
+  runner.send({ type: 'action', id: addId('txtPass2'), action: 'text', value: '123' })
+  runner.send({ type: 'action', id: addId('btnOk'), action: 'click' })
+  await runner.waitFor('formClosed', (m) => m.formId === addUser.id)
+
+  runner.send({ type: 'action', id: id('txtUserName'), action: 'text', value: 'admin' })
+  runner.send({ type: 'action', id: id('txtPassword'), action: 'text', value: '123' })
+  runner.send({ type: 'action', id: id('btnOk'), action: 'click' })
+  const box = await runner.waitFor('messageBox')
+  expect(box.text).toBe('登录成功，欢迎进入！')
+  runner.send({ type: 'reply', requestId: box.requestId, result: 'OK' })
+
+  // 再次打开增加用户窗体：每次新建实例，不会因为上一个已释放而出错
+  runner.send({ type: 'action', id: id('btnAdd'), action: 'click' })
+  const second = await runner.next('formShown', (m) => m.form.props.Text === '增加用户')
+  expect(second.form.id).not.toBe(addUser.id)
+  expect(runner.messages.some((m) => m.type === 'exception')).toBe(false)
+}, 30000)

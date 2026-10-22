@@ -1,3 +1,8 @@
+<script lang="ts">
+let topZ = 1
+const nextZ = () => ++topZ
+</script>
+
 <script setup lang="ts">
 // 一个 WinForms 窗体：标题栏 + 客户区。窗体可以拖动标题栏移动。
 import { computed, ref } from 'vue'
@@ -19,6 +24,12 @@ const childrenTopLast = computed(() => [...props.form.children].reverse())
 const clientSize = computed(() => (p.value.ClientSize as SizeValue | undefined) ?? { width: 300, height: 300 })
 
 const position = ref({ x: 24 + props.offset * 32, y: 24 + props.offset * 32 })
+
+// 点哪个窗口，哪个窗口到最前面（所有窗体共用一个递增的层级）
+const zIndex = ref(nextZ())
+function activate() {
+  zIndex.value = nextZ()
+}
 let dragStart: { x: number; y: number; px: number; py: number } | undefined
 
 function startDrag(event: PointerEvent) {
@@ -41,7 +52,8 @@ function close() {
     v-show="p.Visible !== false"
     class="wf-window"
     :class="{ 'wf-window-modal': modal }"
-    :style="{ left: `${position.x}px`, top: `${position.y}px` }"
+    :style="{ left: `${position.x}px`, top: `${position.y}px`, zIndex: modal ? undefined : zIndex }"
+    @pointerdown.capture="activate"
   >
     <div v-if="!borderless" class="wf-titlebar" @pointerdown="startDrag" @pointermove="drag" @pointerup="dragStart = undefined">
       <span class="wf-title">{{ displayText(p.Text) }}</span>
