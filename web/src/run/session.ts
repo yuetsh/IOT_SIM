@@ -1,9 +1,9 @@
 import { reactive, shallowReactive } from 'vue'
 import type {
+  BoardState,
   ClientMessage,
   ControlNode,
   Diagnostic,
-  RunnerInput,
   ServerMessage,
   SourceFile,
   UserAction,
@@ -31,23 +31,33 @@ export function createRunSession() {
     errors: [] as string[],
     forms: [] as OpenForm[],
     messageBoxes: [] as PendingMessageBox[],
-    devices: { ledText: '' },
+    /** 虚拟实训台，由服务器推送；连接建立前为 null */
+    board: null as BoardState | null,
     metrics: { compileMs: 0, startMs: 0, lastRoundTripMs: 0 },
   })
   /** id → 控件节点，patch 按 id 修改节点属性 */
   const nodes = shallowReactive(new Map<string, ControlNode>())
   let socket: WebSocket | undefined
+  /** 正在建立或已建立的连接；同时多处调用 connect() 时共用同一个 */
+  let connecting: Promise<void> | undefined
   let actionSentAt = 0
 
   function connect() {
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
-    socket = new WebSocket(`${protocol}://${location.host}/ws`)
-    socket.onmessage = (event) => handle(JSON.parse(event.data) as ServerMessage)
-    socket.onclose = () => {
-      state.status = 'stopped'
-      socket = undefined
-    }
-    return new Promise<void>((resolve) => socket!.addEventListener('open', () => resolve(), { once: true }))
+    connecting ??= new Promise<void>((resolve) => {
+      const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
+      const ws = new WebSocket(`${protocol}://${location.host}/ws`)
+      socket = ws
+      ws.onmessage = (event) => handle(JSON.parse(event.data) as ServerMessage)
+      ws.onopen = () => resolve()
+      ws.onclose = () => {
+        state.status = 'stopped'
+        state.board = null
+        socket = undefined
+        connecting = undefined
+        resolve()
+      }
+    })
+    return connecting
   }
 
   function send(message: ClientMessage) {
@@ -55,15 +65,23 @@ export function createRunSession() {
   }
 
   async function run(files: SourceFile[]) {
-    if (!socket) await connect()
+    await connect()
     state.diagnostics = []
     state.console = ''
     state.errors = []
     state.forms = []
     state.messageBoxes = []
-    state.devices.ledText = ''
     nodes.clear()
     send({ type: 'run', files })
+  }
+
+  /** 调节实训台环境（滑块、传感器开关） */
+  function setBoard(input: Omit<Extract<ClientMessage, { type: 'boardInput' }>, 'type'>) {
+    send({ type: 'boardInput', ...input })
+  }
+
+  function resetBoard() {
+    send({ type: 'boardReset' })
   }
 
   function stop() {
@@ -72,7 +90,7 @@ export function createRunSession() {
 
   function act(id: string, action: UserAction) {
     actionSentAt = performance.now()
-    send({ type: 'action', id, ...action } as RunnerInput)
+    send({ type: 'action', id, ...action } as ClientMessage)
   }
 
   function replyMessageBox(requestId: number, result: string) {
@@ -145,8 +163,8 @@ export function createRunSession() {
       case 'messageBox':
         state.messageBoxes.push(message)
         break
-      case 'device':
-        if (message.device === 'led' && message.action === 'text') state.devices.ledText = String(message.data)
+      case 'board':
+        state.board = message.state
         break
       case 'console':
         state.console += message.text
@@ -164,7 +182,7 @@ export function createRunSession() {
     }
   }
 
-  return { state, run, stop, act, replyMessageBox }
+  return { state, connect, run, stop, act, replyMessageBox, setBoard, resetBoard }
 }
 
 export type RunSession = ReturnType<typeof createRunSession>

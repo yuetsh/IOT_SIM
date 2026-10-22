@@ -21,15 +21,23 @@ const statusType = computed(() => ({ idle: 'default', compiling: 'warning', runn
 const running = computed(() => state.status === 'compiling' || state.status === 'running')
 
 onMounted(async () => {
+  // 一打开页面就连接服务器，实训台在运行程序之前就能显示和调节
+  void session.connect()
   const list: { id: string; title: string }[] = await (await fetch('/api/samples')).json()
   samples.value = list.map((s) => ({ label: s.title, value: s.id }))
-  if (list[0]) await loadSample(list[0].id)
+  // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生）
+  const requested = new URLSearchParams(location.search).get('sample')
+  const initial = list.find((s) => s.id === requested) ?? list[0]
+  if (initial) await loadSample(initial.id)
 })
 
 async function loadSample(id: string) {
   sampleId.value = id
+  history.replaceState(null, '', `?sample=${encodeURIComponent(id)}`)
   files.value = await (await fetch(`/api/samples/${encodeURIComponent(id)}`)).json()
-  activeFile.value = files.value.find((f) => f.path.endsWith('Form1.cs'))?.path ?? files.value[0]?.path
+  // 默认打开窗体的代码文件（不一定叫 Form1.cs，如教材的 frm_analog.cs）
+  activeFile.value =
+    files.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? files.value[0]?.path
 }
 
 function updateFile(path: string, content: string) {
@@ -46,7 +54,7 @@ function run() {
   <NConfigProvider :locale="zhCN">
     <div class="page">
       <header class="toolbar">
-        <strong>物联网编程仿真平台 · 第 0 阶段</strong>
+        <strong>物联网编程仿真平台</strong>
         <NSelect
           class="sample-select"
           :value="sampleId"
@@ -95,7 +103,7 @@ function run() {
             />
             <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
           </div>
-          <TrainingBoard :led-text="state.devices.ledText" />
+          <TrainingBoard :board="state.board" @set="session.setBoard" @reset="session.resetBoard" />
           <div class="output">
             <div v-for="(d, i) in state.diagnostics" :key="`d${i}`" :class="['diag', d.severity]">
               {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
@@ -182,7 +190,7 @@ body {
 .desktop {
   position: relative;
   flex: 1;
-  min-height: 380px;
+  min-height: 320px;
   background: #2d6aa3;
   border-radius: 4px;
   /* 窗体比桌面区域大时可以滚动查看 */

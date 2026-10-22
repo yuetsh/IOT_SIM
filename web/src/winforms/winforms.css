@@ -151,6 +151,55 @@
   color: #fff;
 }
 
+.wf-check {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: pre;
+  cursor: default;
+}
+
+.wf-checkbox-box,
+.wf-radio-dot {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  box-sizing: border-box;
+  border: 1px solid #333;
+  background: #fff;
+}
+
+.wf-radio-dot {
+  border-radius: 50%;
+}
+
+.wf-checkbox-box[data-checked="true"]::after {
+  content: "✓";
+  display: block;
+  font: bold 11px/11px sans-serif;
+  text-align: center;
+  color: #333;
+}
+
+.wf-radio-dot[data-checked="true"] {
+  background: radial-gradient(circle, #333 0 3px, #fff 3.5px);
+}
+
+.wf-check:hover:not(.wf-disabled) .wf-checkbox-box,
+.wf-check:hover:not(.wf-disabled) .wf-radio-dot {
+  border-color: #0078d7;
+}
+
+.wf-device-image {
+  overflow: hidden;
+}
+
+/* 与教材控件一致：图片以原始尺寸从左上角显示 */
+.wf-device-image img {
+  display: block;
+  user-select: none;
+}
+
 .wf-groupbox-frame {
   position: absolute;
   inset: 6px 0 0 0;

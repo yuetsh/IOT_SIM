@@ -105,6 +105,9 @@ internal static class StudentProgramHost
                         SimHost.Ui.Post(() => control.PerformUserAction(action));
                     }
                     break;
+                case "board":
+                    DeviceCtrlLibrary.TrainingBoard.Update(message!);
+                    break;
                 case "reply":
                     SimHost.CompleteRequest((int?)message!["requestId"] ?? 0, message["result"]?.DeepClone());
                     break;

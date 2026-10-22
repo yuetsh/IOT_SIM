@@ -1,7 +1,8 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { dirname, join, normalize, resolve } from 'node:path'
 import type { Subprocess } from 'bun'
-import type { RunnerInput, RunnerMessage, ServerMessage, SourceFile } from '@iot/shared'
+import type { ClientMessage, RunnerInput, RunnerMessage, ServerMessage, SourceFile } from '@iot/shared'
+import { Board } from './board'
 import { compileService } from './compile-service'
 import { ROOT, RUNNER_DLL, readLines } from './runner-process'
 
@@ -12,8 +13,12 @@ export async function cleanupStaleRuns() {
   await rm(RUNS_DIR, { recursive: true, force: true })
 }
 
-/** 一次运行：写出学生工程 → 编译服务编译 → 启动运行进程，在运行进程和浏览器之间转发消息 */
+/**
+ * 一个浏览器会话：拥有一台虚拟实训台，负责每次运行（写出学生工程 → 编译服务编译 → 启动运行进程），
+ * 在运行进程和浏览器之间转发消息，并让实训台状态在两边保持一致。
+ */
 export class RunSession {
+  readonly board = new Board()
   private proc?: Subprocess<'pipe', 'pipe', 'pipe'>
   private dir?: string
   /** 每次启动、停止都递增，用来丢弃已经过时的编译结果 */
@@ -21,7 +26,9 @@ export class RunSession {
   /** 同一会话的多次"运行"排队依次执行，避免两次启动交错 */
   private queue = Promise.resolve()
 
-  constructor(private readonly send: (message: ServerMessage) => void) {}
+  constructor(private readonly send: (message: ServerMessage) => void) {
+    this.sendBoard()
+  }
 
   start(files: SourceFile[]) {
     const next = this.queue.then(() => this.startNow(files))
@@ -59,7 +66,13 @@ export class RunSession {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' },
+      env: {
+        ...process.env,
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1',
+        DOTNET_NOLOGO: '1',
+        // 启动时就带上传感器读数，学生程序第一次 SetData() 前不必等消息
+        SIM_BOARD: JSON.stringify(this.board.runnerInputs()),
+      },
     })
     this.proc = proc
 
@@ -72,6 +85,10 @@ export class RunSession {
         return
       }
       if (message.type === 'started') this.send({ type: 'status', state: 'running' })
+      if (message.type === 'device') {
+        if (this.board.applyDevice(message)) this.sendBoard()
+        return
+      }
       this.send(message)
     })
     void readLines(proc.stderr, (line) => this.send({ type: 'serverError', message: line }))
@@ -83,6 +100,23 @@ export class RunSession {
       this.send({ type: 'status', state: 'stopped' })
       await this.cleanup()
     })
+  }
+
+  /** 浏览器调节实训台环境：更新状态，推给浏览器和正在运行的学生程序 */
+  boardInput(message: Extract<ClientMessage, { type: 'boardInput' }>) {
+    if (!this.board.applyInput(message)) return
+    this.sendBoard()
+    this.input(this.board.runnerInputs())
+  }
+
+  boardReset() {
+    this.board.reset()
+    this.sendBoard()
+    this.input(this.board.runnerInputs())
+  }
+
+  private sendBoard() {
+    this.send({ type: 'board', state: structuredClone(this.board.state) })
   }
 
   input(message: RunnerInput) {

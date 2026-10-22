@@ -1,6 +1,7 @@
-// 端到端测试：直接启动 C# 运行器，模拟浏览器操作，检查教材项目 2 任务 1 的行为。
+// 端到端测试：直接启动 C# 运行器，模拟浏览器操作，检查教材示例工程的行为。
 // 运行前先编译运行时：bun run build:runtime
 import { afterAll, afterEach, expect, test } from 'bun:test'
+import { cp, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ControlNode, RunnerInput, RunnerMessage } from '@iot/shared'
 import { compileService } from '../src/compile-service'
@@ -47,6 +48,16 @@ class Runner {
     }
   }
 
+  /** 只等待从现在起新收到的消息（不算已经收到的） */
+  next<T extends RunnerMessage['type']>(
+    type: T,
+    match: (m: Extract<RunnerMessage, { type: T }>) => boolean = () => true,
+    timeoutMs = 15000,
+  ): Promise<Extract<RunnerMessage, { type: T }>> {
+    const from = this.messages.length
+    return this.waitFor(type, (m) => this.messages.indexOf(m) >= from && match(m), timeoutMs)
+  }
+
   /** 等待下一条满足条件的消息（已经收到的也算） */
   waitFor<T extends RunnerMessage['type']>(
     type: T,
@@ -87,16 +98,32 @@ function findByName(node: ControlNode, name: string): ControlNode {
   return { id: '', type: '', name: '', props: {}, children: [] }
 }
 
+/** 编译产物写在工程目录里，所以把示例复制到临时目录再编译 */
+async function prepareSample(id: string) {
+  const dir = resolve(ROOT, '.runs', `test-${id}`)
+  await rm(dir, { recursive: true, force: true })
+  await cp(resolve(ROOT, 'samples', id), dir, { recursive: true })
+  return dir
+}
+
+/** 启动示例并等窗体显示；返回按控件名查 id 的函数 */
+async function startSample(id: string) {
+  runner = await Runner.start(await prepareSample(id))
+  const compiled = await runner.waitFor('compiled')
+  expect(compiled.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+  const { form } = await runner.waitFor('formShown')
+  return { runner, form, id: (name: string) => findByName(form, name).id }
+}
+
+const ANALOG_DEFAULT = [25, 60, 500, 101, 60, 600, 3]
+const DIGITAL_OFF = [false, false, false, false]
+
 let runner: Runner | undefined
 afterEach(() => runner?.kill())
 afterAll(() => compileService.stop())
 
 test('项目2 任务1：选串口、打开、推送文字到 LED 屏', async () => {
-  // 编译产物写在工程目录里，所以复制到临时目录再编译
-  const dir = resolve(ROOT, '.runs/test-led')
-  const sample = resolve(ROOT, 'samples/p2-t1-LED显示屏')
-  for (const name of ['Program.cs', 'Form1.cs', 'Form1.Designer.cs']) await Bun.write(`${dir}/${name}`, Bun.file(`${sample}/${name}`))
-  runner = await Runner.start(dir)
+  runner = await Runner.start(await prepareSample('p2-t1-LED显示屏'))
   const compiled = await runner.waitFor('compiled')
   expect(compiled.diagnostics).toEqual([])
   const { form } = await runner.waitFor('formShown')
@@ -146,4 +173,67 @@ test('编译错误：书上常见的 True 大写给出中文提示', async () =>
   const error = compiled.diagnostics.find((d) => d.code === 'CS0103')
   expect(error?.message).toContain('True')
   expect(error?.hint).toContain('小写')
+}, 30000)
+
+test('项目2 任务2：温度读数来自实训台，滑块变化后再次获取得到新值', async () => {
+  const { runner, id } = await startSample('p2-t2-模拟量采集')
+  const port = id('com_port')
+  // 串口列表在 Load 里就已填好
+  runner.send({ type: 'action', id: port, action: 'select', index: 1 })
+  runner.send({ type: 'action', id: id('btn_Open'), action: 'click' })
+  const textOf = (name: string) =>
+    runner.next('patch', (m) => m.changes.some((c) => c.id === id(name) && c.prop === 'Text')).then(
+      (m) => m.changes.findLast((c) => c.id === id(name) && c.prop === 'Text')!.value,
+    )
+
+  let temperature = textOf('txt_temperature')
+  runner.send({ type: 'action', id: id('btn_get'), action: 'click' })
+  expect(await temperature).toBe('25')
+
+  runner.send({ type: 'board', analog: [31, 60, 300, 101, 60, 600, 3], digital: DIGITAL_OFF })
+  temperature = textOf('txt_temperature')
+  const light = textOf('txt_light')
+  runner.send({ type: 'action', id: id('btn_get'), action: 'click' })
+  expect(await temperature).toBe('31')
+  expect(await light).toBe('300')
+}, 30000)
+
+test('项目3 任务1：单选按钮切换，事件顺序与 WinForms 一致，最终灯的状态正确', async () => {
+  const { runner, id } = await startSample('p3-t1-ZigBee路灯')
+  const lamp = id('lamp1')
+
+  // 串口没打开时控制无效：没有继电器动作，但界面上的灯照样会亮（学生能看出两者不一致）
+  runner.send({ type: 'action', id: id('rb_Open'), action: 'click' })
+  await runner.waitFor('patch', (m) => m.changes.some((c) => c.id === lamp && c.prop === 'IsOn' && c.value === true))
+  expect(runner.messages.some((m) => m.type === 'device')).toBe(false)
+
+  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 3 })
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+
+  // 选"关"：先触发"开"的 CheckedChanged（又开一次），再触发"关"的 CheckedChanged，最终关灯
+  const relayOff = runner.next('device', (m) => m.device === 'zigbee' && (m.data as number[])[1] === 0)
+  runner.send({ type: 'action', id: id('rb_Close'), action: 'click' })
+  const devices: unknown[] = []
+  await relayOff
+  for (const m of runner.messages) if (m.type === 'device') devices.push(m.data)
+  expect(devices).toEqual([
+    [1, 1],
+    [1, 0],
+  ])
+}, 30000)
+
+test('项目3 任务2：勾选人体开关后，有人经过时 5 秒内路灯打开', async () => {
+  const { runner, id } = await startSample('p3-t2-人体红外ZigBee联动')
+  runner.send({ type: 'action', id: id('com_lamp'), action: 'select', index: 3 })
+  runner.send({ type: 'action', id: id('com_environment'), action: 'select', index: 2 })
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+
+  // 复选框的 Click 里读取 Checked：此时 Checked 必须已经是 true
+  const disabled = runner.next('patch', (m) => m.changes.some((c) => c.id === id('btn_lampOpen') && c.prop === 'Enabled' && c.value === false))
+  runner.send({ type: 'action', id: id('ch_bodyInfrared'), action: 'click' })
+  await disabled
+
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [true, false, false, false] })
+  const on = await runner.next('device', (m) => m.device === 'zigbee', 7000)
+  expect(on.data).toEqual([1, 1])
 }, 30000)

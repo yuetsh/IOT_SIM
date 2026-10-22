@@ -108,6 +108,26 @@ function selectItem(index: number) {
     </ul>
   </div>
 
+  <!-- CheckBox / RadioButton：自绘勾选框，状态完全由运行器决定（点击只上报，不在浏览器里自行切换） -->
+  <div
+    v-else-if="node.type === 'CheckBox' || node.type === 'RadioButton'"
+    class="wf-control wf-check"
+    :class="{ 'wf-disabled': !enabled, 'wf-autosize': p.AutoSize === true }"
+    :style="style"
+    @click="act({ action: 'click' })"
+  >
+    <span :class="node.type === 'CheckBox' ? 'wf-checkbox-box' : 'wf-radio-dot'" :data-checked="p.Checked === true" />
+    <span class="wf-check-text">{{ displayText(p.Text) }}</span>
+  </div>
+
+  <!-- 教材控件库：灯泡、报警灯（图片沿用教材控件库） -->
+  <div v-else-if="node.type === 'WinFormsDeviceControlLibrary.Lamp'" class="wf-control wf-device-image" :style="style">
+    <img :src="p.IsOn ? '/devices/LampOn.png' : '/devices/LampOff.png'" alt="" draggable="false" />
+  </div>
+  <div v-else-if="node.type === 'WinFormsDeviceControlLibrary.Alarm'" class="wf-control wf-device-image" :style="style">
+    <img :src="p.IsOn ? '/devices/AlarmOn.jpg' : '/devices/AlarmOff.jpg'" alt="" draggable="false" />
+  </div>
+
   <!-- GroupBox -->
   <div v-else-if="node.type === 'GroupBox'" class="wf-control wf-groupbox" :style="style">
     <div class="wf-groupbox-frame" />

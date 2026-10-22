@@ -50,6 +50,10 @@ const server = Bun.serve({
         }
       } else if (message.type === 'stop') {
         await session.stop()
+      } else if (message.type === 'boardInput') {
+        session.boardInput(message)
+      } else if (message.type === 'boardReset') {
+        session.boardReset()
       } else {
         session.input(message)
       }

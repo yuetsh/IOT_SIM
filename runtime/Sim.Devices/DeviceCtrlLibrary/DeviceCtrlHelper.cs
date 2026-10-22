@@ -91,8 +91,7 @@ public class ADAM4017Helper
         return model;
     }
 
-    private string Read(int quantity) =>
-        TrainingBoard.AnalogInputs.TryGetValue(_channels[quantity], out var value) ? value.ToString() : "0";
+    private string Read(int quantity) => TrainingBoard.ReadAnalog(_channels[quantity]).ToString();
 
     public void Close() => _portName = null;
 }
@@ -120,12 +119,15 @@ public class ADAM4150Helper
         return model;
     }
 
-    private bool Read(int sensor) => TrainingBoard.DigitalInputs.TryGetValue(_channels[sensor], out var value) && value;
+    private bool Read(int sensor) => TrainingBoard.ReadDigital(_channels[sensor]);
 
-    /// <summary>控制继电器 DO0–DO4（DO0 报警灯、DO1 照明灯、DO2 路灯），通道号有效时返回 true</summary>
+    /// <summary>
+    /// 控制继电器 DO0–DO4（DO0 报警灯、DO1 照明灯、DO2 路灯、DO3/DO4 插座）。
+    /// 和真实设备一样，串口没有打开时控制无效、返回 false（教材仿真版不检查，这里更贴近实物）。
+    /// </summary>
     public bool OnOff(int DO, bool IsOpen)
     {
-        if (DO < 0 || DO > 4) return false;
+        if (DO < 0 || DO > 4 || string.IsNullOrWhiteSpace(_portName)) return false;
         SimHost.SendDevice("adam4150", "do", new[] { DO, IsOpen ? 1 : 0 });
         return true;
     }
@@ -139,10 +141,10 @@ public class ZigBeeHelper
 
     public void Open(string PortName) => _portName = PortName;
 
-    /// <summary>控制 ZigBee 继电器节点 0、1，通道号有效时返回 true</summary>
+    /// <summary>控制 ZigBee 继电器节点 0、1（教材用节点 1 控制路灯）；串口没有打开时控制无效、返回 false</summary>
     public bool OnOff(int RelayNum, bool IsOpen)
     {
-        if (RelayNum < 0 || RelayNum > 1) return false;
+        if (RelayNum < 0 || RelayNum > 1 || string.IsNullOrWhiteSpace(_portName)) return false;
         SimHost.SendDevice("zigbee", "relay", new[] { RelayNum, IsOpen ? 1 : 0 });
         return true;
     }

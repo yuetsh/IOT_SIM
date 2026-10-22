@@ -49,7 +49,7 @@ public static class PropValue
     private static JsonArray ListOf(IEnumerable items)
     {
         var array = new JsonArray();
-        foreach (var item in items) array.Add(From(item is string or null ? item : item.ToString()));
+        foreach (var item in items) array.Add(From(item));
         return array;
     }
 

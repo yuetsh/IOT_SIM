@@ -1,25 +1,46 @@
-using System.Collections.Concurrent;
+using System;
+using System.Text.Json.Nodes;
 
 namespace DeviceCtrlLibrary;
 
 /// <summary>
-/// 虚拟实训台的设备状态。第 0 阶段先放在运行器进程里、用固定的默认值；
-/// 第 1 阶段改为向 Bun 服务器上的实训台查询，数值由网页上的滑块和开关控制。
+/// 学生程序进程里的实训台传感器读数副本。权威状态在 Bun 服务器上（网页滑块和开关控制）：
+/// 启动时从环境变量 SIM_BOARD 读入，之后服务器每次变化都通过标准输入推送过来。
+/// SetData() 直接读这里，不需要等待网络往返。
 /// </summary>
-internal static class TrainingBoard
+public static class TrainingBoard
 {
-    /// <summary>ADAM-4017 各通道的读数（Vin0 温度、Vin1 湿度、Vin2 光照……），按教材格式保存为整数</summary>
-    public static readonly ConcurrentDictionary<int, int> AnalogInputs = new()
-    {
-        [0] = 25,   // 温度 ℃
-        [1] = 60,   // 湿度 %
-        [2] = 500,  // 光照 lx
-        [3] = 101,  // 气压 kPa
-        [4] = 60,   // 空气质量
-        [5] = 600,  // CO2 ppm
-        [6] = 20,   // 风速
-    };
+    private static readonly object Lock = new();
+    // ADAM-4017 Vin0–Vin7（温度、湿度、光照、气压、空气质量、CO2、风速、预留）
+    private static int[] _analog = { 25, 60, 500, 101, 60, 600, 3, 0 };
+    // ADAM-4150 DI0–DI6（人体红外、火焰、烟雾、红外对射、预留）
+    private static bool[] _digital = new bool[7];
 
-    /// <summary>ADAM-4150 数字量输入（DI0 人体红外、DI1 火焰、DI2 烟雾、DI3 红外对射）</summary>
-    public static readonly ConcurrentDictionary<int, bool> DigitalInputs = new();
+    static TrainingBoard()
+    {
+        var initial = Environment.GetEnvironmentVariable("SIM_BOARD");
+        if (!string.IsNullOrEmpty(initial) && JsonNode.Parse(initial) is JsonObject json) Update(json);
+    }
+
+    /// <summary>平台内部使用：应用服务器推送的 {"analog":[…],"digital":[…]}</summary>
+    public static void Update(JsonObject json)
+    {
+        lock (Lock)
+        {
+            if (json["analog"] is JsonArray analog)
+                for (var i = 0; i < analog.Count && i < _analog.Length; i++) _analog[i] = (int?)analog[i] ?? 0;
+            if (json["digital"] is JsonArray digital)
+                for (var i = 0; i < digital.Count && i < _digital.Length; i++) _digital[i] = (bool?)digital[i] ?? false;
+        }
+    }
+
+    internal static int ReadAnalog(int channel)
+    {
+        lock (Lock) return channel >= 0 && channel < _analog.Length ? _analog[channel] : 0;
+    }
+
+    internal static bool ReadDigital(int channel)
+    {
+        lock (Lock) return channel >= 0 && channel < _digital.Length && _digital[channel];
+    }
 }
