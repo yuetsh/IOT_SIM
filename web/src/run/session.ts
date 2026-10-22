@@ -1,4 +1,5 @@
 import { reactive, shallowReactive } from 'vue'
+import { validAccessToken } from '../tokens'
 import type {
   BoardState,
   ClientMessage,
@@ -43,20 +44,24 @@ export function createRunSession() {
   let actionSentAt = 0
 
   function connect() {
-    connecting ??= new Promise<void>((resolve) => {
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
-      const ws = new WebSocket(`${protocol}://${location.host}/ws`)
-      socket = ws
-      ws.onmessage = (event) => handle(JSON.parse(event.data) as ServerMessage)
-      ws.onopen = () => resolve()
-      ws.onclose = () => {
-        state.status = 'stopped'
-        state.board = null
-        socket = undefined
-        connecting = undefined
-        resolve()
-      }
-    })
+    connecting ??= validAccessToken().then(
+      (token) =>
+        new Promise<void>((resolve) => {
+          const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
+          // 浏览器的 WebSocket 不能带请求头，访问令牌放在网址参数里（只在建立连接时检查）
+          const ws = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token ?? '')}`)
+          socket = ws
+          ws.onmessage = (event) => handle(JSON.parse(event.data) as ServerMessage)
+          ws.onopen = () => resolve()
+          ws.onclose = () => {
+            state.status = 'stopped'
+            state.board = null
+            socket = undefined
+            connecting = undefined
+            resolve()
+          }
+        }),
+    )
     return connecting
   }
 

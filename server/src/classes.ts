@@ -1,6 +1,6 @@
 // 班级和学生名单（老师用）。学生账号由老师上传名单导入，密码由老师发放，学生不能自己改。
 import type { Database } from 'bun:sqlite'
-import { endSessions } from './auth'
+import { revokeTokens } from './auth'
 
 export interface ClassInfo {
   id: number
@@ -115,7 +115,7 @@ export function importStudents(db: Database, classId: number, rows: ImportRow[])
       }
       if (existing) {
         update.run(name, classId, password ?? null, existing.id)
-        if (password) endSessions(db, existing.id)
+        if (password) revokeTokens(db, existing.id)
         result.updated++
       } else {
         insert.run(username, name, password ?? generatePassword(), classId, Date.now())
@@ -131,11 +131,11 @@ export function resetPassword(db: Database, studentId: number): string | null {
   const password = generatePassword()
   const changed = db.query(`UPDATE users SET password = ? WHERE id = ? AND role = 'student'`).run(password, studentId).changes
   if (!changed) return null
-  endSessions(db, studentId)
+  revokeTokens(db, studentId)
   return password
 }
 
-/** 删除学生，连同他的作品和登录会话 */
+/** 删除学生，连同他的作品 */
 export function deleteStudent(db: Database, studentId: number) {
   db.query(`DELETE FROM users WHERE id = ? AND role = 'student'`).run(studentId)
 }

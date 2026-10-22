@@ -13,21 +13,25 @@ beforeEach(() => {
   app = createApp(db)
 })
 
-/** 一个浏览器：记住登录 cookie */
+/** 一个浏览器：记住访问令牌和刷新令牌 */
 class Browser {
-  cookie = ''
+  accessToken = ''
+  refreshToken = ''
   constructor(readonly ip = '10.0.0.1') {}
 
   async request(method: string, path: string, json?: unknown) {
     const headers: Record<string, string> = { 'x-real-ip': this.ip }
-    if (this.cookie) headers.cookie = this.cookie
+    if (this.accessToken) headers.authorization = `Bearer ${this.accessToken}`
     if (json !== undefined) headers['content-type'] = 'application/json'
     const response = await app.fetch(
       new Request(`http://localhost${path}`, { method, headers, body: json === undefined ? undefined : JSON.stringify(json) }),
     )
-    const setCookie = response.headers.get('set-cookie')
-    if (setCookie) this.cookie = setCookie.split(';')[0]
-    return { status: response.status, body: (await response.json()) as any }
+    const body = (await response.json()) as any
+    if (body?.accessToken) {
+      this.accessToken = body.accessToken
+      this.refreshToken = body.refreshToken
+    }
+    return { status: response.status, body }
   }
 
   get = (path: string) => this.request('GET', path)
@@ -38,6 +42,10 @@ class Browser {
 
   login(username: string, password: string) {
     return this.post('/api/login', { username, password })
+  }
+
+  refresh(refreshToken = this.refreshToken) {
+    return this.post('/api/refresh', { refreshToken })
   }
 }
 
@@ -147,6 +155,7 @@ describe('班级和名单', () => {
     const { body } = await t.post(`/api/teacher/students/${id}/reset-password`)
     expect(body.password).toMatch(/^\d{6}$/)
     expect((await student.get('/api/me')).status).toBe(401)
+    expect((await student.refresh()).status).toBe(401)
     expect((await new Browser().login('2024001', 'abc123')).status).toBe(401)
     expect((await new Browser().login('2024001', body.password)).status).toBe(200)
   })
@@ -194,10 +203,38 @@ describe('作品', () => {
   })
 })
 
-test('退出登录后会话失效', async () => {
-  const t = await teacher()
-  const cookie = t.cookie
-  await t.post('/api/logout')
-  t.cookie = cookie
-  expect((await t.get('/api/me')).status).toBe(401)
+describe('令牌', () => {
+  test('登录返回访问令牌和刷新令牌；访问令牌是 15 分钟有效的 JWT', async () => {
+    const t = await teacher()
+    const payload = JSON.parse(Buffer.from(t.accessToken.split('.')[1], 'base64url').toString())
+    expect(payload.exp - payload.iat).toBe(15 * 60)
+    expect(t.refreshToken).toMatch(/^[\w-]{43}$/)
+  })
+
+  test('刷新：换到新的一对令牌，旧的刷新令牌不能再用', async () => {
+    const t = await teacher()
+    const old = t.refreshToken
+    const refreshed = await t.refresh()
+    expect(refreshed.status).toBe(200)
+    expect(refreshed.body.user.role).toBe('teacher')
+    expect(t.refreshToken).not.toBe(old)
+    expect((await t.get('/api/me')).status).toBe(200)
+    expect((await t.refresh(old)).status).toBe(401)
+  })
+
+  test('退出登录后刷新令牌作废', async () => {
+    const t = await teacher()
+    await t.post('/api/logout', { refreshToken: t.refreshToken })
+    expect((await t.refresh()).status).toBe(401)
+  })
+
+  test('伪造或改过的访问令牌无效', async () => {
+    const t = await teacher()
+    const [header, payload, signature] = t.accessToken.split('.')
+    const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(payload, 'base64url').toString()), sub: '999' })).toString('base64url')
+    t.accessToken = `${header}.${forged}.${signature}`
+    expect((await t.get('/api/me')).status).toBe(401)
+    t.accessToken = 'not-a-token'
+    expect((await t.get('/api/me')).status).toBe(401)
+  })
 })

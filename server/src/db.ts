@@ -1,4 +1,4 @@
-// SQLite 数据库：账号、班级、登录会话、学生作品。
+// SQLite 数据库：账号、班级、学生作品、平台设置（如 JWT 签名密钥）。
 // 表结构用编号迁移：MIGRATIONS 只能在末尾追加，已执行过的不再改动。
 import { Database } from 'bun:sqlite'
 import { mkdirSync } from 'node:fs'
@@ -36,6 +36,22 @@ const MIGRATIONS = [
     files TEXT NOT NULL,
     updated_at INTEGER NOT NULL,
     PRIMARY KEY (user_id, key)
+  );
+  `,
+  // 登录改用 JWT：短期访问令牌（不存库）+ 长期刷新令牌（只存哈希，可以撤回）。
+  // token_version 递增时该用户已签发的访问令牌全部失效（重置密码、删除学生）
+  `
+  DROP TABLE sessions;
+  ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE refresh_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE INDEX refresh_tokens_user ON refresh_tokens (user_id);
+  CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
   );
   `,
 ]

@@ -1,6 +1,6 @@
 import type { ClientMessage, ServerMessage } from '@iot/shared'
 import { createApp } from './app'
-import { ensureTeacher, sessionToken, sessionUser } from './auth'
+import { ensureTeacher, tokenUser } from './auth'
 import { compileService } from './compile-service'
 import { config } from './config'
 import { openDatabase } from './db'
@@ -21,9 +21,11 @@ interface SocketData {
 
 const server = Bun.serve({
   port: config.port,
-  fetch(req, server) {
-    if (new URL(req.url).pathname === '/ws') {
-      if (!sessionUser(db, sessionToken(req.headers.get('cookie')))) return new Response('请先登录', { status: 401 })
+  async fetch(req, server) {
+    const url = new URL(req.url)
+    if (url.pathname === '/ws') {
+      // 浏览器的 WebSocket 不能带请求头，令牌放在网址参数里
+      if (!(await tokenUser(db, url.searchParams.get('token')))) return new Response('请先登录', { status: 401 })
       if (server.upgrade(req, { data: {} })) return
       return new Response('WebSocket 升级失败', { status: 400 })
     }

@@ -1,8 +1,7 @@
 // HTTP 接口。除登录外都要先登录；/api/teacher/* 只有老师能用。
 import type { Database } from 'bun:sqlite'
 import { Hono, type Context } from 'hono'
-import { deleteCookie, setCookie } from 'hono/cookie'
-import { login, logout, sessionMaxAge, SESSION_COOKIE, sessionToken, sessionUser, tooManyFailures, type User } from './auth'
+import { bearerToken, login, logout, refresh, tokenUser, tooManyFailures, type Tokens, type User } from './auth'
 import { createClass, deleteClass, deleteStudent, importStudents, listClasses, listStudents, renameClass, resetPassword, type ImportRow } from './classes'
 import { listSamples, loadSample } from './samples'
 import { serveStatic } from './static'
@@ -20,8 +19,6 @@ function clientIp(c: AppContext) {
   return c.req.header('x-real-ip') || c.env?.requestIP?.(c.req.raw)?.address || ''
 }
 
-const isHttps = (c: AppContext) => new URL(c.req.url).protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https'
-
 /** 读取 JSON 请求体，格式不对时返回空对象 */
 const body = <T>(c: AppContext) => c.req.json<Partial<T>>().catch(() => ({}) as Partial<T>)
 
@@ -32,22 +29,31 @@ export function createApp(db: Database) {
     const ip = clientIp(c)
     if (tooManyFailures(ip)) return c.json({ message: '输错次数太多，请 10 分钟后再试' }, 429)
     const { username, password } = await body<{ username: string; password: string }>(c)
-    const token = login(db, String(username ?? ''), String(password ?? ''), ip)
-    if (!token) return c.json({ message: '账号或密码不对' }, 401)
-    setCookie(c, SESSION_COOKIE, token, { httpOnly: true, sameSite: 'Lax', secure: isHttps(c), path: '/', maxAge: sessionMaxAge })
-    return c.json({ user: sessionUser(db, token) })
+    const tokens = await login(db, String(username ?? ''), String(password ?? ''), ip)
+    if (!tokens) return c.json({ message: '账号或密码不对' }, 401)
+    return c.json(await withUser(tokens))
   })
 
-  app.post('/api/logout', (c) => {
-    const token = sessionToken(c.req.header('cookie'))
-    if (token) logout(db, token)
-    deleteCookie(c, SESSION_COOKIE, { path: '/' })
+  /** 返回令牌时一并返回用户信息，浏览器不用再查一次 */
+  const withUser = async (tokens: Tokens) => ({ ...tokens, user: await tokenUser(db, tokens.accessToken) })
+
+  // 用刷新令牌换新的访问令牌（刷新令牌也换新的）
+  app.post('/api/refresh', async (c) => {
+    const { refreshToken } = await body<{ refreshToken: string }>(c)
+    const tokens = typeof refreshToken === 'string' ? await refresh(db, refreshToken) : null
+    if (!tokens) return c.json({ message: '登录已过期，请重新登录' }, 401)
+    return c.json(await withUser(tokens))
+  })
+
+  app.post('/api/logout', async (c) => {
+    const { refreshToken } = await body<{ refreshToken: string }>(c)
+    if (typeof refreshToken === 'string') logout(db, refreshToken)
     return c.json({})
   })
 
-  // 其余接口都要先登录
+  // 其余接口都要先登录（请求头 Authorization: Bearer <令牌>）
   app.use('/api/*', async (c, next) => {
-    const user = sessionUser(db, sessionToken(c.req.header('cookie')))
+    const user = await tokenUser(db, bearerToken(c.req.header('authorization')))
     if (!user) return c.json({ message: '请先登录' }, 401)
     c.set('user', user)
     await next()
