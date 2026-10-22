@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="105" height="180" viewBox="0 0 105 180">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="32%" r="55%">
+      <stop offset="0" stop-color="#fff59d" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffd54f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glass" cx="45%" cy="40%" r="65%">
+      <stop offset="0" stop-color="#fffde7"/>
+      <stop offset="0.35" stop-color="#ffee58"/>
+      <stop offset="0.8" stop-color="#ffb300"/>
+      <stop offset="1" stop-color="#e65100"/>
+    </radialGradient>
+    <linearGradient id="base" x1="0" x2="1">
+      <stop offset="0" stop-color="#5b5f66"/>
+      <stop offset="0.45" stop-color="#c9ccd1"/>
+      <stop offset="1" stop-color="#4a4e55"/>
+    </linearGradient>
+  </defs>
+  <!-- 光晕 -->
+  <circle cx="52.5" cy="55" r="52" fill="url(#glow)"/>
+  <!-- 玻璃泡 -->
+  <path d="M52.5 10C27 10 12 29 12 52c0 17 9 27 17 38 5 7 7 13 7 21h33c0-8 2-14 7-21 8-11 17-21 17-38 0-23-15-42-40.5-42z"
+        fill="url(#glass)" stroke="#f9a825" stroke-width="2"/>
+  <!-- 灯丝（发光） -->
+  <path d="M43 111V82l-6-14m25 43V82l6-14M37 68c5-6 8 6 13 0s8 6 13 0 8 6 5 0" fill="none" stroke="#fffde7" stroke-width="2.5"/>
+  <ellipse cx="38" cy="38" rx="9" ry="14" fill="#fff" opacity="0.8"/>
+  <!-- 灯头 -->
+  <rect x="35" y="111" width="35" height="10" rx="3" fill="url(#base)"/>
+  <rect x="36" y="122" width="33" height="9" rx="3" fill="url(#base)"/>
+  <rect x="37" y="132" width="31" height="9" rx="3" fill="url(#base)"/>
+  <rect x="38" y="142" width="29" height="9" rx="3" fill="url(#base)"/>
+  <path d="M42 152h21l-5 12h-11z" fill="#33363b"/>
+</svg>

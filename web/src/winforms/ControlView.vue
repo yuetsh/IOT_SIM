@@ -120,12 +120,12 @@ function selectItem(index: number) {
     <span class="wf-check-text">{{ displayText(p.Text) }}</span>
   </div>
 
-  <!-- 教材控件库：灯泡、报警灯（图片沿用教材控件库） -->
+  <!-- 教材控件库：灯泡、报警灯（自绘图片，尺寸与教材控件一致） -->
   <div v-else-if="node.type === 'WinFormsDeviceControlLibrary.Lamp'" class="wf-control wf-device-image" :style="style">
-    <img :src="p.IsOn ? '/devices/LampOn.png' : '/devices/LampOff.png'" alt="" draggable="false" />
+    <img :src="p.IsOn ? '/devices/lamp-on.svg' : '/devices/lamp-off.svg'" alt="" draggable="false" />
   </div>
   <div v-else-if="node.type === 'WinFormsDeviceControlLibrary.Alarm'" class="wf-control wf-device-image" :style="style">
-    <img :src="p.IsOn ? '/devices/AlarmOn.jpg' : '/devices/AlarmOff.jpg'" alt="" draggable="false" />
+    <img :src="p.IsOn ? '/devices/alarm-on.svg' : '/devices/alarm-off.svg'" alt="" draggable="false" />
   </div>
 
   <!-- GroupBox -->
