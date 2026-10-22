@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 运行器：编译学生工程，在模拟的界面线程上运行，通过标准输入输出与 Bun 服务器交换 JSON 消息。
+       用法：dotnet Sim.Runner.dll <工程目录> -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Sim.Runner</AssemblyName>
+    <RootNamespace>Sim.Runner</RootNamespace>
+    <!-- 只保留简体中文的编译器提示资源 -->
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sim.WinForms/Sim.WinForms.csproj" />
+    <ProjectReference Include="../Sim.Devices/Sim.Devices.csproj" />
+  </ItemGroup>
+</Project>

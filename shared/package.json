@@ -1,0 +1,7 @@
+{
+  "name": "@iot/shared",
+  "private": true,
+  "type": "module",
+  "main": "protocol.ts",
+  "types": "protocol.ts"
+}

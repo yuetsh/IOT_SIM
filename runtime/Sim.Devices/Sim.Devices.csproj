@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 教材配套类库的仿真版：DeviceCtrlLibrary（设备控制）和 WinFormsDeviceControlLibrary（设备控件）。
+       类名、方法名、参数名都与教材 dll 一致（包括原文拼写，如 IpAdderss），保证教材代码原样编译。 -->
+  <PropertyGroup>
+    <AssemblyName>Sim.Devices</AssemblyName>
+    <RootNamespace>DeviceCtrlLibrary</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS8618;IDE1006</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sim.WinForms/Sim.WinForms.csproj" />
+  </ItemGroup>
+</Project>

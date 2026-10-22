@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Sim.WinForms/Sim.WinForms.csproj" />
+  <Project Path="Sim.Devices/Sim.Devices.csproj" />
+  <Project Path="Sim.Runner/Sim.Runner.csproj" />
+</Solution>

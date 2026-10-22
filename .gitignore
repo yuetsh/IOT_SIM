@@ -1,0 +1,18 @@
+# 依赖与构建产物
+node_modules/
+dist/
+bin/
+obj/
+*.tsbuildinfo
+
+# 运行时临时目录
+.runs/
+
+# 教材资料（体积大、有版权，不进仓库）
+物联网编程与应用配套/
+*.pdf
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store

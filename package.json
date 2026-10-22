@@ -1,0 +1,10 @@
+{
+  "name": "iot-sim",
+  "private": true,
+  "workspaces": ["shared", "server", "web"],
+  "scripts": {
+    "dev:server": "bun run --cwd server dev",
+    "dev:web": "bun run --cwd web dev",
+    "build:runtime": "dotnet build runtime/Runtime.slnx -c Debug"
+  }
+}

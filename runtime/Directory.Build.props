@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <!-- 仿真库在 System.* 命名空间里定义类型，关闭隐式 using 以免混淆 -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- 需要 zh-CN 区域设置：日期格式要和中文 Windows 一致 -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

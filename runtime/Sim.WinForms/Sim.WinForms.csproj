@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 仿真的 System.Windows.Forms 子集、System.Drawing 中框架缺少的类型（Font 等）、System.IO.Ports，
+       以及运行器与浏览器之间的通信层（Sim.Host）。学生代码编译时引用本程序集。 -->
+  <PropertyGroup>
+    <AssemblyName>Sim.WinForms</AssemblyName>
+    <RootNamespace>System.Windows.Forms</RootNamespace>
+    <!-- 仿真类型的公开 API 要和真实 WinForms 一致，很多成员没有 XML 注释 -->
+    <NoWarn>$(NoWarn);CS1591;CS8618</NoWarn>
+  </PropertyGroup>
+</Project>
