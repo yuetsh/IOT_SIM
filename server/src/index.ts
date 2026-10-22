@@ -1,50 +1,19 @@
-import { Hono } from 'hono'
-import type { Server } from 'bun'
 import type { ClientMessage, ServerMessage } from '@iot/shared'
-import { accessRequired, hasAccess, login, tooManyFailures } from './access'
+import { createApp } from './app'
+import { ensureTeacher, sessionToken, sessionUser } from './auth'
 import { compileService } from './compile-service'
 import { config } from './config'
+import { openDatabase } from './db'
 import { cleanupStaleRuns, RunSession } from './run-session'
-import { listSamples, loadSample } from './samples'
 import { checkSandbox, sandboxError } from './sandbox'
-import { serveStatic } from './static'
 
 await cleanupStaleRuns()
 await checkSandbox()
 if (sandboxError) console.error(sandboxError)
 
-const app = new Hono<{ Bindings: Server<SocketData> }>()
-
-/** 客户端 IP：经过 Caddy 转发时由 Caddy 填在 X-Real-IP 里（它已核对过前面代理的 X-Forwarded-For） */
-function clientIp(req: Request, server: Server<SocketData>) {
-  return req.headers.get('x-real-ip') || server.requestIP(req)?.address || ''
-}
-
-app.get('/api/auth', (c) => c.json({ required: accessRequired, ok: hasAccess(c.req.header('cookie') ?? null) }))
-
-app.post('/api/login', async (c) => {
-  const ip = clientIp(c.req.raw, c.env)
-  if (tooManyFailures(ip)) return c.json({ ok: false, message: '输错次数太多，请 10 分钟后再试' }, 429)
-  const { password } = await c.req.json<{ password?: string }>().catch(() => ({ password: undefined }))
-  if (!login(c, String(password ?? ''), ip)) return c.json({ ok: false, message: '口令不对' }, 401)
-  return c.json({ ok: true })
-})
-
-// 其余接口都要先输入口令
-app.use('/api/*', async (c, next) => {
-  if (!hasAccess(c.req.header('cookie') ?? null)) return c.json({ message: '请先输入访问口令' }, 401)
-  await next()
-})
-
-app.get('/api/samples', async (c) => c.json(await listSamples()))
-
-app.get('/api/samples/:id', async (c) => {
-  const files = await loadSample(c.req.param('id'))
-  return files ? c.json(files) : c.notFound()
-})
-
-// 打包好的网页（部署时）；开发时网页由 Vite 提供
-app.get('*', (c) => serveStatic(new URL(c.req.url).pathname))
+const db = openDatabase()
+ensureTeacher(db)
+const app = createApp(db)
 
 interface SocketData {
   session?: RunSession
@@ -54,7 +23,7 @@ const server = Bun.serve({
   port: config.port,
   fetch(req, server) {
     if (new URL(req.url).pathname === '/ws') {
-      if (!hasAccess(req.headers.get('cookie'))) return new Response('请先输入访问口令', { status: 401 })
+      if (!sessionUser(db, sessionToken(req.headers.get('cookie')))) return new Response('请先登录', { status: 401 })
       if (server.upgrade(req, { data: {} })) return
       return new Response('WebSocket 升级失败', { status: 400 })
     }

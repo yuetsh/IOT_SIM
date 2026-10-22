@@ -28,7 +28,10 @@ export const config = {
   maxRuns: Number(env.SIM_MAX_RUNS ?? 150),
   /** 一次运行最长多少分钟，到时自动结束 */
   maxRunMinutes: Number(env.SIM_MAX_RUN_MINUTES ?? 60),
-  /** 访问口令；不设置表示不需要口令（本机开发） */
-  accessPassword: env.ACCESS_PASSWORD ?? '',
+  /** SQLite 数据库所在目录（账号、班级、学生作品）；部署时放在数据卷里 */
+  dataDir: resolve(ROOT, env.DATA_DIR ?? 'data'),
+  /** 老师账号（只有一个）。开发时不设置密码就用 admin / admin */
+  teacherUsername: env.TEACHER_USERNAME ?? 'admin',
+  teacherPassword: env.TEACHER_PASSWORD ?? '',
   timeZone: env.TZ ?? 'Asia/Shanghai',
 }

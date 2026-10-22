@@ -35,7 +35,7 @@
    ```bash
    git clone git@git.xuyue.cc:xuyue/IOT_SIM.git ~/IOT_SIM
    cd ~/IOT_SIM
-   echo 'ACCESS_PASSWORD=换成你的口令' > .env
+   echo 'TEACHER_PASSWORD=换成你的密码' > .env
    chmod 600 .env
    ```
 
@@ -61,7 +61,9 @@
    - **打开 Websockets Support**（运行程序靠 WebSocket，不打开会一直连不上）
    - SSL：申请证书，打开 Force SSL
 
-5. 浏览器打开域名，输入口令进入。
+5. 浏览器打开域名，用老师账号登录，在"班级管理"里建班、导入学生名单。
+
+数据库（账号、班级、学生作品）在 Docker 数据卷 `data` 里，重新部署不会丢；`docker compose down -v` 会删除数据卷，不要加 `-v`。
 
 ## 自动部署（GitHub Actions）
 
@@ -96,7 +98,8 @@
 | 做什么 | 命令 |
 |---|---|
 | 更新到新版本 | 推送到两个仓库的 main（GitHub 测试通过后自动部署），或在服务器上执行 `deploy/update.sh` |
-| 换口令 | 修改 `.env` 后 `docker compose up -d`（所有人要重新输入口令） |
+| 改老师密码 | 修改 `.env` 后 `docker compose up -d` |
+| 学生账号 | 老师登录后在"班级管理"里导入名单、查看和重置密码 |
 | 看日志 | `docker compose logs -f app` |
 | 看资源占用 | `docker stats` |
 | 重启 / 停止 | `docker compose restart` / `docker compose down` |
@@ -107,7 +110,8 @@
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `ACCESS_PASSWORD` | （必填） | 访问口令 |
+| `TEACHER_PASSWORD` | （必填） | 老师账号的密码 |
+| `TEACHER_USERNAME` | `admin` | 老师账号 |
 | `APP_MEM_LIMIT` | `4g` | 整个平台的内存上限 |
 | `SIM_MAX_RUNS` | `150` | 全站同时运行的学生程序上限，超过时提示"服务器繁忙" |
 | `SIM_HEAP_LIMIT_MB` | `128` | 每个学生程序的内存上限 |

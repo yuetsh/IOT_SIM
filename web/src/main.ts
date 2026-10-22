@@ -1,11 +1,10 @@
 import { createApp } from 'vue'
-import AccessGate from './AccessGate.vue'
-import App from './App.vue'
+import { loadCurrentUser } from './auth'
+import Root from './Root.vue'
+import { router } from './router'
 import './winforms/winforms.css'
 
-// 服务器设置了访问口令而浏览器还没输过时，先显示口令页
-const auth = await fetch('/api/auth')
-  .then((response) => response.json() as Promise<{ ok: boolean }>)
-  .catch(() => ({ ok: true }))
+// 先确认是否已登录，路由守卫据此决定进登录页还是实验页
+await loadCurrentUser()
 
-createApp(auth.ok ? App : AccessGate).mount('#app')
+createApp(Root).use(router).mount('#app')

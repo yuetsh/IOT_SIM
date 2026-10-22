@@ -1,17 +1,20 @@
 <script setup lang="ts">
 // 主页面：选择示例工程 → 编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { NButton, NConfigProvider, NInput, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, zhCN } from 'naive-ui'
+import { useRoute, useRouter } from 'vue-router'
+import { NButton, NInput, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag } from 'naive-ui'
 import type { SourceFile } from '@iot/shared'
-import FormDesigner from './designer/FormDesigner.vue'
-import { createDesignerHistory } from './designer/history'
-import { formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from './designer/templates'
-import CodeEditor from './editor/CodeEditor.vue'
-import { clearDraft, loadDraft, saveDraft } from './editor/drafts'
-import { createRunSession } from './run/session'
-import TrainingBoard from './scene/TrainingBoard.vue'
-import FormWindow from './winforms/FormWindow.vue'
-import MessageBoxDialog from './winforms/MessageBoxDialog.vue'
+import FormDesigner from '../designer/FormDesigner.vue'
+import { createDesignerHistory } from '../designer/history'
+import { formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
+import CodeEditor from '../editor/CodeEditor.vue'
+import { api } from '../api'
+import { currentUser, logout } from '../auth'
+import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
+import { createRunSession } from '../run/session'
+import TrainingBoard from '../scene/TrainingBoard.vue'
+import FormWindow from '../winforms/FormWindow.vue'
+import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
 
 const session = createRunSession()
 const { state } = session
@@ -51,11 +54,12 @@ const fileText = (path: string) => files.value.find((f) => f.path === path)?.con
 const designerHistory = createDesignerHistory({ read: fileText, write: (path, content) => updateFile(path, content) })
 
 // 开发模式下暴露页面状态，供浏览器自动化测试读取
-if (import.meta.env.DEV) Object.assign(window, { __iot: { files, fileText, designerHistory, activeTab } })
-/** 当前代码是否和示例原始代码不同（来自浏览器里保存的草稿） */
+if (import.meta.env.DEV) Object.assign(window, { __iot: { files, fileText, designerHistory, activeTab, updateFile } })
+/** 当前代码是否和示例原始代码不同（服务器上有这个人的作品） */
 const modified = ref(false)
 const editorRef = ref<InstanceType<typeof CodeEditor>>()
-let saveTimer: ReturnType<typeof setTimeout> | undefined
+const route = useRoute()
+const router = useRouter()
 
 const STATUS_TEXT = { idle: '未运行', compiling: '编译中…', running: '运行中', stopped: '已停止' } as const
 const statusType = computed(() => ({ idle: 'default', compiling: 'warning', running: 'success', stopped: 'default' })[state.status] as 'default' | 'warning' | 'success')
@@ -79,24 +83,66 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown, { capture
 onMounted(async () => {
   // 一打开页面就连接服务器，实训台在运行程序之前就能显示和调节
   void session.connect()
-  const list: { id: string; title: string }[] = await (await fetch('/api/samples')).json()
+  const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
   samples.value = list.map((s) => ({ label: s.title, value: s.id }))
   // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生）
-  const requested = new URLSearchParams(location.search).get('sample')
-  const initial = list.find((s) => s.id === requested) ?? list[0]
+  const initial = list.find((s) => s.id === route.query.sample) ?? list[0]
   if (initial) await loadSample(initial.id)
 })
 
-async function loadSample(id: string, discardDraft = false) {
+async function loadSample(id: string, discardWork = false) {
+  await flushSave()
   sampleId.value = id
-  history.replaceState(null, '', `?sample=${encodeURIComponent(id)}`)
-  if (discardDraft) clearDraft(id)
+  void router.replace({ query: { sample: id } })
   designerHistory.clear()
-  const draft = discardDraft ? null : loadDraft(id)
-  modified.value = draft !== null
-  files.value = draft ?? (await (await fetch(`/api/samples/${encodeURIComponent(id)}`)).json())
+  const key = sampleWorkKey(id)
+  if (discardWork) await deleteWork(key).catch(() => {})
+  const work = discardWork ? null : await loadWork(key).catch(() => null)
+  modified.value = work !== null
+  saveState.value = work ? 'saved' : 'idle'
+  files.value = work ?? (await api<SourceFile[]>('GET', `/api/samples/${encodeURIComponent(id)}`))
   // 和 VS 一样，默认打开主窗体的设计器
   activeTab.value = forms.value[0]?.tab ?? files.value.find((f) => f.path !== 'Program.cs')?.path ?? files.value[0]?.path
+}
+
+// ---------- 自动保存到服务器 ----------
+/** idle：还没改过；pending：有改动等待保存；saving：正在保存；saved：已保存；error：保存失败（下次改动时重试） */
+const saveState = ref<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle')
+const SAVE_TEXT = { idle: '', pending: '未保存', saving: '保存中…', saved: '已保存', error: '保存失败，请检查网络' } as const
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+
+function scheduleSave() {
+  saveState.value = 'pending'
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void flushSave(), 1000)
+}
+
+/** 立即保存还没保存的改动（切换示例、离开页面之前） */
+async function flushSave(keepalive = false) {
+  clearTimeout(saveTimer)
+  if (saveState.value !== 'pending' || !sampleId.value) return
+  saveState.value = 'saving'
+  const snapshot = files.value.map((f) => ({ ...f }))
+  try {
+    await saveWork(sampleWorkKey(sampleId.value), snapshot, keepalive)
+    // 保存期间又有改动时保持 pending，等下一次保存
+    if (saveState.value === 'saving') saveState.value = 'saved'
+  } catch {
+    saveState.value = 'error'
+  }
+}
+
+const onPageHide = () => void flushSave(true)
+onMounted(() => window.addEventListener('pagehide', onPageHide))
+onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', onPageHide)
+  void flushSave()
+})
+
+async function signOut() {
+  await flushSave()
+  await logout()
+  await router.push('/login')
 }
 
 function updateFile(path: string, content: string) {
@@ -108,8 +154,7 @@ function updateFile(path: string, content: string) {
 
 function filesChanged() {
   modified.value = true
-  clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => sampleId.value && saveDraft(sampleId.value, files.value), 500)
+  scheduleSave()
 }
 
 // ---------- 新建、删除窗体 ----------
@@ -197,124 +242,121 @@ function run() {
 </script>
 
 <template>
-  <NConfigProvider :locale="zhCN">
-    <div class="page">
-      <header class="toolbar">
-        <strong>物联网编程仿真平台</strong>
-        <NSelect
-          class="sample-select"
-          :value="sampleId"
-          :options="samples"
-          placeholder="选择示例工程"
-          @update:value="loadSample"
-        />
-        <NButton type="primary" :disabled="running" title="F5" @click="run">▶ 运行</NButton>
-        <NButton :disabled="!running" title="Shift+F5" @click="session.stop">■ 停止</NButton>
-        <NPopconfirm v-if="modified" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
-          <template #trigger>
-            <NButton quaternary size="small">恢复原始代码</NButton>
-          </template>
-          你对这个示例的修改将全部丢弃，确定恢复吗？
-        </NPopconfirm>
-        <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
-        <span class="metrics">
-          编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
-          {{ state.metrics.lastRoundTripMs }} ms
-        </span>
-      </header>
+  <div class="page">
+    <header class="toolbar">
+      <strong>物联网编程仿真平台</strong>
+      <NSelect
+        class="sample-select"
+        :value="sampleId"
+        :options="samples"
+        placeholder="选择示例工程"
+        @update:value="loadSample"
+      />
+      <NButton type="primary" :disabled="running" title="F5" @click="run">▶ 运行</NButton>
+      <NButton :disabled="!running" title="Shift+F5" @click="session.stop">■ 停止</NButton>
+      <NPopconfirm v-if="modified" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
+        <template #trigger>
+          <NButton quaternary size="small">恢复原始代码</NButton>
+        </template>
+        你对这个示例的修改将全部丢弃，确定恢复吗？
+      </NPopconfirm>
+      <span class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
+      <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
+      <span class="metrics">
+        编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
+        {{ state.metrics.lastRoundTripMs }} ms
+      </span>
+      <span class="user">
+        {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
+      </span>
+      <RouterLink v-if="currentUser?.role === 'teacher'" to="/teacher" class="nav-link">班级管理</RouterLink>
+      <NButton quaternary size="small" @click="signOut">退出</NButton>
+    </header>
 
-      <main class="workspace" :class="{ designing: activeForm }">
-        <section class="editor">
-          <div class="tab-row">
-            <NTabs v-model:value="activeTab" type="card" size="small" class="file-tabs">
-              <NTab v-for="tab in tabs" :key="tab.name" :name="tab.name">{{ tab.label }}</NTab>
-            </NTabs>
-            <NPopover trigger="click" placement="bottom-end" :show="newFormOpen" @update:show="openNewForm">
-              <template #trigger>
-                <NButton size="small" quaternary>＋ 新建窗体</NButton>
-              </template>
-              <div class="new-form">
-                <div>窗体名（也是类名和文件名）</div>
-                <NInput v-model:value="newFormName" size="small" @keydown.enter="createForm" />
-                <div v-if="newFormError" class="new-form-error">{{ newFormError }}</div>
-                <NButton size="small" type="primary" :disabled="!!newFormError" @click="createForm">创建</NButton>
-              </div>
-            </NPopover>
-            <NPopconfirm v-if="deletableForm" positive-text="删除" negative-text="取消" @positive-click="deleteForm">
-              <template #trigger>
-                <NButton size="small" quaternary>删除窗体</NButton>
-              </template>
-              将删除 {{ deletableForm.code }} 和 {{ deletableForm.designer }}，代码里用到这个窗体的地方需要自己修改。确定删除吗？
-            </NPopconfirm>
-          </div>
-          <FormDesigner
-            v-if="activeForm"
-            class="code"
-            :designer-text="fileText(activeForm.designer)"
-            :code-text="fileText(activeForm.code)"
-            :can-undo="designerHistory.canUndo(activeForm.designer)"
-            :can-redo="designerHistory.canRedo(activeForm.designer)"
-            @update="onDesignerUpdate"
-            @undo="designerHistory.undo(activeForm.designer, activeForm.code)"
-            @redo="designerHistory.redo(activeForm.designer, activeForm.code)"
-            @open-code="openCode"
-          />
-          <CodeEditor
-            v-show="!activeForm"
-            ref="editorRef"
-            class="code"
-            :files="files"
-            :active-file="activeFile"
-            :diagnostics="state.diagnostics"
-            @change="updateFile"
-          />
-        </section>
-
-        <section class="run-area">
-          <div class="desktop">
-            <FormWindow
-              v-for="(form, index) in state.forms"
-              :key="form.root.id"
-              :form="form.root"
-              :modal="form.modal"
-              :offset="index"
-              :act="session.act"
-            />
-            <MessageBoxDialog
-              v-for="box in state.messageBoxes"
-              :key="box.requestId"
-              :box="box"
-              @reply="session.replyMessageBox(box.requestId, $event)"
-            />
-            <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
-          </div>
-          <TrainingBoard :board="state.board" @set="session.setBoard" @reset="session.resetBoard" />
-          <div class="output">
-            <div
-              v-for="(d, i) in state.diagnostics"
-              :key="`d${i}`"
-              :class="['diag', d.severity]"
-              title="点击跳到出错的代码"
-              @click="showDiagnostic(d.file, d.line, d.column)"
-            >
-              {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
-              <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>
+    <main class="workspace" :class="{ designing: activeForm }">
+      <section class="editor">
+        <div class="tab-row">
+          <NTabs v-model:value="activeTab" type="card" size="small" class="file-tabs">
+            <NTab v-for="tab in tabs" :key="tab.name" :name="tab.name">{{ tab.label }}</NTab>
+          </NTabs>
+          <NPopover trigger="click" placement="bottom-end" :show="newFormOpen" @update:show="openNewForm">
+            <template #trigger>
+              <NButton size="small" quaternary>＋ 新建窗体</NButton>
+            </template>
+            <div class="new-form">
+              <div>窗体名（也是类名和文件名）</div>
+              <NInput v-model:value="newFormName" size="small" @keydown.enter="createForm" />
+              <div v-if="newFormError" class="new-form-error">{{ newFormError }}</div>
+              <NButton size="small" type="primary" :disabled="!!newFormError" @click="createForm">创建</NButton>
             </div>
-            <pre v-for="(e, i) in state.errors" :key="`e${i}`" class="error">{{ e }}</pre>
-            <pre v-if="state.console" class="console">{{ state.console }}</pre>
-          </div>
-        </section>
-      </main>
-    </div>
-  </NConfigProvider>
-</template>
+          </NPopover>
+          <NPopconfirm v-if="deletableForm" positive-text="删除" negative-text="取消" @positive-click="deleteForm">
+            <template #trigger>
+              <NButton size="small" quaternary>删除窗体</NButton>
+            </template>
+            将删除 {{ deletableForm.code }} 和 {{ deletableForm.designer }}，代码里用到这个窗体的地方需要自己修改。确定删除吗？
+          </NPopconfirm>
+        </div>
+        <FormDesigner
+          v-if="activeForm"
+          class="code"
+          :designer-text="fileText(activeForm.designer)"
+          :code-text="fileText(activeForm.code)"
+          :can-undo="designerHistory.canUndo(activeForm.designer)"
+          :can-redo="designerHistory.canRedo(activeForm.designer)"
+          @update="onDesignerUpdate"
+          @undo="designerHistory.undo(activeForm.designer, activeForm.code)"
+          @redo="designerHistory.redo(activeForm.designer, activeForm.code)"
+          @open-code="openCode"
+        />
+        <CodeEditor
+          v-show="!activeForm"
+          ref="editorRef"
+          class="code"
+          :files="files"
+          :active-file="activeFile"
+          :diagnostics="state.diagnostics"
+          @change="updateFile"
+        />
+      </section>
 
-<style>
-body {
-  margin: 0;
-  font-family: system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-}
-</style>
+      <section class="run-area">
+        <div class="desktop">
+          <FormWindow
+            v-for="(form, index) in state.forms"
+            :key="form.root.id"
+            :form="form.root"
+            :modal="form.modal"
+            :offset="index"
+            :act="session.act"
+          />
+          <MessageBoxDialog
+            v-for="box in state.messageBoxes"
+            :key="box.requestId"
+            :box="box"
+            @reply="session.replyMessageBox(box.requestId, $event)"
+          />
+          <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
+        </div>
+        <TrainingBoard :board="state.board" @set="session.setBoard" @reset="session.resetBoard" />
+        <div class="output">
+          <div
+            v-for="(d, i) in state.diagnostics"
+            :key="`d${i}`"
+            :class="['diag', d.severity]"
+            title="点击跳到出错的代码"
+            @click="showDiagnostic(d.file, d.line, d.column)"
+          >
+            {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
+            <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>
+          </div>
+          <pre v-for="(e, i) in state.errors" :key="`e${i}`" class="error">{{ e }}</pre>
+          <pre v-if="state.console" class="console">{{ state.console }}</pre>
+        </div>
+      </section>
+    </main>
+  </div>
+</template>
 
 <style scoped>
 .page {
@@ -339,6 +381,27 @@ body {
   margin-left: auto;
   color: #6b7280;
   font-size: 12px;
+}
+
+.save-state {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.save-state.error {
+  color: #dc2626;
+}
+
+.user {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.nav-link {
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .workspace {

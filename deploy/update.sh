@@ -11,7 +11,7 @@ main() {
   local ref=${1:-origin/main}
 
   if [[ ! -f .env ]]; then
-    echo '还没有 .env：cp .env.example .env 后设置 ACCESS_PASSWORD'
+    echo '还没有 .env：cp .env.example .env 后设置 TEACHER_PASSWORD'
     exit 1
   fi
 
