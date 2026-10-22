@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// 第 0 阶段的验证页面：选择示例工程 → 编辑代码 → 运行 → 在网页里操作学生的窗体。
-import { computed, onMounted, ref } from 'vue'
-import { NButton, NConfigProvider, NSelect, NTabPane, NTabs, NTag, zhCN } from 'naive-ui'
+// 主页面：选择示例工程 → 编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { NButton, NConfigProvider, NPopconfirm, NSelect, NTab, NTabs, NTag, zhCN } from 'naive-ui'
 import type { SourceFile } from '@iot/shared'
+import CodeEditor from './editor/CodeEditor.vue'
+import { clearDraft, loadDraft, saveDraft } from './editor/drafts'
 import { createRunSession } from './run/session'
 import TrainingBoard from './scene/TrainingBoard.vue'
 import FormWindow from './winforms/FormWindow.vue'
@@ -15,10 +17,29 @@ const samples = ref<{ label: string; value: string }[]>([])
 const sampleId = ref<string>()
 const files = ref<SourceFile[]>([])
 const activeFile = ref<string>()
+/** 当前代码是否和示例原始代码不同（来自浏览器里保存的草稿） */
+const modified = ref(false)
+const editorRef = ref<InstanceType<typeof CodeEditor>>()
+let saveTimer: ReturnType<typeof setTimeout> | undefined
 
 const STATUS_TEXT = { idle: '未运行', compiling: '编译中…', running: '运行中', stopped: '已停止' } as const
 const statusType = computed(() => ({ idle: 'default', compiling: 'warning', running: 'success', stopped: 'default' })[state.status] as 'default' | 'warning' | 'success')
 const running = computed(() => state.status === 'compiling' || state.status === 'running')
+
+/**
+ * F5 运行、Shift+F5 停止，与 Visual Studio 一致。在整个页面上生效，
+ * 并阻止浏览器默认的"F5 刷新页面"（否则学生按习惯按下 F5，正在运行的程序和窗体都会丢失）。
+ */
+function onKeyDown(event: KeyboardEvent) {
+  if (event.key !== 'F5') return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.shiftKey) session.stop()
+  else run()
+}
+
+onMounted(() => window.addEventListener('keydown', onKeyDown, { capture: true }))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown, { capture: true }))
 
 onMounted(async () => {
   // 一打开页面就连接服务器，实训台在运行程序之前就能显示和调节
@@ -31,10 +52,13 @@ onMounted(async () => {
   if (initial) await loadSample(initial.id)
 })
 
-async function loadSample(id: string) {
+async function loadSample(id: string, discardDraft = false) {
   sampleId.value = id
   history.replaceState(null, '', `?sample=${encodeURIComponent(id)}`)
-  files.value = await (await fetch(`/api/samples/${encodeURIComponent(id)}`)).json()
+  if (discardDraft) clearDraft(id)
+  const draft = discardDraft ? null : loadDraft(id)
+  modified.value = draft !== null
+  files.value = draft ?? (await (await fetch(`/api/samples/${encodeURIComponent(id)}`)).json())
   // 默认打开窗体的代码文件（不一定叫 Form1.cs，如教材的 frm_analog.cs）
   activeFile.value =
     files.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? files.value[0]?.path
@@ -42,10 +66,19 @@ async function loadSample(id: string) {
 
 function updateFile(path: string, content: string) {
   const file = files.value.find((f) => f.path === path)
-  if (file) file.content = content
+  if (!file || file.content === content) return
+  file.content = content
+  modified.value = true
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => sampleId.value && saveDraft(sampleId.value, files.value), 500)
+}
+
+function restoreOriginal() {
+  if (sampleId.value) void loadSample(sampleId.value, true)
 }
 
 function run() {
+  if (running.value) return
   session.run(files.value.map((f) => ({ ...f })))
 }
 </script>
@@ -62,8 +95,14 @@ function run() {
           placeholder="选择示例工程"
           @update:value="loadSample"
         />
-        <NButton type="primary" :disabled="running" @click="run">▶ 运行</NButton>
-        <NButton :disabled="!running" @click="session.stop">■ 停止</NButton>
+        <NButton type="primary" :disabled="running" title="F5" @click="run">▶ 运行</NButton>
+        <NButton :disabled="!running" title="Shift+F5" @click="session.stop">■ 停止</NButton>
+        <NPopconfirm v-if="modified" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
+          <template #trigger>
+            <NButton quaternary size="small">恢复原始代码</NButton>
+          </template>
+          你对这个示例的修改将全部丢弃，确定恢复吗？
+        </NPopconfirm>
         <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
         <span class="metrics">
           编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
@@ -74,15 +113,16 @@ function run() {
       <main class="workspace">
         <section class="editor">
           <NTabs v-model:value="activeFile" type="card" size="small">
-            <NTabPane v-for="file in files" :key="file.path" :name="file.path" :tab="file.path">
-              <textarea
-                class="code"
-                spellcheck="false"
-                :value="file.content"
-                @input="updateFile(file.path, ($event.target as HTMLTextAreaElement).value)"
-              />
-            </NTabPane>
+            <NTab v-for="file in files" :key="file.path" :name="file.path">{{ file.path }}</NTab>
           </NTabs>
+          <CodeEditor
+            ref="editorRef"
+            class="code"
+            :files="files"
+            :active-file="activeFile"
+            :diagnostics="state.diagnostics"
+            @change="updateFile"
+          />
         </section>
 
         <section class="run-area">
@@ -105,7 +145,13 @@ function run() {
           </div>
           <TrainingBoard :board="state.board" @set="session.setBoard" @reset="session.resetBoard" />
           <div class="output">
-            <div v-for="(d, i) in state.diagnostics" :key="`d${i}`" :class="['diag', d.severity]">
+            <div
+              v-for="(d, i) in state.diagnostics"
+              :key="`d${i}`"
+              :class="['diag', d.severity]"
+              title="点击跳到出错的代码"
+              @click="editorRef?.reveal(d.file, d.line, d.column)"
+            >
               {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
               <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>
             </div>
@@ -158,24 +204,17 @@ body {
 }
 
 .editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 8px;
   border-right: 1px solid #e5e7eb;
   overflow: hidden;
 }
 
 .code {
-  width: 100%;
-  height: calc(100vh - 120px);
-  box-sizing: border-box;
-  font-family: "JetBrains Mono", "Cascadia Code", Consolas, "Noto Sans Mono CJK SC", monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  tab-size: 4;
-  /* 关闭连字：避免 >= 显示成 ≥，学生照着输入时出错 */
-  font-variant-ligatures: none;
-  border: 1px solid #e5e7eb;
-  padding: 8px;
-  resize: none;
+  flex: 1;
+  min-height: 0;
 }
 
 .run-area {
@@ -210,6 +249,14 @@ body {
   max-height: 180px;
   overflow: auto;
   font-size: 12px;
+}
+
+.diag {
+  cursor: pointer;
+}
+
+.diag:hover {
+  text-decoration: underline;
 }
 
 .diag.error,
