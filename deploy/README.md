@@ -29,7 +29,7 @@
 1. 在服务器上准备目录和口令：
 
    ```bash
-   mkdir -p ~/iot-sim && cd ~/iot-sim
+   mkdir -p ~/IOT_SIM && cd ~/IOT_SIM
    # 部署脚本会上传 .env.example；也可以直接新建 .env：
    echo 'ACCESS_PASSWORD=换成你的口令' > .env
    chmod 600 .env
@@ -53,7 +53,7 @@
 
 ## 日常操作
 
-在服务器的 `~/iot-sim` 目录下：
+在服务器的 `~/IOT_SIM` 目录下：
 
 | 做什么 | 命令 |
 |---|---|

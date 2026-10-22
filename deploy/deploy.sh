@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # 在本机构建镜像，传到服务器后启动（服务器不需要访问 Docker Hub，也不用自己编译）。
-# 用法：deploy/deploy.sh 用户@服务器 [服务器上的目录，默认 iot-sim]
+# 用法：deploy/deploy.sh 用户@服务器 [服务器上的目录，默认 ~/IOT_SIM]
 # 第一次部署前，先按 deploy/README.md 在服务器上准备好 .env
 set -euo pipefail
 
 host=${1:?用法：deploy/deploy.sh 用户@服务器 [目录]}
-dir=${2:-iot-sim}
+dir=${2:-IOT_SIM}
 cd "$(dirname "$0")/.."
 
 echo "== 构建镜像"
