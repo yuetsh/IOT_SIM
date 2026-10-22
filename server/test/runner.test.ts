@@ -1,6 +1,6 @@
 // 端到端测试：直接启动 C# 运行器，模拟浏览器操作，检查教材示例工程的行为。
 // 运行前先编译运行时：bun run build:runtime
-import { afterAll, afterEach, expect, test } from 'bun:test'
+import { afterAll, afterEach, describe, expect, test } from 'bun:test'
 import { cp, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ControlNode, RunnerInput, RunnerMessage } from '@iot/shared'
@@ -263,4 +263,64 @@ test('项目1 任务1：多窗体——打开增加用户窗体、添加用户�
   const second = await runner.next('formShown', (m) => m.form.props.Text === '增加用户')
   expect(second.form.id).not.toBe(addUser.id)
   expect(runner.messages.some((m) => m.type === 'exception')).toBe(false)
+}, 30000)
+
+describe('所有示例都能编译通过', async () => {
+  const ids = (await Array.fromAsync(new Bun.Glob('*/meta.json').scan({ cwd: resolve(ROOT, 'samples') }))).map((p) => p.split('/')[0]).sort()
+  for (const id of ids) {
+    test(id, async () => {
+      const result = await compileService.compile(await prepareSample(id))
+      expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+    }, 30000)
+  }
+})
+
+test('项目1 任务2：计算器（装箱拆箱）和多态', async () => {
+  const { runner, id } = await startSample('p1-t2-面向对象特性')
+  const textOf = (name: string) =>
+    runner.next('patch', (m) => m.changes.some((c) => c.id === id(name) && c.prop === 'Text')).then(
+      (m) => m.changes.findLast((c) => c.id === id(name) && c.prop === 'Text')!.value,
+    )
+  runner.send({ type: 'action', id: id('txtNum1'), action: 'text', value: '7' })
+  runner.send({ type: 'action', id: id('txtNum2'), action: 'text', value: '2' })
+  runner.send({ type: 'action', id: id('cmboxType'), action: 'select', index: 3 })
+  const result = textOf('txtResult')
+  runner.send({ type: 'action', id: id('btnCalculate'), action: 'click' })
+  expect(await result).toBe('3.5')
+
+  const display = textOf('txtDispaly')
+  runner.send({ type: 'action', id: id('btnDisplay'), action: 'click' })
+  expect(await display).toBe('张三说的是汉语！\r\n李四说的是汉语！\r\nMary说的是英语！\r\nJimmy说的是英语！\r\n')
+}, 30000)
+
+/** 选 COM3、点"开启"，等定时器读到实训台上的传感器 */
+async function openAdam4150(runner: Runner, id: (name: string) => string) {
+  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 2 })
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+}
+
+test('项目4 任务1：红外对射被遮挡时显示"发现入侵"', async () => {
+  const { runner, id } = await startSample('p4-t1-红外对射')
+  await openAdam4150(runner, id)
+  const even = (value: string) => runner.next('patch', (m) => m.changes.some((c) => c.id === id('txt_even') && c.value === value), 5000)
+  await even('正常')
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [false, false, false, true] })
+  await even('发现入侵')
+}, 30000)
+
+test('项目4 任务3：开报警灯——实训台 DO0 动作，窗体上的报警灯亮', async () => {
+  const { runner, id } = await startSample('p4-t3-报警灯')
+  await openAdam4150(runner, id)
+  const relay = runner.next('device', (m) => m.device === 'adam4150')
+  const lamp = runner.next('patch', (m) => m.changes.some((c) => c.id === id('alarm1') && c.prop === 'IsOn' && c.value === true))
+  runner.send({ type: 'action', id: id('btn_alarmOpen'), action: 'click' })
+  expect((await relay).data).toEqual([0, 1])
+  await lamp
+}, 30000)
+
+test('项目5 任务1：有火焰时显示"发现火情！"', async () => {
+  const { runner, id } = await startSample('p5-t1-火焰')
+  await openAdam4150(runner, id)
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [false, true, false, false] })
+  await runner.next('patch', (m) => m.changes.some((c) => c.id === id('txt_even') && c.value === '发现火情！'), 5000)
 }, 30000)
