@@ -1,4 +1,4 @@
-// SQLite 数据库：账号、班级、学生作品、作业与提交、平台设置（如 JWT 签名密钥）。
+// SQLite 数据库：账号、班级、学生作品、作业、提交与老师评阅、平台设置（如 JWT 签名密钥）。
 // 表结构用编号迁移：MIGRATIONS 只能在末尾追加，已执行过的不再改动。
 import { Database } from 'bun:sqlite'
 import { mkdirSync } from 'node:fs'
@@ -84,6 +84,17 @@ const MIGRATIONS = [
   );
   CREATE INDEX submissions_assignment_user ON submissions (assignment_id, user_id, id);
   CREATE INDEX submissions_status ON submissions (status);
+  `,
+  // 老师评阅：每个学生在每个作业上一条，scores 是 JSON 数组，和作业 scoring.manual 一一对应
+  `
+  CREATE TABLE reviews (
+    assignment_id INTEGER NOT NULL REFERENCES assignments (id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    scores TEXT NOT NULL,
+    comment TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (assignment_id, user_id)
+  );
   `,
 ]
 

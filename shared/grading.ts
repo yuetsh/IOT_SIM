@@ -52,3 +52,10 @@ export interface Submission {
   /** 排队评分时前面还有几份 */
   queueAhead?: number
 }
+
+/** 老师评阅：老师评分项各自的得分（null 表示还没打分，和 scoring.manual 一一对应）和评语 */
+export interface Review {
+  scores: (number | null)[]
+  comment: string
+  updatedAt: number
+}

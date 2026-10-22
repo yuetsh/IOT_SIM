@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // 实验页：编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
-// 两种用法：自由练习（选择示例工程）；做作业（/assignments/:id，从作业起点开始，可以提交评分）。
+// 三种用法：自由练习（选择示例工程）；做作业（/assignments/:id，从作业起点开始，可以提交评分）；
+// 老师运行学生提交的程序（/teacher/submissions/:id/run，改动只用于试运行，不保存）。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage } from 'naive-ui'
-import type { Assignment, SourceFile, Submission } from '@iot/shared'
+import type { Assignment, Review, SourceFile, Submission } from '@iot/shared'
 import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
 import { formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
@@ -18,7 +19,7 @@ import TrainingBoard from '../scene/TrainingBoard.vue'
 import FormWindow from '../winforms/FormWindow.vue'
 import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
 
-const props = defineProps<{ assignmentId?: string }>()
+const props = defineProps<{ assignmentId?: string; submissionId?: string }>()
 
 const session = createRunSession()
 const { state } = session
@@ -98,6 +99,10 @@ onMounted(async () => {
     await loadAssignment()
     return
   }
+  if (props.submissionId) {
+    await loadSubmission()
+    return
+  }
   const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
   samples.value = list.map((s) => ({ label: s.title, value: s.id }))
   // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生）
@@ -128,14 +133,26 @@ async function loadSample(id: string, discardWork = false) {
 // ---------- 作业 ----------
 const assignment = ref<Assignment | null>(null)
 const submission = ref<Submission | null>(null)
+const review = ref<Review | null>(null)
 const resultOpen = ref(false)
 const submitting = ref(false)
 const pastDeadline = computed(() => !!assignment.value?.deadline && Date.now() > assignment.value.deadline)
 const autoTotal = computed(() => assignment.value?.scoring.auto.reduce((a, b) => a + b, 0) ?? 0)
+const manualTotal = computed(() => assignment.value?.scoring.manual.reduce((a, m) => a + m.points, 0) ?? 0)
+/** 工具栏上的得分：老师评阅后显示总分，之前只显示自动评分 */
+const scoreText = computed(() => {
+  const s = submission.value
+  if (!s) return ''
+  if (s.status === 'pending') return '评分中…'
+  if (s.status === 'error') return '评分出错'
+  if (!review.value) return `自动评分 ${s.autoScore} / ${autoTotal.value}`
+  const manual = review.value.scores.reduce<number>((a, x) => a + (x ?? 0), 0)
+  return `总分 ${(s.autoScore ?? 0) + manual} / ${autoTotal.value + manualTotal.value}`
+})
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
 async function loadAssignment(discardWork = false) {
-  const detail = await api<{ assignment: Assignment; template: SourceFile[]; latest: Submission | null }>(
+  const detail = await api<{ assignment: Assignment; template: SourceFile[]; latest: Submission | null; review: Review | null }>(
     'GET',
     `/api/assignments/${props.assignmentId}`,
   ).catch((e: Error) => {
@@ -145,8 +162,26 @@ async function loadAssignment(discardWork = false) {
   if (!detail) return
   assignment.value = detail.assignment
   submission.value = detail.latest
+  review.value = detail.review
   if (detail.latest?.status === 'pending') pollSubmission()
   await openProject(`assignment:${props.assignmentId}`, async () => detail.template.map((f) => ({ ...f })), discardWork)
+}
+
+// ---------- 老师运行学生提交的程序 ----------
+const viewing = ref<{ studentName: string; username: string; assignmentTitle: string } | null>(null)
+
+async function loadSubmission() {
+  try {
+    const result = await api<{ files: SourceFile[]; studentName: string; username: string; assignmentTitle: string }>(
+      'GET',
+      `/api/teacher/submissions/${props.submissionId}`,
+    )
+    viewing.value = result
+    files.value = result.files
+    activeTab.value = forms.value[0]?.tab ?? files.value[0]?.path
+  } catch (e) {
+    message.error((e as Error).message)
+  }
 }
 
 async function submit() {
@@ -227,7 +262,8 @@ function updateFile(path: string, content: string) {
 
 function filesChanged() {
   modified.value = true
-  scheduleSave()
+  // 老师试运行学生的提交时没有保存位置，不保存
+  if (workKey.value) scheduleSave()
 }
 
 // ---------- 新建、删除窗体 ----------
@@ -318,7 +354,11 @@ function run() {
 <template>
   <div class="page">
     <header class="toolbar">
-      <template v-if="assignmentId">
+      <template v-if="viewing">
+        <strong class="assignment-title">{{ viewing.studentName }}（{{ viewing.username }}）的提交：{{ viewing.assignmentTitle }}</strong>
+        <span class="deadline">可以运行和试改，改动不会保存</span>
+      </template>
+      <template v-else-if="assignmentId">
         <RouterLink to="/assignments" class="nav-link">← 我的作业</RouterLink>
         <strong class="assignment-title">{{ assignment?.title }}</strong>
         <span v-if="assignment?.deadline" class="deadline" :class="{ past: pastDeadline }">
@@ -348,18 +388,18 @@ function run() {
           提交
         </NButton>
         <NButton v-if="submission" size="small" quaternary @click="resultOpen = true">
-          {{ submission.status === 'pending' ? '评分中…' : submission.status === 'done' ? `得分 ${submission.autoScore} / ${autoTotal}` : '评分出错' }}
+          {{ scoreText }}
         </NButton>
       </template>
-      <NPopconfirm v-if="modified" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
+      <NPopconfirm v-if="modified && !viewing" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
         <template #trigger>
           <NButton quaternary size="small">{{ assignmentId ? '恢复到作业起点' : '恢复原始代码' }}</NButton>
         </template>
         {{ assignmentId ? '你在这个作业上写的代码将全部丢弃（已提交的不受影响），确定恢复吗？' : '你对这个示例的修改将全部丢弃，确定恢复吗？' }}
       </NPopconfirm>
-      <span class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
+      <span v-if="!viewing" class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
       <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
-      <span v-if="!assignmentId" class="metrics">
+      <span v-if="!assignmentId && !viewing" class="metrics">
         编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
         {{ state.metrics.lastRoundTripMs }} ms
       </span>
@@ -379,7 +419,7 @@ function run() {
       :title="`评分结果：${assignment.title}`"
       style="width: 560px; max-width: calc(100vw - 32px)"
     >
-      <GradeResultView :assignment="assignment" :submission="submission" />
+      <GradeResultView :assignment="assignment" :submission="submission" :review="review" />
     </NModal>
 
     <main class="workspace" :class="{ designing: activeForm }">

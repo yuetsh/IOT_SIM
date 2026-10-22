@@ -1,4 +1,4 @@
-// 页面路由：登录页、实验页（自由练习和做作业共用）、学生的作业列表、老师的班级管理页。
+// 页面路由：登录页、实验页（自由练习、做作业、老师运行学生的提交共用）、学生的作业列表、老师的班级管理页和评阅页。
 import { createRouter, createWebHistory } from 'vue-router'
 import { apiHooks } from './api'
 import { currentUser } from './auth'
@@ -11,6 +11,18 @@ export const router = createRouter({
     { path: '/assignments', component: () => import('./pages/AssignmentsPage.vue') },
     { path: '/assignments/:id', component: () => import('./pages/WorkbenchPage.vue'), props: (route) => ({ assignmentId: String(route.params.id) }) },
     { path: '/teacher', component: () => import('./pages/TeacherPage.vue'), meta: { teacher: true } },
+    {
+      path: '/teacher/assignments/:id',
+      component: () => import('./pages/ReviewPage.vue'),
+      props: (route) => ({ assignmentId: String(route.params.id) }),
+      meta: { teacher: true },
+    },
+    {
+      path: '/teacher/submissions/:id/run',
+      component: () => import('./pages/WorkbenchPage.vue'),
+      props: (route) => ({ submissionId: String(route.params.id) }),
+      meta: { teacher: true },
+    },
     { path: '/:rest(.*)*', redirect: '/' },
   ],
 })

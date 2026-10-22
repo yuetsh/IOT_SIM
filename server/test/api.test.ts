@@ -339,3 +339,69 @@ describe('作业', () => {
     expect((await student.get('/api/assignments')).body).toEqual([])
   })
 })
+
+describe('评阅与成绩', () => {
+  const SAMPLE = 'p4-t3-报警灯'
+  const scoring = { auto: [10, 10], manual: [{ title: '窗体界面', points: 10 }, { title: '注释', points: 5 }] }
+
+  async function submitted() {
+    const t = await teacher()
+    const classId = await classWithStudents(t, [
+      { username: 's1', name: '甲', password: 'p1' },
+      { username: 's2', name: '乙', password: 'p2' },
+    ])
+    const files = (await loadSample(SAMPLE))!
+    const { body } = await t.post('/api/teacher/assignments', { classId, sampleId: SAMPLE, title: '报警灯', startMode: 'ui', template: files, scoring, deadline: null })
+    const student = new Browser()
+    await student.login('s1', 'p1')
+    await student.post(`/api/assignments/${body.id}/submit`, { files })
+    await queue.idle()
+    const userId = (await student.get('/api/me')).body.user.id as number
+    return { t, student, classId, assignmentId: body.id as number, userId }
+  }
+
+  test('老师看到学生的代码和评分结果，打分、写评语；学生能看到老师的评分和评语', async () => {
+    const { t, student, assignmentId, userId } = await submitted()
+    const detail = (await t.get(`/api/teacher/assignments/${assignmentId}/students/${userId}`)).body
+    expect(detail).toMatchObject({ student: { name: '甲' }, submission: { status: 'done', autoScore: 20 }, review: null, submissionCount: 1 })
+    expect(detail.files.some((f: any) => f.path === 'Form1.cs')).toBe(true)
+
+    // 超出满分拒绝
+    const tooHigh = await t.put(`/api/teacher/assignments/${assignmentId}/students/${userId}/review`, { scores: [11, 5], comment: '' })
+    expect(tooHigh.status).toBe(400)
+    expect(tooHigh.body.message).toBe('"窗体界面"的得分要在 0 到 10 之间')
+
+    const saved = await t.put(`/api/teacher/assignments/${assignmentId}/students/${userId}/review`, { scores: [8, null], comment: '界面整齐，注释还要补' })
+    expect(saved.body).toMatchObject({ scores: [8, null], comment: '界面整齐，注释还要补' })
+
+    expect((await student.get(`/api/assignments/${assignmentId}`)).body.review).toMatchObject({ scores: [8, null], comment: '界面整齐，注释还要补' })
+    expect((await student.get('/api/assignments')).body[0].manualScore).toBe(8)
+    expect((await t.get(`/api/teacher/assignments/${assignmentId}/submissions`)).body[0]).toMatchObject({ username: 's1', manualScore: 8, review: { comment: '界面整齐，注释还要补' } })
+  }, 60000)
+
+  test('成绩表：总分 = 自动评分 + 老师评分；没提交的没有总分', async () => {
+    const { t, classId, assignmentId, userId } = await submitted()
+    await t.put(`/api/teacher/assignments/${assignmentId}/students/${userId}/review`, { scores: [8, 4], comment: '' })
+    const book = (await t.get(`/api/teacher/classes/${classId}/gradebook`)).body
+    expect(book.assignments).toEqual([{ id: assignmentId, title: '报警灯', total: 35 }])
+    expect(book.students.map((s: any) => [s.name, s.scores[assignmentId].total])).toEqual([
+      ['甲', 32],
+      ['乙', null],
+    ])
+  }, 60000)
+
+  test('老师减少评分项后，已打的分按新的评分项对齐', async () => {
+    const { t, assignmentId, userId } = await submitted()
+    await t.put(`/api/teacher/assignments/${assignmentId}/students/${userId}/review`, { scores: [8, 4], comment: '' })
+    await t.patch(`/api/teacher/assignments/${assignmentId}`, { title: '报警灯', deadline: null, scoring: { auto: [10, 10], manual: [{ title: '窗体界面', points: 5 }] } })
+    expect((await t.get(`/api/teacher/assignments/${assignmentId}/students/${userId}`)).body.review.scores).toEqual([5])
+  }, 60000)
+
+  test('老师能取到提交的代码（在实验页里运行）；学生不能', async () => {
+    const { t, student, assignmentId, userId } = await submitted()
+    const { submission } = (await t.get(`/api/teacher/assignments/${assignmentId}/students/${userId}`)).body
+    const files = await t.get(`/api/teacher/submissions/${submission.id}`)
+    expect(files.body).toMatchObject({ assignmentTitle: '报警灯', studentName: '甲' })
+    expect((await student.get(`/api/teacher/submissions/${submission.id}`)).status).toBe(403)
+  }, 60000)
+})

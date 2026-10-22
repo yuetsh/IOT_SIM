@@ -1,11 +1,13 @@
 <script setup lang="ts">
-// 老师的班级管理：建班、导入学生名单（CSV）、查看和重置密码、导出名单发给学生；布置作业、查看提交情况。
+// 老师的班级管理：建班、导入学生名单（CSV）、查看和重置密码、导出名单发给学生；布置作业（评阅在 ReviewPage）；全班成绩表。
 import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NDataTable, NEmpty, NInput, NModal, NPopconfirm, NPopover, NTabPane, NTabs, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
 import AssignmentsPanel from '../teacher/AssignmentsPanel.vue'
+import GradebookPanel from '../teacher/GradebookPanel.vue'
+import { downloadCsv } from '../teacher/csv'
 import { decodeCsv, parseCsv, toRoster, type RosterRow } from '../teacher/roster'
 
 interface ClassInfo {
@@ -177,17 +179,6 @@ async function confirmImport() {
     })
 }
 
-/** 下载 CSV：带 BOM，Excel 打开时中文不乱码；账号前加制表符，长学号不会变成科学计数法 */
-function downloadCsv(filename: string, rows: string[][]) {
-  const quote = (cell: string) => (/[",\n]/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell)
-  const text = '﻿' + rows.map((r) => r.map(quote).join(',')).join('\r\n') + '\r\n'
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }))
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(link.href)
-}
-
 function exportRoster() {
   if (!selected.value) return
   downloadCsv(`${selected.value.name}-名单.csv`, [
@@ -281,6 +272,9 @@ async function signOut() {
           </NTabPane>
           <NTabPane name="assignments" tab="作业">
             <AssignmentsPanel :class-id="selected.id" />
+          </NTabPane>
+          <NTabPane name="grades" tab="成绩" display-directive="if">
+            <GradebookPanel :class-id="selected.id" :class-name="selected.name" />
           </NTabPane>
         </NTabs>
       </section>

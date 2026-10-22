@@ -16,6 +16,7 @@ import {
   updateAssignment,
 } from './assignments'
 import { parseChecks } from './grading/checks'
+import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
 import { listSamples, loadChecks, loadSample } from './samples'
 import { serveStatic } from './static'
@@ -114,7 +115,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
     return c.json(
       listAssignments(db, user.classId).map((a) => {
         const latest = latestSubmission(db, a.id, user.id)
-        return { ...a, latest: latest && { ...latest, result: null } }
+        return { ...a, latest: latest && { ...latest, result: null }, manualScore: manualScore(getReview(db, a.id, user.id)) }
       }),
     )
   })
@@ -122,7 +123,8 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
   app.get('/api/assignments/:id', (c) => {
     const assignment = visibleAssignment(c)
     if (!assignment) return c.json({ message: '作业不存在' }, 404)
-    return c.json({ assignment, template: assignmentTemplate(db, assignment.id), latest: latestSubmission(db, assignment.id, c.get('user').id) })
+    const userId = c.get('user').id
+    return c.json({ assignment, template: assignmentTemplate(db, assignment.id), latest: latestSubmission(db, assignment.id, userId), review: getReview(db, assignment.id, userId) })
   })
 
   app.post('/api/assignments/:id/submit', async (c) => {
@@ -236,8 +238,37 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
     return c.json({})
   })
 
-  // 全班每个学生最近一次提交的情况
-  app.get('/api/teacher/assignments/:id/submissions', (c) => c.json(classSubmissions(db, id(c))))
+  // 全班每个学生最近一次提交的情况和老师评分
+  app.get('/api/teacher/assignments/:id/submissions', (c) =>
+    c.json(
+      classSubmissions(db, id(c)).map((s) => {
+        const review = getReview(db, id(c), s.userId)
+        return { ...s, manualScore: manualScore(review), review }
+      }),
+    ),
+  )
+
+  // 评阅一个学生：最近一次提交（含代码和评分结果）、老师评阅
+  app.get('/api/teacher/assignments/:id/students/:userId', (c) => {
+    const assignment = getAssignment(db, id(c))
+    const detail = assignment && studentDetail(db, assignment.id, Number(c.req.param('userId')))
+    return detail ? c.json({ assignment, ...detail }) : c.json({ message: '找不到这个学生的作业' }, 404)
+  })
+
+  app.put('/api/teacher/assignments/:id/students/:userId/review', async (c) => {
+    const { scores, comment } = await body<{ scores: unknown; comment: unknown }>(c)
+    const userId = Number(c.req.param('userId'))
+    const result = saveReview(db, id(c), userId, scores, comment)
+    return result.error ? c.json({ message: result.error }, 400) : c.json(getReview(db, id(c), userId))
+  })
+
+  // 一份提交的代码（老师在实验页里运行学生的程序）
+  app.get('/api/teacher/submissions/:id', (c) => {
+    const submission = submissionFiles(db, id(c))
+    return submission ? c.json(submission) : c.json({ message: '提交不存在' }, 404)
+  })
+
+  app.get('/api/teacher/classes/:id/gradebook', (c) => c.json(gradebook(db, id(c))))
 
   app.all('/api/*', (c) => c.json({ message: '接口不存在' }, 404))
 

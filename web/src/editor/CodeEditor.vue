@@ -9,6 +9,8 @@ const props = defineProps<{
   files: SourceFile[]
   activeFile?: string
   diagnostics: Diagnostic[]
+  /** 只读（老师查看学生提交的代码） */
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -96,6 +98,7 @@ onMounted(() => {
     scrollBeyondLastLine: false,
     renderWhitespace: 'selection',
     unicodeHighlight: { ambiguousCharacters: false },
+    readOnly: props.readOnly,
   })
   syncModels()
   showActive()
