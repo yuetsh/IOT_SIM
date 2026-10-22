@@ -7,6 +7,9 @@ namespace Sim.Runner;
 /// <summary>把学生程序的 Console 输出按行转发给浏览器（标准输出本身留给协议消息使用）</summary>
 internal sealed class ConsoleForwarder : TextWriter
 {
+    /// <summary>一直不换行的输出（如教材的 while (true) Console.Write("A")）攒到这么多字符就先发出去</summary>
+    private const int MaxBuffered = 4096;
+
     private readonly StringBuilder _buffer = new();
 
     public override Encoding Encoding => Encoding.UTF8;
@@ -16,7 +19,7 @@ internal sealed class ConsoleForwarder : TextWriter
         lock (_buffer)
         {
             _buffer.Append(value);
-            if (value == '\n') FlushBuffer();
+            if (value == '\n' || _buffer.Length >= MaxBuffered) FlushBuffer();
         }
     }
 
@@ -26,7 +29,7 @@ internal sealed class ConsoleForwarder : TextWriter
         lock (_buffer)
         {
             _buffer.Append(value);
-            if (value.Contains('\n')) FlushBuffer();
+            if (value.Contains('\n') || _buffer.Length >= MaxBuffered) FlushBuffer();
         }
     }
 

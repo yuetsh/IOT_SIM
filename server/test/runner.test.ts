@@ -335,6 +335,52 @@ test('项目5 任务1：有火焰时显示"发现火情！"', async () => {
   await runner.next('patch', (m) => m.changes.some((c) => c.id === id('txt_even') && c.value === '发现火情！'), 5000)
 }, 30000)
 
+test('项目5 任务2：线程实时显示烟雾数据；关闭时线程挂起、再打开时继续；关闭窗体后程序正常结束', async () => {
+  const { runner, id, form } = await startSample('p5-t2-烟雾')
+  // 改写后的代码不再用过时的 API，不应出现"已过时"警告
+  expect((await runner.waitFor('compiled')).diagnostics).toEqual([])
+  const changed = (name: string, match: (value: unknown) => boolean = () => true, timeout = 5000) =>
+    runner.next('patch', (m) => m.changes.some((c) => c.id === id(name) && match(c.value)), timeout)
+  const normal = changed('txt_even', (v) => v === '正常')
+  await openAdam4150(runner, id)
+  await normal
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [false, false, true, false] })
+  await changed('txt_even', (v) => v === '发现烟情')
+
+  // 关闭：线程挂起，时间不再更新
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+  await changed('btn_open', (v) => v === '开启')
+  await expect(changed('txt_time', undefined, 3000)).rejects.toThrow('超时')
+
+  // 再打开：线程继续
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+  await changed('txt_time', undefined, 3000)
+
+  // 挂起后关闭窗体：先 Resume 再 Abort，程序正常结束
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+  await changed('btn_open', (v) => v === '开启')
+  runner.send({ type: 'action', id: form.id, action: 'close' })
+  expect((await runner.finished()).code).toBe(0)
+  expect(runner.messages.filter((m) => m.type === 'exception')).toEqual([])
+}, 30000)
+
+test('项目5 任务2：照书上直接 Abort 挂起的线程，和 .NET Framework 一样报错，并提示先 Resume', async () => {
+  const dir = await prepareSample('p5-t2-烟雾')
+  const file = `${dir}/Form1.cs`
+  const code = await Bun.file(file).text()
+  await Bun.write(file, code.replace(/if \(thd\.ThreadState == ThreadState\.Suspended\)\s*\{\s*thd\.Resume\(\);\s*\}/, ''))
+  runner = await Runner.start(dir)
+  const { form } = await runner.waitFor('formShown')
+  const id = (name: string) => findByName(form, name).id
+  await openAdam4150(runner, id)
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+  await runner.waitFor('patch', (m) => m.changes.some((c) => c.id === id('btn_open') && c.value === '开启'))
+  runner.send({ type: 'action', id: form.id, action: 'close' })
+  const error = await runner.next('exception')
+  expect(error.message).toContain('ThreadStateException')
+  expect(error.message).toContain('先调用 Resume()')
+}, 30000)
+
 /** 把一段 Main 方法体写成工程并运行，收集它的控制台输出 */
 async function runMain(name: string, body: string, usings = '') {
   const dir = resolve(ROOT, '.runs', `test-${name}`)
@@ -346,6 +392,96 @@ async function runMain(name: string, body: string, usings = '') {
   runner = await Runner.start(dir)
   return { runner, dir }
 }
+
+test('旧版线程 API：Suspend / Resume / Abort、线程自己挂起、休眠中被终止、ThreadState', async () => {
+  const { runner } = await runMain(
+    'legacy-threads',
+    `
+        int count = 0;
+        Thread worker = new Thread(() => { while (true) { count++; Thread.Sleep(20); } });
+        Console.WriteLine("state0=" + worker.ThreadState);
+        worker.Start();
+        Thread.Sleep(200);
+        worker.Suspend();
+        Thread.Sleep(100);
+        int frozen = count;
+        Console.WriteLine("state1=" + worker.ThreadState);
+        Thread.Sleep(200);
+        Console.WriteLine("frozen=" + (count == frozen));
+        try { worker.Abort(); } catch (ThreadStateException) { Console.WriteLine("abortSuspended=error"); }
+        worker.Resume();
+        Console.WriteLine("joined=" + worker.Join(1000) + "," + worker.ThreadState);
+
+        Thread self = null;
+        self = new Thread(() => { self.Suspend(); Console.WriteLine("self=resumed"); });
+        self.Start();
+        Thread.Sleep(100);
+        Console.WriteLine("selfState=" + self.ThreadState);
+        self.Resume();
+        self.Join(1000);
+
+        Thread sleeper = new Thread(new ThreadStart(Sleepy));
+        sleeper.Start();
+        Thread.Sleep(100);
+        try { sleeper.Resume(); } catch (ThreadStateException) { Console.WriteLine("resumeRunning=error"); }
+        sleeper.Abort();
+        Console.WriteLine("sleeperJoined=" + sleeper.Join(1000));
+
+        Thread unstarted = new Thread(Sleepy);
+        unstarted.Abort();
+        Console.WriteLine("unstarted=" + unstarted.ThreadState);
+
+        var param = new Thread(o => Console.WriteLine("param=" + o));
+        param.Start(42);
+        param.Join();
+    }
+
+    static void Sleepy()
+    {
+        Thread.Sleep(100000);
+        Console.WriteLine("sleeper=woke");`,
+    'using System.Threading;',
+  )
+  expect((await runner.waitFor('compiled')).ok).toBe(true)
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(runner.messages.filter((m) => m.type === 'exception')).toEqual([])
+  for (const line of [
+    'state0=Unstarted', 'state1=Suspended', 'frozen=True', 'abortSuspended=error', 'joined=True,Stopped',
+    'selfState=Suspended', 'self=resumed', 'resumeRunning=error', 'sleeperJoined=True', 'unstarted=Unstarted, AbortRequested', 'param=42',
+  ]) {
+    expect(output).toContain(line)
+  }
+  expect(output).not.toContain('sleeper=woke')
+}, 30000)
+
+test('ListBox：点某一项先选中（SelectedIndexChanged）再触发 Click，Text 是选中项；双击触发 DoubleClick', async () => {
+  const { runner } = await runMain(
+    'listbox',
+    `
+        var form = new Form();
+        var list = new ListBox { Name = "list" };
+        list.Items.AddRange(new object[] { "甲", "乙", "丙" });
+        list.SelectedIndexChanged += (s, e) => Console.WriteLine("changed=" + list.SelectedIndex + "," + list.Text);
+        list.Click += (s, e) => Console.WriteLine("click");
+        list.DoubleClick += (s, e) => { Console.WriteLine("double=" + list.SelectedItem); list.Items.RemoveAt(1); };
+        form.Controls.Add(list);
+        Application.Run(form);`,
+    'using System.Windows.Forms;',
+  )
+  const { form } = await runner.waitFor('formShown')
+  const list = findByName(form, 'list')
+  expect(list.props.Items).toEqual(['甲', '乙', '丙'])
+  runner.send({ type: 'action', id: list.id, action: 'select', index: 1 })
+  await runner.waitFor('console', (m) => m.text === 'click\n')
+  runner.send({ type: 'action', id: list.id, action: 'doubleClick' })
+  // 删掉选中的项后取消选中，浏览器收到新的列表
+  const patch = await runner.next('patch', (m) => m.changes.some((c) => c.prop === 'Items'))
+  expect(patch.changes).toContainEqual({ id: list.id, prop: 'SelectedIndex', value: -1 })
+  expect(patch.changes).toContainEqual({ id: list.id, prop: 'Items', value: ['甲', '丙'] })
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(output).toBe('changed=1,乙\nclick\ndouble=乙\n')
+}, 30000)
 
 test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读', async () => {
   process.env.SIM_TEST_SECRET = '不该被看到'

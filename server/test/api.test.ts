@@ -425,6 +425,13 @@ describe('语言服务', () => {
     expect((await t.post('/api/language', { type: 'run', session: 'tab1' })).status).toBe(400)
     expect((await new Browser().post('/api/language', { type: 'complete', session: 'tab1', files })).status).toBe(401)
   }, 60000)
+
+  test('平台支持的旧版线程 API（Suspend / Resume / Abort）不提示"已过时"', async () => {
+    const t = await teacher()
+    const files = [{ path: 'Program.cs', content: 'using System.Threading;\nstatic class P\n{\n    static void Main()\n    {\n        var t = new Thread(() => Thread.Sleep(10));\n        t.Start();\n        t.Suspend();\n        t.Resume();\n        t.Abort();\n    }\n}\n' }]
+    const check = await t.post('/api/language', { type: 'diagnostics', session: 'tab2', files })
+    expect(check.body.diagnostics).toEqual([])
+  }, 60000)
 })
 
 describe('AI 评阅', () => {

@@ -56,7 +56,8 @@ internal static class StudentCompiler
 
         using var peStream = new MemoryStream();
         using var pdbStream = new MemoryStream();
-        var emit = compilation.Emit(peStream, pdbStream,
+        // 编译改写后的代码（旧版线程 API 换成平台实现），API 检查仍针对学生写的原始代码
+        var emit = LegacyThreadRewriter.Rewrite(compilation).Emit(peStream, pdbStream,
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
         var denied = ApiPolicy.Check(compilation).ToList();
 

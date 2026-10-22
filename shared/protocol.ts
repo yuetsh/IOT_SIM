@@ -107,6 +107,7 @@ export type UserAction =
   | { action: 'text'; value: string }
   | { action: 'dropDown' }
   | { action: 'select'; index: number }
+  | { action: 'doubleClick' }
   | { action: 'mouseDown'; button: 'left' | 'right'; x: number; y: number }
   | { action: 'mouseUp'; button: 'left' | 'right'; x: number; y: number }
   | { action: 'close' }

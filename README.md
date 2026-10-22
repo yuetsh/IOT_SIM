@@ -66,14 +66,15 @@ Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到
 已完成：
 
 - **虚拟实训台**：按教材实训台布局图排列（红外对射、警示灯、LED 屏、照明灯、人体红外、温湿度、光照、烟雾、火焰、ADAM 模块）。每个浏览器会话一台，状态由服务器统一保存：传感器读数由网页上的滑块和开关设定，经服务器推给学生程序；灯、继电器、LED 屏由学生程序控制。
-- 新控件：CheckBox、RadioButton（事件顺序与 WinForms 一致），教材控件库的 Lamp、Alarm。
-- 示例工程（按书上代码整理）：项目 1 任务 1–2、项目 2 任务 1–3、项目 3 任务 1–2、项目 4 任务 1 和 3、项目 5 任务 1，共 10 个。网址带 `?sample=示例编号` 可直接打开指定示例。
+- 新控件：CheckBox、RadioButton（事件顺序与 WinForms 一致）、ListBox，教材控件库的 Lamp、Alarm。
+- 示例工程（按书上代码整理）：项目 1 任务 1–2、项目 2 任务 1–3、项目 3 任务 1–2、项目 4 任务 1 和 3、项目 5 任务 1–3，共 12 个。网址带 `?sample=示例编号` 可直接打开指定示例。
 - 代码编辑器（Monaco）：C# 高亮、编译错误波浪线、点错误跳到对应行、F5 运行 / Shift+F5 停止、草稿自动保存在浏览器本地。
 - 窗体设计器（仿 VS，界面中文）：工具箱、拖放与改大小、属性窗口、事件窗口、双击生成事件处理方法、撤销 / 重做；读写 VS 格式的 Designer.cs。
 - 多窗体：新建、删除窗体；运行时多个窗口可切换前后。
 - 部署：bubblewrap 沙箱（断网、只读、看不到其他进程，限制内存、CPU 时间和运行时长）、编译时禁止网络 / 反射 / 启动进程等 API、Docker Compose、GitHub Actions 自动部署。
 - 第 2 阶段（进行中）：账号登录（本机开发时老师账号为 admin / admin）、班级管理与 CSV 名单导入、学生作品保存在服务器上；自动评分（每个示例的 `checks.yaml`）；布置作业、学生提交后自动评分；老师评阅（看代码和界面截图、运行学生的程序、老师评分项打分、评语）、AI 评阅建议（DeepSeek，老师采纳后生效）、全班成绩表与 CSV 导出。
+- 第 3 阶段（进行中）：教材项目 5 用到的旧版线程 API（`Thread.Suspend` / `Resume` / `Abort`）编译时改写成平台的协作式实现（`runtime/Sim.Runner/LegacyThreadRewriter.cs`、`runtime/Sim.WinForms/Host/LegacyThreads.cs`）。
 
 尚未完成：
 
-- 教材项目 4–8 的其余任务（需要摄像头、线程 API、ListBox、数据库、TrackBar、PictureBox、图表）、账号和班级、自动评测。
+- 教材项目 4 任务 2 和项目 6–8（需要摄像头、数据库、TrackBar、PictureBox、图表）。

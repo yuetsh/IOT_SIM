@@ -1,0 +1,40 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 能实时显示火焰、烟雾传感器数据
+  steps:
+    - select: { control: com_environmentPort, item: COM3 }
+    - select: { control: com_ledPort, item: COM5 }
+    - click: btn_Open
+    - expect: { control: btn_Open, text: 关闭, desc: 按钮文字变成"关闭" }
+    - board: { fire: true }
+    - click: btn_get
+    - expect: { control: txt_fire, contains: 发现火情 }
+    - expect: { control: txt_smoke, contains: 正常 }
+    - expect: { control: txt_time, matches: '\d{1,2}:\d{2}', desc: 显示当前时间 }
+    - board: { fire: false, smoke: true }
+    - click: btn_get
+    - expect: { control: txt_fire, contains: 正常 }
+    - expect: { control: txt_smoke, contains: 发现烟情 }
+
+- title: 能正确推送灾情信息到 LED 屏
+  steps:
+    - select: { control: com_environmentPort, item: COM3 }
+    - select: { control: com_ledPort, item: COM5 }
+    - click: btn_Open
+    - board: { fire: true }
+    - click: btn_get
+    - expect: { led: 发现火情 }
+    - expect: { control: led1, ledText: 发现火情, desc: 窗体上的 LED 控件显示"发现火情" }
+
+- title: 能利用数组存储灾情信息，在历史灾情窗体里显示
+  steps:
+    - select: { control: com_environmentPort, item: COM3 }
+    - select: { control: com_ledPort, item: COM5 }
+    - click: btn_Open
+    - board: { fire: true }
+    - click: btn_get
+    - board: { fire: false, smoke: true }
+    - click: btn_get
+    - click: OpenRecord
+    - expect: { control: lstbRecored, contains: 发现火情, desc: 列表里有"发现火情"的记录 }
+    - expect: { control: lstbRecored, contains: 发现烟情, desc: 列表里有"发现烟情"的记录 }

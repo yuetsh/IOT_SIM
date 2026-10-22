@@ -151,6 +151,36 @@
   color: #fff;
 }
 
+.wf-listbox {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  cursor: default;
+}
+
+.wf-listbox-border-Fixed3D {
+  border: 1px solid #828790;
+}
+
+.wf-listbox-border-FixedSingle {
+  border: 1px solid #646464;
+}
+
+.wf-listbox-item {
+  padding: 0 2px;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.wf-listbox-selected {
+  background: #0078d7;
+  color: #fff;
+}
+
+.wf-disabled .wf-listbox-selected {
+  background: #bfbfbf;
+}
+
 .wf-check {
   display: flex;
   align-items: center;

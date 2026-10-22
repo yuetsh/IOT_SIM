@@ -134,13 +134,20 @@ async function expectStep(driver: ProgramDriver, step: Extract<Step, { kind: 'ex
   if (!ok) throw new Failure(describeFailure(driver, e, step.desc, wait))
 }
 
+/** 列表框的 Text 只是选中的那一项，检查"包含"时看所有列表项 */
+function listItems(node: ControlNode | undefined): string[] | undefined {
+  return node?.type === 'ListBox' ? ((node.props.Items as unknown[] | undefined) ?? []).map(String) : undefined
+}
+
 function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'unchanged' }>): boolean {
   const props = (name: string) => driver.find(name)?.props
   switch (e.kind) {
     case 'prop':
       return props(e.control)?.[e.prop] === e.value
-    case 'contains':
-      return String(props(e.control)?.Text ?? '').includes(e.text)
+    case 'contains': {
+      const items = listItems(driver.find(e.control))
+      return items ? items.some((item) => item.includes(e.text)) : String(props(e.control)?.Text ?? '').includes(e.text)
+    }
     case 'matches':
       return e.pattern.test(String(props(e.control)?.Text ?? ''))
     case 'led':
@@ -168,8 +175,12 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
       if (e.prop === 'IsOn') return `期望${prefix}窗体上的 ${e.control} ${desc ?? (e.value ? '亮' : '灭')}，实际是${actual ? '亮' : '灭'}的`
       return `期望${prefix} ${e.control} 的 ${e.prop} 是 ${String(e.value)}，实际是 ${String(actual)}`
     }
-    case 'contains':
-      return `期望${prefix} ${e.control} ${desc ?? `的文字包含"${e.text}"`}，实际是${quote(need(driver, e.control).props.Text)}`
+    case 'contains': {
+      const node = need(driver, e.control)
+      const items = listItems(node)
+      if (items) return `期望${prefix} ${e.control} ${desc ?? `的列表项包含"${e.text}"`}，实际${items.length ? `列表里是 ${items.map((i) => `"${i}"`).join('、')}` : '列表是空的'}`
+      return `期望${prefix} ${e.control} ${desc ?? `的文字包含"${e.text}"`}，实际是${quote(node.props.Text)}`
+    }
     case 'matches':
       return `期望${prefix} ${e.control} ${desc ?? `的文字符合 ${e.pattern}`}，实际是${quote(need(driver, e.control).props.Text)}`
     case 'led':

@@ -48,6 +48,9 @@ function selectItem(index: number) {
   dropDownOpen.value = false
   act({ action: 'select', index })
 }
+
+// ListBox
+const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) ?? 12}px`)
 </script>
 
 <template>
@@ -106,6 +109,27 @@ function selectItem(index: number) {
       <li v-for="(item, index) in items" :key="index" @mousedown.prevent="selectItem(index)">{{ item }}</li>
       <li v-if="items.length === 0" class="wf-combobox-empty">&nbsp;</li>
     </ul>
+  </div>
+
+  <!-- ListBox：点空白处只触发 Click，点某一项先选中再触发 Click -->
+  <div
+    v-else-if="node.type === 'ListBox'"
+    class="wf-control wf-listbox"
+    :class="[`wf-listbox-border-${p.BorderStyle ?? 'Fixed3D'}`, { 'wf-disabled': !enabled }]"
+    :style="style"
+    @click.self="act({ action: 'click' })"
+  >
+    <div
+      v-for="(item, index) in items"
+      :key="index"
+      class="wf-listbox-item"
+      :class="{ 'wf-listbox-selected': index === p.SelectedIndex }"
+      :style="{ height: itemHeight, lineHeight: itemHeight }"
+      @click="act({ action: 'select', index })"
+      @dblclick="act({ action: 'doubleClick' })"
+    >
+      {{ item }}
+    </div>
   </div>
 
   <!-- CheckBox / RadioButton：自绘勾选框，状态完全由运行器决定（点击只上报，不在浏览器里自行切换） -->

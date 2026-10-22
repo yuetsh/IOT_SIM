@@ -19,6 +19,7 @@ export type Step =
 export type Expectation =
   /** 控件属性等于某个值：text → Text，ledText → LedText（LED 控件），enabled → Enabled，checked → Checked，on → IsOn（灯泡、报警灯） */
   | { kind: 'prop'; control: string; prop: string; value: unknown }
+  /** 控件文字包含某段文字；列表框是任意一个列表项包含 */
   | { kind: 'contains'; control: string; text: string }
   | { kind: 'matches'; control: string; pattern: RegExp; source: string }
   /** 一段时间内控件文字不变（比如定时器已经停止） */

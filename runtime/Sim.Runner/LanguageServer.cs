@@ -244,6 +244,7 @@ internal static class LanguageServer
         foreach (var diagnostic in compilation.GetDiagnostics()
                      .Concat(ApiPolicy.Check(compilation))
                      .Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning && d.Location.IsInSource)
+                     .Where(d => !LegacyThreadRewriter.IsSupportedObsoleteWarning(d))
                      .OrderBy(d => d.Severity == DiagnosticSeverity.Error ? 0 : 1))
         {
             diagnostics.Add(StudentCompiler.ToJson(diagnostic));

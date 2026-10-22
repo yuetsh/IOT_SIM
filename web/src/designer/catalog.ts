@@ -160,6 +160,26 @@ export const CONTROLS: ControlDef[] = [
     initial: () => [['FormattingEnabled', bool(true)], ['Size', size(121, 20)]],
   },
   {
+    type: `${FORMS}.ListBox`,
+    label: '列表框',
+    group: '常用控件',
+    namePrefix: 'listBox',
+    defaultEvent: 'SelectedIndexChanged',
+    props: [
+      ...COMMON_PROPS.filter((p) => p.name !== 'Text'),
+      { name: 'Items', label: '列表项', description: '列表里的项，每行一项', type: 'items', category: '数据' },
+      {
+        name: 'BorderStyle', label: '边框', description: '边框', type: 'enum', enumType: `${FORMS}.BorderStyle`,
+        options: ['None', 'FixedSingle', 'Fixed3D'], optionLabels: { None: '无', FixedSingle: '单线', Fixed3D: '立体' }, default: enumValue(`${FORMS}.BorderStyle`, 'Fixed3D'), category: '外观',
+      },
+    ],
+    events: [
+      ...COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
+      { name: 'SelectedIndexChanged', label: '选中项改变', ...EVENT },
+    ],
+    initial: () => [['FormattingEnabled', bool(true)], ['ItemHeight', int(12)], ['Size', size(120, 88)]],
+  },
+  {
     type: `${FORMS}.CheckBox`,
     label: '复选框',
     group: '常用控件',

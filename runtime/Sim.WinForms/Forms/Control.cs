@@ -104,6 +104,7 @@ public class Control : Component, IWin32Window
         get => _text;
         set
         {
+            LegacyThreads.CheckPoint();
             value ??= "";
             if (_text == value) return;
             EnsureThreadAccess();
@@ -279,6 +280,9 @@ public class Control : Component, IWin32Window
                 OnClick(args);
                 OnMouseClick(args);
                 break;
+            case "doubleClick":
+                OnDoubleClick(EventArgs.Empty);
+                break;
             case "mouseDown":
                 OnMouseDown(new MouseEventArgs(ToMouseButtons(action.Button), 1, action.X, action.Y, 0));
                 break;
@@ -354,6 +358,8 @@ public class Control : Component, IWin32Window
     /// <summary>修改字段并在需要时通知浏览器；返回值表示是否真的改变</summary>
     protected bool SetProp<T>(ref T field, T value, string prop)
     {
+        // 后台线程改界面时响应 Suspend / Abort（教材的线程方法每次循环都会改控件）
+        LegacyThreads.CheckPoint();
         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
         EnsureThreadAccess();
         field = value;

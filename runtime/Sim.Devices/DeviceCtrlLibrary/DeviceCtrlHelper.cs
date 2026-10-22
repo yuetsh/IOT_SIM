@@ -79,6 +79,7 @@ public class ADAM4017Helper
     /// </summary>
     public ADAM4017ResModel SetData()
     {
+        LegacyThreads.CheckPoint();
         var model = new ADAM4017ResModel();
         if (string.IsNullOrWhiteSpace(_portName)) return model;
         model.temperatureValue = Read(0);
@@ -110,6 +111,7 @@ public class ADAM4150Helper
     /// <summary>读取人体红外、火焰、烟雾、红外对射；串口未打开时全部为 false</summary>
     public ADAM4150ResModel SetData()
     {
+        LegacyThreads.CheckPoint();
         var model = new ADAM4150ResModel();
         if (string.IsNullOrWhiteSpace(_portName)) return model;
         model.bodyInfraredValue = Read(0);

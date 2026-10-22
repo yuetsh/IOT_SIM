@@ -63,7 +63,7 @@ export function previewTree(doc: DesignerDocument): ControlNode {
     const props: Record<string, unknown> = { ...DEVICE_DEFAULTS[type], ...propsOf(doc, name) }
     // 设计时即使 Visible = false 也显示出来（和 VS 一样），方便选中和编辑
     props.Visible = true
-    if (type === 'System.Windows.Forms.ComboBox') props.Items = getItems(doc, name).map((item) => {
+    if (type === 'System.Windows.Forms.ComboBox' || type === 'System.Windows.Forms.ListBox') props.Items = getItems(doc, name).map((item) => {
       const v = parseValue(item)
       return v.kind === 'string' ? v.value : item
     })

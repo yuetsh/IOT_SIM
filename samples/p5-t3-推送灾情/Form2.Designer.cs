@@ -1,0 +1,60 @@
+namespace 火焰烟雾
+{
+    partial class Form2
+    {
+        /// <summary>
+        /// 必需的设计器变量。
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// 清理所有正在使用的资源。
+        /// </summary>
+        /// <param name="disposing">如果应释放托管资源，为 true；否则为 false。</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows 窗体设计器生成的代码
+
+        /// <summary>
+        /// 设计器支持所需的方法 - 不要
+        /// 使用代码编辑器修改此方法的内容。
+        /// </summary>
+        private void InitializeComponent()
+        {
+            this.lstbRecored = new System.Windows.Forms.ListBox();
+            this.SuspendLayout();
+            // 
+            // lstbRecored
+            // 
+            this.lstbRecored.FormattingEnabled = true;
+            this.lstbRecored.ItemHeight = 12;
+            this.lstbRecored.Location = new System.Drawing.Point(12, 26);
+            this.lstbRecored.Name = "lstbRecored";
+            this.lstbRecored.Size = new System.Drawing.Size(260, 148);
+            this.lstbRecored.TabIndex = 0;
+            // 
+            // Form2
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(284, 185);
+            this.Controls.Add(this.lstbRecored);
+            this.Name = "Form2";
+            this.Text = "历史灾情记录";
+            this.Load += new System.EventHandler(this.Form2_Load);
+            this.ResumeLayout(false);
+
+        }
+
+        #endregion
+
+        private System.Windows.Forms.ListBox lstbRecored;
+    }
+}

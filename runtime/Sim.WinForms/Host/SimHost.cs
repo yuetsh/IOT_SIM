@@ -77,13 +77,17 @@ public static class SimHost
 
     public static void SendConsole(string text) => Send(new JsonObject { ["type"] = "console", ["text"] = text });
 
-    public static void SendDevice(string device, string action, object? data) => Send(new JsonObject
+    public static void SendDevice(string device, string action, object? data)
     {
-        ["type"] = "device",
-        ["device"] = device,
-        ["action"] = action,
-        ["data"] = PropValue.From(data),
-    });
+        LegacyThreads.CheckPoint();
+        Send(new JsonObject
+        {
+            ["type"] = "device",
+            ["device"] = device,
+            ["action"] = action,
+            ["data"] = PropValue.From(data),
+        });
+    }
 
     // ---------- 异常 ----------
 
@@ -121,6 +125,7 @@ public static class SimHost
     /// </summary>
     public static JsonNode? Request(JsonObject message)
     {
+        LegacyThreads.CheckPoint();
         var id = Interlocked.Increment(ref _nextRequestId);
         var pending = new PendingRequest();
         Requests[id] = pending;

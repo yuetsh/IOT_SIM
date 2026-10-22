@@ -31,7 +31,7 @@ async function prepare(id: string, name: string, edit?: { file: string; from: st
 
 describe('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
-  test('每个示例都有评分规则', () => expect(ids.length).toBe(10))
+  test('每个示例都有评分规则', () => expect(ids.length).toBe(12))
   for (const id of ids) {
     test(id, async () => {
       const result = await grade(await prepare(id, id), await checksOf(id))
@@ -78,6 +78,22 @@ describe('改坏的代码', () => {
     const stop = result.results.find((r) => r.title === '再点按钮能关闭串口、停止定时器')!
     expect(stop.passed).toBe(false)
     expect(stop.message).toStartWith('期望 txt_time 不再更新时间（定时器应已停止），实际从')
+  }, 60000)
+
+  test('关闭时忘了挂起线程', async () => {
+    const id = 'p5-t2-烟雾'
+    const dir = await prepare(id, 'thread', { file: 'Form1.cs', from: 'thd.Suspend();//挂起线程', to: '' })
+    const result = await grade(dir, await checksOf(id))
+    const stop = result.results.find((r) => r.title === '再点按钮能关闭串口、挂起线程，再次打开时线程继续')!
+    expect(stop.passed).toBe(false)
+    expect(stop.message).toStartWith('期望 txt_time 不再更新时间（线程应已挂起），实际从')
+  }, 60000)
+
+  test('历史灾情窗体没有把数组里的记录加入列表框', async () => {
+    const id = 'p5-t3-推送灾情'
+    const dir = await prepare(id, 'listbox', { file: 'Form2.cs', from: 'lstbRecored.Items.Add(', to: 'Console.WriteLine(' })
+    const result = await grade(dir, await checksOf(id))
+    expect(result.results[2]).toMatchObject({ passed: false, message: '期望 lstbRecored 列表里有"发现火情"的记录，实际列表是空的' })
   }, 60000)
 
   test('报警灯接错了 DO 口', async () => {

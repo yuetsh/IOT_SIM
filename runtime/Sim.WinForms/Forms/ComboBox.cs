@@ -1,15 +1,11 @@
-using System.Collections;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Text.Json.Nodes;
 using Sim.Host;
 
 namespace System.Windows.Forms;
 
-public class ComboBox : Control
+public class ComboBox : ListControl
 {
-    private int _selectedIndex = -1;
     private ComboBoxStyle _dropDownStyle = ComboBoxStyle.DropDown;
 
     public ComboBox() => Items = new ObjectCollection(this);
@@ -31,15 +27,15 @@ public class ComboBox : Control
         set => SetProp(ref _dropDownStyle, value, nameof(DropDownStyle));
     }
 
-    public int SelectedIndex
+    public override int SelectedIndex
     {
-        get => _selectedIndex;
+        get => SelectedIndexValue;
         set
         {
             if (value < -1 || value >= Items.Count)
                 throw new ArgumentOutOfRangeException(nameof(value), $"“{value}”的值对于“SelectedIndex”无效。");
-            if (value == _selectedIndex) return;
-            SetProp(ref _selectedIndex, value, nameof(SelectedIndex));
+            if (value == SelectedIndexValue) return;
+            SetProp(ref SelectedIndexValue, value, nameof(SelectedIndex));
             // 选中项变化时 Text 随之变化（先 TextChanged，再 SelectedIndexChanged，与 WinForms 一致）
             Text = value >= 0 ? Items[value]?.ToString() ?? "" : "";
             OnSelectedIndexChanged(EventArgs.Empty);
@@ -49,19 +45,17 @@ public class ComboBox : Control
 
     public object? SelectedItem
     {
-        get => _selectedIndex >= 0 ? Items[_selectedIndex] : null;
+        get => SelectedIndexValue >= 0 ? Items[SelectedIndexValue] : null;
         set => SelectedIndex = value == null ? -1 : Items.IndexOf(value);
     }
 
     public string SelectedText { get; set; } = "";
 
     public event EventHandler? SelectedIndexChanged;
-    public event EventHandler? SelectedValueChanged;
     public event EventHandler? DropDown;
     public event EventHandler? DropDownClosed;
 
     protected virtual void OnSelectedIndexChanged(EventArgs e) => SelectedIndexChanged?.Invoke(this, e);
-    protected virtual void OnSelectedValueChanged(EventArgs e) => SelectedValueChanged?.Invoke(this, e);
     protected virtual void OnDropDown(EventArgs e) => DropDown?.Invoke(this, e);
     protected virtual void OnDropDownClosed(EventArgs e) => DropDownClosed?.Invoke(this, e);
 
@@ -84,7 +78,7 @@ public class ComboBox : Control
             case "text" when _dropDownStyle != ComboBoxStyle.DropDownList:
                 SetTextFromUser(action.Value ?? "");
                 var match = Items.IndexOf(Text);
-                if (match != _selectedIndex) _selectedIndex = match;
+                if (match != SelectedIndexValue) SelectedIndexValue = match;
                 break;
             default:
                 base.OnUserAction(action);
@@ -92,85 +86,28 @@ public class ComboBox : Control
         }
     }
 
-    internal void ItemsChanged()
+    internal override void ItemsChanged()
     {
-        if (_selectedIndex >= Items.Count) _selectedIndex = -1;
-        NotifyChanged(nameof(Items), Items.Select(i => i?.ToString() ?? "").ToArray());
+        NotifyChanged(nameof(Items), ItemTexts(Items));
+        NotifyChanged(nameof(SelectedIndex), SelectedIndexValue);
+    }
+
+    internal override void ItemsCleared()
+    {
+        SelectedIndex = -1;
+        ItemsChanged();
     }
 
     protected override void WriteProps(JsonObject props)
     {
         base.WriteProps(props);
-        props["Items"] = PropValue.From(Items.Select(i => i?.ToString() ?? "").ToArray());
-        props["SelectedIndex"] = _selectedIndex;
+        props["Items"] = PropValue.From(ItemTexts(Items));
+        props["SelectedIndex"] = SelectedIndexValue;
         props["DropDownStyle"] = _dropDownStyle.ToString();
     }
 
-    public class ObjectCollection : IList, IEnumerable<object?>
+    public class ObjectCollection : ListItemCollection
     {
-        private readonly List<object?> _items = new();
-        private readonly ComboBox _owner;
-
-        public ObjectCollection(ComboBox owner) => _owner = owner;
-
-        public int Count => _items.Count;
-        public bool IsReadOnly => false;
-        bool IList.IsFixedSize => false;
-        bool ICollection.IsSynchronized => false;
-        object ICollection.SyncRoot => this;
-
-        public object? this[int index]
-        {
-            get => _items[index];
-            set
-            {
-                _items[index] = value;
-                _owner.ItemsChanged();
-            }
-        }
-
-        public int Add(object? item)
-        {
-            if (item == null) throw new ArgumentNullException(nameof(item), "值不能为 null。");
-            _items.Add(item);
-            _owner.ItemsChanged();
-            return _items.Count - 1;
-        }
-
-        public void AddRange(object[] items)
-        {
-            _items.AddRange(items);
-            _owner.ItemsChanged();
-        }
-
-        public void Insert(int index, object? item)
-        {
-            _items.Insert(index, item);
-            _owner.ItemsChanged();
-        }
-
-        public void Remove(object? item)
-        {
-            if (_items.Remove(item)) _owner.ItemsChanged();
-        }
-
-        public void RemoveAt(int index)
-        {
-            _items.RemoveAt(index);
-            _owner.ItemsChanged();
-        }
-
-        public void Clear()
-        {
-            _items.Clear();
-            _owner.SelectedIndex = -1;
-            _owner.ItemsChanged();
-        }
-
-        public bool Contains(object? item) => _items.Contains(item);
-        public int IndexOf(object? item) => _items.IndexOf(item);
-        public void CopyTo(Array array, int index) => ((ICollection)_items).CopyTo(array, index);
-        public IEnumerator<object?> GetEnumerator() => _items.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public ObjectCollection(ComboBox owner) : base(owner) { }
     }
 }
