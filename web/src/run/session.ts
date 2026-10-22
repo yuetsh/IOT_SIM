@@ -95,6 +95,11 @@ export function createRunSession() {
 
   function act(id: string, action: UserAction) {
     actionSentAt = performance.now()
+    // 输入的文字运行器不再回传，这里同步记下；否则程序再把 Text 设成原来的值时，属性"没变"，输入框不会刷新
+    if (action.action === 'text') {
+      const node = nodes.get(id)
+      if (node) node.props.Text = action.value
+    }
     send({ type: 'action', id, ...action } as ClientMessage)
   }
 

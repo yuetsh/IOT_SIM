@@ -129,6 +129,8 @@ export class ProgramDriver {
   }
 
   act(node: ControlNode, action: UserAction) {
+    // 和浏览器一样同步记下输入的文字（运行器不回传）
+    if (action.action === 'text') node.props.Text = action.value
     this.send({ type: 'action', id: node.id, ...action })
   }
 
