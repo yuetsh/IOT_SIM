@@ -37,17 +37,17 @@ namespace ZigBee路灯
             this.lbl_Lamp = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
-            //
+            // 
             // lamp1
-            //
+            // 
             this.lamp1.BackColor = System.Drawing.Color.White;
             this.lamp1.Location = new System.Drawing.Point(29, 28);
             this.lamp1.Name = "lamp1";
             this.lamp1.Size = new System.Drawing.Size(105, 185);
             this.lamp1.TabIndex = 0;
-            //
+            // 
             // rb_Open
-            //
+            // 
             this.rb_Open.AutoSize = true;
             this.rb_Open.Location = new System.Drawing.Point(29, 222);
             this.rb_Open.Name = "rb_Open";
@@ -56,9 +56,9 @@ namespace ZigBee路灯
             this.rb_Open.Text = "开";
             this.rb_Open.UseVisualStyleBackColor = true;
             this.rb_Open.CheckedChanged += new System.EventHandler(this.rb_Open_CheckedChanged);
-            //
+            // 
             // rb_Close
-            //
+            // 
             this.rb_Close.AutoSize = true;
             this.rb_Close.Location = new System.Drawing.Point(99, 222);
             this.rb_Close.Name = "rb_Close";
@@ -67,9 +67,9 @@ namespace ZigBee路灯
             this.rb_Close.Text = "关";
             this.rb_Close.UseVisualStyleBackColor = true;
             this.rb_Close.CheckedChanged += new System.EventHandler(this.rb_Close_CheckedChanged);
-            //
+            // 
             // groupBox1
-            //
+            // 
             this.groupBox1.Controls.Add(this.btn_open);
             this.groupBox1.Controls.Add(this.com_port);
             this.groupBox1.Controls.Add(this.lbl_Lamp);
@@ -79,9 +79,9 @@ namespace ZigBee路灯
             this.groupBox1.TabIndex = 3;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "配置";
-            //
+            // 
             // btn_open
-            //
+            // 
             this.btn_open.Location = new System.Drawing.Point(145, 77);
             this.btn_open.Name = "btn_open";
             this.btn_open.Size = new System.Drawing.Size(75, 23);
@@ -89,26 +89,26 @@ namespace ZigBee路灯
             this.btn_open.Text = "打开";
             this.btn_open.UseVisualStyleBackColor = true;
             this.btn_open.Click += new System.EventHandler(this.btn_open_Click);
-            //
+            // 
             // com_port
-            //
+            // 
             this.com_port.FormattingEnabled = true;
             this.com_port.Location = new System.Drawing.Point(90, 34);
             this.com_port.Name = "com_port";
             this.com_port.Size = new System.Drawing.Size(130, 20);
             this.com_port.TabIndex = 1;
-            //
+            // 
             // lbl_Lamp
-            //
+            // 
             this.lbl_Lamp.AutoSize = true;
             this.lbl_Lamp.Location = new System.Drawing.Point(21, 37);
             this.lbl_Lamp.Name = "lbl_Lamp";
             this.lbl_Lamp.Size = new System.Drawing.Size(29, 12);
             this.lbl_Lamp.TabIndex = 0;
             this.lbl_Lamp.Text = "路灯";
-            //
+            // 
             // Form1
-            //
+            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;

@@ -43,9 +43,9 @@ namespace 模拟量采集
             this.grp_show.SuspendLayout();
             this.grp_config.SuspendLayout();
             this.SuspendLayout();
-            //
+            // 
             // grp_show
-            //
+            // 
             this.grp_show.Controls.Add(this.btn_get);
             this.grp_show.Controls.Add(this.txt_humidity);
             this.grp_show.Controls.Add(this.txt_temperature);
@@ -59,9 +59,9 @@ namespace 模拟量采集
             this.grp_show.TabIndex = 0;
             this.grp_show.TabStop = false;
             this.grp_show.Text = "数据显示";
-            //
+            // 
             // btn_get
-            //
+            // 
             this.btn_get.Location = new System.Drawing.Point(209, 24);
             this.btn_get.Name = "btn_get";
             this.btn_get.Size = new System.Drawing.Size(39, 83);
@@ -69,57 +69,57 @@ namespace 模拟量采集
             this.btn_get.Text = "获取";
             this.btn_get.UseVisualStyleBackColor = true;
             this.btn_get.Click += new System.EventHandler(this.btn_get_Click);
-            //
+            // 
             // txt_humidity
-            //
+            // 
             this.txt_humidity.Location = new System.Drawing.Point(83, 86);
             this.txt_humidity.Name = "txt_humidity";
             this.txt_humidity.Size = new System.Drawing.Size(100, 21);
             this.txt_humidity.TabIndex = 5;
-            //
+            // 
             // txt_temperature
-            //
+            // 
             this.txt_temperature.Location = new System.Drawing.Point(83, 54);
             this.txt_temperature.Name = "txt_temperature";
             this.txt_temperature.Size = new System.Drawing.Size(100, 21);
             this.txt_temperature.TabIndex = 4;
-            //
+            // 
             // txt_light
-            //
+            // 
             this.txt_light.Location = new System.Drawing.Point(83, 24);
             this.txt_light.Name = "txt_light";
             this.txt_light.Size = new System.Drawing.Size(100, 21);
             this.txt_light.TabIndex = 3;
-            //
+            // 
             // lbl_humidity
-            //
+            // 
             this.lbl_humidity.AutoSize = true;
             this.lbl_humidity.Location = new System.Drawing.Point(20, 89);
             this.lbl_humidity.Name = "lbl_humidity";
             this.lbl_humidity.Size = new System.Drawing.Size(29, 12);
             this.lbl_humidity.TabIndex = 2;
             this.lbl_humidity.Text = "湿度";
-            //
+            // 
             // lbl_temperature
-            //
+            // 
             this.lbl_temperature.AutoSize = true;
             this.lbl_temperature.Location = new System.Drawing.Point(20, 57);
             this.lbl_temperature.Name = "lbl_temperature";
             this.lbl_temperature.Size = new System.Drawing.Size(29, 12);
             this.lbl_temperature.TabIndex = 1;
             this.lbl_temperature.Text = "温度";
-            //
+            // 
             // lbl_light
-            //
+            // 
             this.lbl_light.AutoSize = true;
             this.lbl_light.Location = new System.Drawing.Point(20, 27);
             this.lbl_light.Name = "lbl_light";
             this.lbl_light.Size = new System.Drawing.Size(41, 12);
             this.lbl_light.TabIndex = 0;
             this.lbl_light.Text = "光照度";
-            //
+            // 
             // grp_config
-            //
+            // 
             this.grp_config.Controls.Add(this.btn_Open);
             this.grp_config.Controls.Add(this.com_port);
             this.grp_config.Controls.Add(this.lbl_port);
@@ -129,9 +129,9 @@ namespace 模拟量采集
             this.grp_config.TabIndex = 1;
             this.grp_config.TabStop = false;
             this.grp_config.Text = "配置";
-            //
+            // 
             // btn_Open
-            //
+            // 
             this.btn_Open.Location = new System.Drawing.Point(149, 59);
             this.btn_Open.Name = "btn_Open";
             this.btn_Open.Size = new System.Drawing.Size(75, 23);
@@ -139,26 +139,26 @@ namespace 模拟量采集
             this.btn_Open.Text = "开启";
             this.btn_Open.UseVisualStyleBackColor = true;
             this.btn_Open.Click += new System.EventHandler(this.btn_Open_Click);
-            //
+            // 
             // com_port
-            //
+            // 
             this.com_port.FormattingEnabled = true;
             this.com_port.Location = new System.Drawing.Point(105, 33);
             this.com_port.Name = "com_port";
             this.com_port.Size = new System.Drawing.Size(119, 20);
             this.com_port.TabIndex = 1;
-            //
+            // 
             // lbl_port
-            //
+            // 
             this.lbl_port.AutoSize = true;
             this.lbl_port.Location = new System.Drawing.Point(44, 36);
             this.lbl_port.Name = "lbl_port";
             this.lbl_port.Size = new System.Drawing.Size(29, 12);
             this.lbl_port.TabIndex = 0;
             this.lbl_port.Text = "串口";
-            //
+            // 
             // frm_analog
-            //
+            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(284, 262);

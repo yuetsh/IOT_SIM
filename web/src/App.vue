@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // 主页面：选择示例工程 → 编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NButton, NConfigProvider, NPopconfirm, NSelect, NTab, NTabs, NTag, zhCN } from 'naive-ui'
 import type { SourceFile } from '@iot/shared'
+import FormDesigner from './designer/FormDesigner.vue'
 import CodeEditor from './editor/CodeEditor.vue'
 import { clearDraft, loadDraft, saveDraft } from './editor/drafts'
 import { createRunSession } from './run/session'
@@ -16,7 +17,24 @@ const { state } = session
 const samples = ref<{ label: string; value: string }[]>([])
 const sampleId = ref<string>()
 const files = ref<SourceFile[]>([])
-const activeFile = ref<string>()
+/** 当前标签页：文件路径，或 "设计:X.Designer.cs" 表示窗体 X 的设计器 */
+const activeTab = ref<string>()
+const DESIGN = '设计:'
+
+/** 每个 X.Designer.cs 对应一个设计器标签页，和它的代码文件 X.cs */
+const forms = computed(() =>
+  files.value
+    .filter((f) => f.path.endsWith('.Designer.cs'))
+    .map((f) => ({ tab: DESIGN + f.path, designer: f.path, code: f.path.replace(/\.Designer\.cs$/, '.cs') })),
+)
+const tabs = computed(() => [
+  ...forms.value.map((f) => ({ name: f.tab, label: `${f.code} [设计]` })),
+  ...files.value.map((f) => ({ name: f.path, label: f.path })),
+])
+const activeForm = computed(() => forms.value.find((f) => f.tab === activeTab.value))
+/** 代码编辑器显示的文件：设计器打开时保持上一次的代码文件 */
+const activeFile = computed(() => (activeForm.value ? undefined : activeTab.value))
+const fileText = (path: string) => files.value.find((f) => f.path === path)?.content ?? ''
 /** 当前代码是否和示例原始代码不同（来自浏览器里保存的草稿） */
 const modified = ref(false)
 const editorRef = ref<InstanceType<typeof CodeEditor>>()
@@ -59,9 +77,8 @@ async function loadSample(id: string, discardDraft = false) {
   const draft = discardDraft ? null : loadDraft(id)
   modified.value = draft !== null
   files.value = draft ?? (await (await fetch(`/api/samples/${encodeURIComponent(id)}`)).json())
-  // 默认打开窗体的代码文件（不一定叫 Form1.cs，如教材的 frm_analog.cs）
-  activeFile.value =
-    files.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? files.value[0]?.path
+  // 和 VS 一样，默认打开主窗体的设计器
+  activeTab.value = forms.value[0]?.tab ?? files.value.find((f) => f.path !== 'Program.cs')?.path ?? files.value[0]?.path
 }
 
 function updateFile(path: string, content: string) {
@@ -71,6 +88,29 @@ function updateFile(path: string, content: string) {
   modified.value = true
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => sampleId.value && saveDraft(sampleId.value, files.value), 500)
+}
+
+/** 设计器改动了 Designer.cs（以及插入事件处理方法时的代码文件） */
+function onDesignerUpdate(designerText: string, codeText?: string) {
+  const form = activeForm.value
+  if (!form) return
+  updateFile(form.designer, designerText)
+  if (codeText !== undefined) updateFile(form.code, codeText)
+}
+
+/** 设计器里双击控件或事件：切到代码文件并跳到事件处理方法 */
+async function openCode(line: number) {
+  const form = activeForm.value
+  if (!form) return
+  activeTab.value = form.code
+  await nextTick()
+  editorRef.value?.reveal(form.code, line, 13)
+}
+
+async function showDiagnostic(file: string, line: number, column: number) {
+  activeTab.value = file
+  await nextTick()
+  editorRef.value?.reveal(file, line, column)
 }
 
 function restoreOriginal() {
@@ -110,12 +150,21 @@ function run() {
         </span>
       </header>
 
-      <main class="workspace">
+      <main class="workspace" :class="{ designing: activeForm }">
         <section class="editor">
-          <NTabs v-model:value="activeFile" type="card" size="small">
-            <NTab v-for="file in files" :key="file.path" :name="file.path">{{ file.path }}</NTab>
+          <NTabs v-model:value="activeTab" type="card" size="small">
+            <NTab v-for="tab in tabs" :key="tab.name" :name="tab.name">{{ tab.label }}</NTab>
           </NTabs>
+          <FormDesigner
+            v-if="activeForm"
+            class="code"
+            :designer-text="fileText(activeForm.designer)"
+            :code-text="fileText(activeForm.code)"
+            @update="onDesignerUpdate"
+            @open-code="openCode"
+          />
           <CodeEditor
+            v-show="!activeForm"
             ref="editorRef"
             class="code"
             :files="files"
@@ -150,7 +199,7 @@ function run() {
               :key="`d${i}`"
               :class="['diag', d.severity]"
               title="点击跳到出错的代码"
-              @click="editorRef?.reveal(d.file, d.line, d.column)"
+              @click="showDiagnostic(d.file, d.line, d.column)"
             >
               {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
               <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>
@@ -201,6 +250,11 @@ body {
   display: grid;
   grid-template-columns: minmax(360px, 2fr) 3fr;
   min-height: 0;
+}
+
+/* 设计器需要工具箱、窗体和属性窗口，左栏放宽 */
+.workspace.designing {
+  grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
 }
 
 .editor {

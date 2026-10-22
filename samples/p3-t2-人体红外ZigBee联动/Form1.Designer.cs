@@ -42,17 +42,17 @@ namespace 人体红外ZigBee联动
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
-            //
+            // 
             // lamp1
-            //
+            // 
             this.lamp1.BackColor = System.Drawing.Color.White;
             this.lamp1.Location = new System.Drawing.Point(32, 22);
             this.lamp1.Name = "lamp1";
             this.lamp1.Size = new System.Drawing.Size(105, 185);
             this.lamp1.TabIndex = 0;
-            //
+            // 
             // btn_lampOpen
-            //
+            // 
             this.btn_lampOpen.Location = new System.Drawing.Point(32, 213);
             this.btn_lampOpen.Name = "btn_lampOpen";
             this.btn_lampOpen.Size = new System.Drawing.Size(33, 23);
@@ -60,9 +60,9 @@ namespace 人体红外ZigBee联动
             this.btn_lampOpen.Text = "开";
             this.btn_lampOpen.UseVisualStyleBackColor = true;
             this.btn_lampOpen.Click += new System.EventHandler(this.btn_lampOpen_Click);
-            //
+            // 
             // btn_lampClose
-            //
+            // 
             this.btn_lampClose.Location = new System.Drawing.Point(104, 213);
             this.btn_lampClose.Name = "btn_lampClose";
             this.btn_lampClose.Size = new System.Drawing.Size(33, 23);
@@ -70,9 +70,9 @@ namespace 人体红外ZigBee联动
             this.btn_lampClose.Text = "关";
             this.btn_lampClose.UseVisualStyleBackColor = true;
             this.btn_lampClose.Click += new System.EventHandler(this.btn_lampClose_Click);
-            //
+            // 
             // groupBox1
-            //
+            // 
             this.groupBox1.Controls.Add(this.ch_bodyInfrared);
             this.groupBox1.Controls.Add(this.com_environment);
             this.groupBox1.Controls.Add(this.lbl_environment);
@@ -85,9 +85,9 @@ namespace 人体红外ZigBee联动
             this.groupBox1.TabIndex = 3;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "配置";
-            //
+            // 
             // ch_bodyInfrared
-            //
+            // 
             this.ch_bodyInfrared.AutoSize = true;
             this.ch_bodyInfrared.Location = new System.Drawing.Point(25, 81);
             this.ch_bodyInfrared.Name = "ch_bodyInfrared";
@@ -96,26 +96,26 @@ namespace 人体红外ZigBee联动
             this.ch_bodyInfrared.Text = "人体开关";
             this.ch_bodyInfrared.UseVisualStyleBackColor = true;
             this.ch_bodyInfrared.Click += new System.EventHandler(this.ch_bodyInfrared_Click);
-            //
+            // 
             // com_environment
-            //
+            // 
             this.com_environment.FormattingEnabled = true;
             this.com_environment.Location = new System.Drawing.Point(90, 51);
             this.com_environment.Name = "com_environment";
             this.com_environment.Size = new System.Drawing.Size(130, 20);
             this.com_environment.TabIndex = 3;
-            //
+            // 
             // lbl_environment
-            //
+            // 
             this.lbl_environment.AutoSize = true;
             this.lbl_environment.Location = new System.Drawing.Point(23, 54);
             this.lbl_environment.Name = "lbl_environment";
             this.lbl_environment.Size = new System.Drawing.Size(53, 12);
             this.lbl_environment.TabIndex = 2;
             this.lbl_environment.Text = "环境采集";
-            //
+            // 
             // btn_open
-            //
+            // 
             this.btn_open.Location = new System.Drawing.Point(145, 77);
             this.btn_open.Name = "btn_open";
             this.btn_open.Size = new System.Drawing.Size(75, 23);
@@ -123,31 +123,31 @@ namespace 人体红外ZigBee联动
             this.btn_open.Text = "打开";
             this.btn_open.UseVisualStyleBackColor = true;
             this.btn_open.Click += new System.EventHandler(this.btn_open_Click);
-            //
+            // 
             // com_lamp
-            //
+            // 
             this.com_lamp.FormattingEnabled = true;
             this.com_lamp.Location = new System.Drawing.Point(90, 26);
             this.com_lamp.Name = "com_lamp";
             this.com_lamp.Size = new System.Drawing.Size(130, 20);
             this.com_lamp.TabIndex = 1;
-            //
+            // 
             // lbl_lamp
-            //
+            // 
             this.lbl_lamp.AutoSize = true;
             this.lbl_lamp.Location = new System.Drawing.Point(21, 29);
             this.lbl_lamp.Name = "lbl_lamp";
             this.lbl_lamp.Size = new System.Drawing.Size(29, 12);
             this.lbl_lamp.TabIndex = 0;
             this.lbl_lamp.Text = "路灯";
-            //
+            // 
             // timer1
-            //
+            // 
             this.timer1.Interval = 5000;
             this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
-            //
+            // 
             // Form1
-            //
+            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;

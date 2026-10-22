@@ -38,16 +38,16 @@ namespace LED显示屏
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
-            //
+            // 
             // led
-            //
+            // 
             this.led.Location = new System.Drawing.Point(12, 12);
             this.led.Name = "led";
             this.led.Size = new System.Drawing.Size(750, 121);
             this.led.TabIndex = 0;
-            //
+            // 
             // groupBox1
-            //
+            // 
             this.groupBox1.Controls.Add(this.com_Port);
             this.groupBox1.Controls.Add(this.btn_Send);
             this.groupBox1.Controls.Add(this.label2);
@@ -60,18 +60,18 @@ namespace LED显示屏
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "LED控制";
-            //
+            // 
             // com_Port
-            //
+            // 
             this.com_Port.FormattingEnabled = true;
             this.com_Port.Location = new System.Drawing.Point(101, 24);
             this.com_Port.Name = "com_Port";
             this.com_Port.Size = new System.Drawing.Size(173, 20);
             this.com_Port.TabIndex = 6;
             this.com_Port.Click += new System.EventHandler(this.com_Port_Click);
-            //
+            // 
             // btn_Send
-            //
+            // 
             this.btn_Send.Location = new System.Drawing.Point(301, 91);
             this.btn_Send.Name = "btn_Send";
             this.btn_Send.Size = new System.Drawing.Size(75, 23);
@@ -79,25 +79,25 @@ namespace LED显示屏
             this.btn_Send.Text = "推  送";
             this.btn_Send.UseVisualStyleBackColor = true;
             this.btn_Send.Click += new System.EventHandler(this.btn_Send_Click);
-            //
+            // 
             // label2
-            //
+            // 
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(16, 67);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(71, 12);
             this.label2.TabIndex = 4;
             this.label2.Text = "推送LED信息";
-            //
+            // 
             // txt_SendText
-            //
+            // 
             this.txt_SendText.Location = new System.Drawing.Point(101, 64);
             this.txt_SendText.Name = "txt_SendText";
             this.txt_SendText.Size = new System.Drawing.Size(286, 21);
             this.txt_SendText.TabIndex = 3;
-            //
+            // 
             // btn_Open
-            //
+            // 
             this.btn_Open.Location = new System.Drawing.Point(301, 20);
             this.btn_Open.Name = "btn_Open";
             this.btn_Open.Size = new System.Drawing.Size(86, 23);
@@ -105,18 +105,18 @@ namespace LED显示屏
             this.btn_Open.Text = "打　开";
             this.btn_Open.UseVisualStyleBackColor = true;
             this.btn_Open.Click += new System.EventHandler(this.btn_Open_Click);
-            //
+            // 
             // label1
-            //
+            // 
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(16, 23);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(71, 12);
             this.label1.TabIndex = 0;
             this.label1.Text = "串       口";
-            //
+            // 
             // Form1
-            //
+            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(774, 308);
