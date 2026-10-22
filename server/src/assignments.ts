@@ -1,7 +1,7 @@
 // 作业：老师把一个实验布置给一个班，学生提交后自动评分。
 // 布置时保存起点工程和评分规则的快照，以后改示例不影响已布置的作业。
 import type { Database } from 'bun:sqlite'
-import type { Assignment, GradeResult, Scoring, SourceFile, StartMode, Submission } from '@iot/shared'
+import type { Assignment, GradeResult, Scoring, Screenshot, SourceFile, StartMode, Submission } from '@iot/shared'
 import { parseChecks } from './grading/checks'
 
 interface AssignmentRow {
@@ -155,11 +155,11 @@ export function latestSubmission(db: Database, assignmentId: number, userId: num
 }
 
 /** 新建一份等待评分的提交；同一个人上一份还在评分时返回 null */
-export function createSubmission(db: Database, assignmentId: number, userId: number, files: SourceFile[]): number | null {
+export function createSubmission(db: Database, assignmentId: number, userId: number, files: SourceFile[], screenshots: Screenshot[] = []): number | null {
   if (latestSubmission(db, assignmentId, userId)?.status === 'pending') return null
   const result = db
-    .query(`INSERT INTO submissions (assignment_id, user_id, files, status, created_at) VALUES (?, ?, ?, 'pending', ?)`)
-    .run(assignmentId, userId, JSON.stringify(files), Date.now())
+    .query(`INSERT INTO submissions (assignment_id, user_id, files, screenshots, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)`)
+    .run(assignmentId, userId, JSON.stringify(files), JSON.stringify(screenshots), Date.now())
   return Number(result.lastInsertRowid)
 }
 
@@ -190,8 +190,11 @@ export function saveGrade(db: Database, id: number, result: GradeResult | null) 
 /** 每个学生最近一次提交的状态（老师看提交情况） */
 export function classSubmissions(db: Database, assignmentId: number) {
   return db
-    .query<{ user_id: number; username: string; name: string; status: Submission['status'] | null; auto_score: number | null; created_at: number | null; count: number }, [number]>(
-      `SELECT u.id AS user_id, u.username, u.name, s.status, s.auto_score, s.created_at,
+    .query<
+      { user_id: number; username: string; name: string; submission_id: number | null; status: Submission['status'] | null; auto_score: number | null; created_at: number | null; count: number },
+      [number]
+    >(
+      `SELECT u.id AS user_id, u.username, u.name, s.id AS submission_id, s.status, s.auto_score, s.created_at,
               (SELECT COUNT(*) FROM submissions x WHERE x.assignment_id = ?1 AND x.user_id = u.id) AS count
        FROM users u
        JOIN assignments a ON a.id = ?1 AND u.class_id = a.class_id AND u.role = 'student'
@@ -199,5 +202,14 @@ export function classSubmissions(db: Database, assignmentId: number) {
        ORDER BY u.username`,
     )
     .all(assignmentId)
-    .map((r) => ({ userId: r.user_id, username: r.username, name: r.name, status: r.status, autoScore: r.auto_score, submittedAt: r.created_at, count: r.count }))
+    .map((r) => ({
+      userId: r.user_id,
+      username: r.username,
+      name: r.name,
+      submissionId: r.submission_id,
+      status: r.status,
+      autoScore: r.auto_score,
+      submittedAt: r.created_at,
+      count: r.count,
+    }))
 }

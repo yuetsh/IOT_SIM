@@ -10,6 +10,8 @@ interface Cell {
   submitted: boolean
   auto: number | null
   manual: number | null
+  /** 老师还没评阅时 AI 的建议分（老师评分项之和） */
+  aiManual: number | null
   total: number | null
 }
 
@@ -39,12 +41,14 @@ watch(
 const sum = (row: Row) => book.value.assignments.reduce((a, x) => a + (row.scores[x.id]?.total ?? 0), 0)
 const fullMarks = computed(() => book.value.assignments.reduce((a, x) => a + x.total, 0))
 
-/** 单元格：已提交显示总分（老师还没评阅时标"待评"），未提交显示"未交" */
+/** 单元格：已提交显示总分（老师还没评阅时：有 AI 建议显示含建议的总分并标"待确认"，否则标"待评"），未提交显示"未交" */
 function cell(row: Row, assignmentId: number) {
   const c = row.scores[assignmentId]
   const open = () => router.push({ path: `/teacher/assignments/${assignmentId}`, query: { student: row.userId } })
   if (!c?.submitted) return h('span', { class: 'missing' }, '未交')
-  return h(NButton, { text: true, type: 'primary', onClick: open }, () => (c.manual === null ? `${c.total}（待评）` : String(c.total)))
+  const text =
+    c.manual !== null ? String(c.total) : c.aiManual !== null ? `${(c.auto ?? 0) + c.aiManual}（AI 建议，待确认）` : `${c.total}（待评）`
+  return h(NButton, { text: true, type: 'primary', onClick: open }, () => text)
 }
 
 const columns = computed<DataTableColumns<Row>>(() => [
@@ -75,7 +79,7 @@ function exportCsv() {
 <template>
   <div>
     <div class="head">
-      <span class="tip">总分 = 最近一次提交的自动评分 + 老师评分；"待评"表示老师还没评阅，只含自动评分。</span>
+      <span class="tip">总分 = 最近一次提交的自动评分 + 老师评分；"AI 建议，待确认"是含 AI 建议分的总分，老师采纳后才算数；"待评"只含自动评分。</span>
       <NButton size="small" :disabled="book.students.length === 0" @click="exportCsv">导出成绩表（CSV）</NButton>
     </div>
     <NDataTable

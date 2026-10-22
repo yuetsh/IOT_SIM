@@ -1,7 +1,8 @@
 // 老师评阅和成绩：给老师评分项打分、写评语；全班成绩表。
 // 一个学生的总分 = 最近一次提交的自动评分 + 老师评分（没提交时没有总分）。
 import type { Database } from 'bun:sqlite'
-import type { Review, Scoring, SourceFile } from '@iot/shared'
+import type { Review, Scoring, Screenshot, SourceFile } from '@iot/shared'
+import { getAiReview } from './ai-review'
 import { getAssignment, latestSubmission } from './assignments'
 
 /**
@@ -52,11 +53,19 @@ export function studentDetail(db: Database, assignmentId: number, userId: number
   const student = db.query<{ id: number; username: string; name: string }, [number]>('SELECT id, username, name FROM users WHERE id = ?').get(userId)
   if (!student) return null
   const latest = latestSubmission(db, assignmentId, userId)
-  const files = latest
-    ? (JSON.parse(db.query<{ files: string }, [number]>('SELECT files FROM submissions WHERE id = ?').get(latest.id)!.files) as SourceFile[])
-    : null
+  const row = latest && db.query<{ files: string; screenshots: string | null }, [number]>('SELECT files, screenshots FROM submissions WHERE id = ?').get(latest.id)
+  const files = row ? (JSON.parse(row.files) as SourceFile[]) : null
+  const screenshots = row?.screenshots ? (JSON.parse(row.screenshots) as Screenshot[]) : []
   const count = db.query<{ n: number }, [number, number]>('SELECT COUNT(*) AS n FROM submissions WHERE assignment_id = ? AND user_id = ?').get(assignmentId, userId)!.n
-  return { student, submission: latest, files, review: getReview(db, assignmentId, userId), submissionCount: count }
+  return {
+    student,
+    submission: latest,
+    files,
+    screenshots,
+    aiReview: latest ? getAiReview(db, latest.id) : null,
+    review: getReview(db, assignmentId, userId),
+    submissionCount: count,
+  }
 }
 
 /** 一份提交的代码和它属于谁（老师在实验页里运行学生的程序时用） */
@@ -96,7 +105,10 @@ export function gradebook(db: Database, classId: number) {
           const review = getReview(db, a.id, s.id)
           const auto = latest?.status === 'done' ? latest.autoScore : null
           const manual = manualScore(review)
-          return [a.id, { submitted: latest !== null, auto, manual, total: latest ? (auto ?? 0) + (manual ?? 0) : null }]
+          // 老师还没评阅时，带上 AI 的建议分（成绩表里标"待确认"）
+          const ai = latest && !review ? getAiReview(db, latest.id) : null
+          const aiManual = ai?.status === 'done' ? ai.scores.reduce((sum, s) => sum + s.score, 0) : null
+          return [a.id, { submitted: latest !== null, auto, manual, aiManual, total: latest ? (auto ?? 0) + (manual ?? 0) : null }]
         }),
       ),
     })),

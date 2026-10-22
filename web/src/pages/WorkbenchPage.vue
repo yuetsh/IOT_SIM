@@ -15,6 +15,7 @@ import { currentUser, logout } from '../auth'
 import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
+import { captureForms } from '../grading/screenshots'
 import TrainingBoard from '../scene/TrainingBoard.vue'
 import FormWindow from '../winforms/FormWindow.vue'
 import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
@@ -189,7 +190,9 @@ async function submit() {
   submitting.value = true
   try {
     await flushSave()
-    submission.value = await api<Submission>('POST', `/api/assignments/${assignment.value.id}/submit`, { files: files.value })
+    // 每个窗体截一张图，老师评阅和 AI 评"窗体界面"时用；截图失败也照常提交
+    const screenshots = await captureForms(files.value).catch(() => [])
+    submission.value = await api<Submission>('POST', `/api/assignments/${assignment.value.id}/submit`, { files: files.value, screenshots })
     resultOpen.value = true
     pollSubmission()
   } catch (e) {

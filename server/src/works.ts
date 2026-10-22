@@ -1,6 +1,6 @@
 // 学生作品：每个人在每个实验上的代码，浏览器改动后自动保存，换电脑登录也能接着做。
 import type { Database } from 'bun:sqlite'
-import type { SourceFile } from '@iot/shared'
+import type { Screenshot, SourceFile } from '@iot/shared'
 
 /** 一份作品最大字节数（全部文件内容合计），防止误传大文件 */
 export const MAX_WORK_BYTES = 1_000_000
@@ -35,4 +35,12 @@ export function validFiles(value: unknown): value is SourceFile[] {
     bytes += file.path.length + file.content.length
   }
   return bytes <= MAX_WORK_BYTES
+}
+
+/** 提交时附带的窗体截图：最多 6 张，每张 PNG 不超过约 500 KB */
+export function validScreenshots(value: unknown): value is Screenshot[] {
+  if (!Array.isArray(value) || value.length > 6) return false
+  return value.every(
+    (s) => typeof s?.form === 'string' && s.form.length <= 64 && typeof s?.png === 'string' && s.png.length <= 700_000 && /^[A-Za-z0-9+/]+=*$/.test(s.png),
+  )
 }

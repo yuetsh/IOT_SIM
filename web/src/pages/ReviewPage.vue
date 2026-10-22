@@ -1,15 +1,16 @@
 <script setup lang="ts">
-// 评阅一个作业：左边是全班学生（提交状态、自动评分、老师评分），右边是选中学生的代码、自动评分结果、
-// 规范提示和老师评分。"运行他的程序"在新标签页的实验页里打开学生的代码。
-import { computed, onMounted, ref, watch } from 'vue'
+// 评阅一个作业：左边是全班学生（提交状态、自动评分、老师评分），右边是选中学生的代码和界面截图、自动评分结果、
+// 规范提示、AI 建议和老师评分。"运行他的程序"在新标签页的实验页里打开学生的代码。
+// AI 建议只是参考：老师采纳（或修改后保存）才成为老师评分，学生才能看到。
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NEmpty, NInput, NInputNumber, NTab, NTabs, NTag, useMessage } from 'naive-ui'
-import type { Assignment, Review, SourceFile, Submission } from '@iot/shared'
+import { NButton, NEmpty, NInput, NInputNumber, NSpin, NTab, NTabs, NTag, useDialog, useMessage } from 'naive-ui'
+import type { AiReview, Assignment, Review, Screenshot, SourceFile, Submission } from '@iot/shared'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
 import CodeEditor from '../editor/CodeEditor.vue'
 import GradeResultView from '../grading/GradeResultView.vue'
-import { conventionHints } from '../teacher/conventions'
+import { conventionHints } from '@iot/shared'
 import { downloadCsv } from '../teacher/csv'
 
 interface Row {
@@ -20,6 +21,9 @@ interface Row {
   autoScore: number | null
   manualScore: number | null
   review: Review | null
+  submissionId: number | null
+  aiStatus: AiReview['status'] | null
+  aiManual: number | null
   submittedAt: number | null
   count: number
 }
@@ -29,14 +33,20 @@ interface Detail {
   student: { id: number; username: string; name: string }
   submission: Submission | null
   files: SourceFile[] | null
+  screenshots: Screenshot[]
+  aiReview: AiReview | null
   review: Review | null
   submissionCount: number
 }
+
+/** 代码区"界面截图"标签页的名字（不会和文件名冲突） */
+const SCREENS = '界面截图'
 
 const props = defineProps<{ assignmentId: string }>()
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
+const dialog = useDialog()
 
 const assignment = ref<Assignment | null>(null)
 const rows = ref<Row[]>([])
@@ -87,8 +97,71 @@ async function select(userId: number | undefined) {
   const manual = assignment.value?.scoring.manual ?? []
   scores.value = manual.map((_, i) => detail.value?.review?.scores[i] ?? null)
   comment.value = detail.value?.review?.comment ?? ''
-  // 默认显示第一个窗体的代码
-  activeFile.value = codeFiles.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? codeFiles.value[0]?.path
+  // 默认先看界面截图，没有截图时看第一个窗体的代码
+  activeFile.value = detail.value?.screenshots.length
+    ? SCREENS
+    : (codeFiles.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? codeFiles.value[0]?.path)
+  pollAi()
+}
+
+// ---------- AI 建议 ----------
+let aiTimer: ReturnType<typeof setTimeout> | undefined
+
+/** AI 评阅还在排队或进行中时，每 3 秒刷新一次这个学生 */
+function pollAi() {
+  clearTimeout(aiTimer)
+  if (detail.value?.aiReview?.status !== 'pending') return
+  const userId = detail.value.student.id
+  aiTimer = setTimeout(async () => {
+    const latest = await api<Detail>('GET', `/api/teacher/assignments/${props.assignmentId}/students/${userId}`).catch(() => null)
+    if (latest && selectedId.value === userId && detail.value) {
+      detail.value.aiReview = latest.aiReview
+      if (latest.aiReview?.status !== 'pending') await loadRows()
+    }
+    pollAi()
+  }, 3000)
+}
+onBeforeUnmount(() => clearTimeout(aiTimer))
+
+/** 把 AI 的建议分和评语填进老师评分（还要点保存才生效） */
+function adoptAi() {
+  const ai = detail.value?.aiReview
+  if (ai?.status !== 'done') return
+  scores.value = ai.scores.map((s) => s.score)
+  comment.value = ai.comment
+}
+
+async function rerunAi() {
+  const id = detail.value?.submission?.id
+  if (!id || !detail.value) return
+  try {
+    await api('POST', `/api/teacher/submissions/${id}/ai-review`)
+    detail.value.aiReview = { status: 'pending', scores: [], comment: '' }
+    pollAi()
+  } catch (e) {
+    message.error((e as Error).message)
+  }
+}
+
+/** 全部采纳：老师还没评阅、已有 AI 建议的学生，一次采纳 */
+function adoptAll() {
+  const count = rows.value.filter((r) => !r.review && r.aiStatus === 'done').length
+  if (count === 0) {
+    message.info('没有待采纳的 AI 建议（已评阅的学生不会被覆盖）')
+    return
+  }
+  dialog.info({
+    title: '全部采纳 AI 建议',
+    content: `将为 ${count} 个还没评阅的学生采纳 AI 的建议分和评语，学生随即能看到。已经评阅过的学生不受影响。确定吗？`,
+    positiveText: '采纳',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      const { adopted } = await api<{ adopted: number }>('POST', `/api/teacher/assignments/${props.assignmentId}/adopt-ai`)
+      message.success(`已采纳 ${adopted} 个学生的 AI 建议`)
+      await loadRows()
+      await select(selectedId.value)
+    },
+  })
 }
 
 async function save(next = false) {
@@ -130,11 +203,21 @@ watch(selectedId, (_, old) => {
 const formatTime = (ms: number) =>
   new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-function statusTag(row: Row): { type: 'default' | 'warning' | 'error' | 'success'; text: string } {
+function statusTag(row: Row): { type: 'default' | 'warning' | 'error' | 'success' | 'info'; text: string } {
   if (!row.status) return { type: 'default', text: '未提交' }
   if (row.status === 'pending') return { type: 'warning', text: '评分中' }
   if (row.status === 'error') return { type: 'error', text: '评分出错' }
-  return { type: row.review ? 'success' : 'default', text: row.review ? '已评阅' : '待评阅' }
+  // 老师评阅的是之前的版本，学生之后又交了新的
+  if (row.review && row.submittedAt && row.submittedAt > row.review.updatedAt) return { type: 'warning', text: '评阅后又提交' }
+  if (row.review) return { type: 'success', text: '已评阅' }
+  if (row.aiStatus === 'done') return { type: 'info', text: 'AI 已评' }
+  return { type: 'default', text: '待评阅' }
+}
+
+/** 列表里的分数：已评阅显示总分；只有 AI 建议时显示含 AI 建议的总分 */
+function rowScore(row: Row) {
+  if (row.status !== 'done') return null
+  return (row.autoScore ?? 0) + (row.manualScore ?? row.aiManual ?? 0)
 }
 
 /** 导出这个作业的成绩：每个学生的自动评分、老师评分各项、总分和评语 */
@@ -168,6 +251,7 @@ async function signOut() {
       <strong>{{ assignment?.title }}</strong>
       <span class="muted">{{ assignment?.className }}</span>
       <span class="muted">已提交 {{ rows.filter((r) => r.status).length }} / {{ rows.length }} 人</span>
+      <NButton size="small" @click="adoptAll">全部采纳 AI 建议</NButton>
       <NButton size="small" @click="exportCsv">导出成绩</NButton>
       <span class="spacer" />
       <span class="user">{{ currentUser?.name }}</span>
@@ -182,7 +266,7 @@ async function signOut() {
             <span class="username">{{ r.username }}</span>
           </span>
           <span class="right">
-            <span v-if="r.status === 'done'" class="score">{{ (r.autoScore ?? 0) + (r.manualScore ?? 0) }}</span>
+            <span v-if="rowScore(r) !== null" class="score" :class="{ suggested: !r.review }">{{ rowScore(r) }}</span>
             <NTag size="tiny" :type="statusTag(r).type">{{ statusTag(r).text }}</NTag>
           </span>
         </button>
@@ -203,9 +287,16 @@ async function signOut() {
         <div v-else class="review-body">
           <div class="code">
             <NTabs :value="activeFile" type="card" size="small" @update:value="(v: string) => (activeFile = v)">
+              <NTab v-if="detail.screenshots.length" :name="SCREENS">{{ SCREENS }}</NTab>
               <NTab v-for="f in codeFiles" :key="f.path" :name="f.path">{{ f.path }}</NTab>
             </NTabs>
-            <CodeEditor class="editor" :files="codeFiles" :active-file="activeFile" :diagnostics="[]" read-only />
+            <div v-if="activeFile === SCREENS" class="screens">
+              <figure v-for="s in detail.screenshots" :key="s.form">
+                <img :src="`data:image/png;base64,${s.png}`" :alt="s.form" />
+                <figcaption>{{ s.form }}</figcaption>
+              </figure>
+            </div>
+            <CodeEditor v-show="activeFile !== SCREENS" class="editor" :files="codeFiles" :active-file="activeFile" :diagnostics="[]" read-only />
           </div>
 
           <div class="side">
@@ -221,8 +312,31 @@ async function signOut() {
               </ul>
             </section>
 
+            <section v-if="detail.aiReview && assignment.scoring.manual.length" class="card ai">
+              <h3>AI 建议</h3>
+              <div v-if="detail.aiReview.status === 'pending'" class="ai-pending"><NSpin size="small" /> AI 评阅中…</div>
+              <template v-else-if="detail.aiReview.status === 'done'">
+                <div v-for="(m, i) in assignment.scoring.manual" :key="i" class="ai-item">
+                  <span class="score-title">{{ m.title }}</span>
+                  <b>{{ detail.aiReview.scores[i]?.score }}</b><span class="muted"> / {{ m.points }}</span>
+                  <div class="ai-reason">{{ detail.aiReview.scores[i]?.reason }}</div>
+                </div>
+                <div v-if="detail.aiReview.comment" class="ai-comment">评语：{{ detail.aiReview.comment }}</div>
+              </template>
+              <div v-else-if="detail.aiReview.status === 'error'" class="ai-error">AI 评阅出错：{{ detail.aiReview.error }}</div>
+              <div v-else class="muted">学生又提交了新的版本，这一份没有 AI 评阅。</div>
+              <div class="save-row">
+                <span class="spacer" />
+                <NButton size="small" quaternary :disabled="detail.aiReview.status === 'pending'" @click="rerunAi">重新评阅</NButton>
+                <NButton size="small" type="primary" secondary :disabled="detail.aiReview.status !== 'done'" @click="adoptAi">采纳 AI 建议</NButton>
+              </div>
+            </section>
+
             <section class="card">
               <h3>老师评分</h3>
+              <div v-if="detail.review && detail.submission.createdAt > detail.review.updatedAt" class="stale">
+                学生在你评阅之后又提交了新版本，下面是之前的评分，请看过新版本后重新保存。
+              </div>
               <div v-for="(m, i) in assignment.scoring.manual" :key="i" class="score-row">
                 <span class="score-title">{{ m.title }}</span>
                 <NInputNumber v-model:value="scores[i]" :min="0" :max="m.points" size="small" placeholder="未打分" class="score-input" />
@@ -341,6 +455,79 @@ async function signOut() {
 
 .score {
   font-weight: 600;
+}
+
+/* 还没评阅、只是含 AI 建议的分数 */
+.score.suggested {
+  color: #6b7280;
+  font-weight: normal;
+}
+
+.screens {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 16px;
+  padding: 12px;
+  overflow: auto;
+  background: #2d6aa3;
+}
+
+.screens figure {
+  margin: 0;
+  color: #fff;
+  font-size: 12px;
+}
+
+.screens img {
+  display: block;
+  max-width: 100%;
+}
+
+.ai {
+  border-color: #c7d2fe;
+  background: #f8faff;
+}
+
+.ai-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ai-item {
+  font-size: 13px;
+}
+
+.ai-item .score-title {
+  margin-right: 8px;
+}
+
+.ai-reason {
+  color: #4b5563;
+}
+
+.ai-comment {
+  padding: 6px 8px;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.stale {
+  padding: 6px 8px;
+  background: #fffbeb;
+  color: #b45309;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.ai-error {
+  color: #dc2626;
+  font-size: 13px;
 }
 
 .review {

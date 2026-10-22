@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from '@iot/shared'
+import { createAiQueue } from './ai-review'
 import { createApp } from './app'
 import { ensureTeacher, tokenUser } from './auth'
 import { compileService } from './compile-service'
@@ -15,7 +16,8 @@ if (sandboxError) console.error(sandboxError)
 
 const db = openDatabase()
 ensureTeacher(db)
-const app = createApp(db, createGradingQueue(db))
+const aiQueue = createAiQueue(db)
+const app = createApp(db, createGradingQueue(db, (id) => aiQueue.enqueue(id)), aiQueue)
 
 interface SocketData {
   session?: RunSession

@@ -59,6 +59,7 @@
    - Domain Names：已备案的域名
    - Scheme：`http`，Forward Hostname / IP：`iot-sim`，Forward Port：`80`
    - **打开 Websockets Support**（运行程序靠 WebSocket，不打开会一直连不上）
+   - Advanced 里加一行 `client_max_body_size 10m;`（NPM 默认只允许 1 MB，带界面截图的作业提交可能超过）
    - SSL：申请证书，打开 Force SSL
 
 5. 浏览器打开域名，用老师账号登录，在"班级管理"里建班、导入学生名单。
@@ -112,6 +113,8 @@
 |---|---|---|
 | `TEACHER_PASSWORD` | （必填） | 老师账号的密码 |
 | `TEACHER_USERNAME` | `admin` | 老师账号 |
+| `DEEPSEEK_API_KEY` | （空） | AI 评阅用的 DeepSeek 密钥；不填就不做 AI 评阅 |
+| `AI_MODEL` | `deepseek-flash` | AI 评阅用的模型（需要支持图片输入） |
 | `APP_MEM_LIMIT` | `4g` | 整个平台的内存上限 |
 | `SIM_MAX_RUNS` | `150` | 全站同时运行的学生程序上限，超过时提示"服务器繁忙" |
 | `SIM_HEAP_LIMIT_MB` | `128` | 每个学生程序的内存上限 |

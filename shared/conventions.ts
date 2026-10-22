@@ -3,7 +3,7 @@
 //   如 btn_Open；只放在界面上、代码里不用的标签、分组框可以保留默认名字（书上也是这样），
 //   教材自带的设备控件（lamp1、alarm1）书上就这样命名，也不提示。
 // - 注释：学生自己写的代码文件（不含 Designer.cs、Program.cs）里有多少行注释。
-import type { SourceFile } from '@iot/shared'
+import type { SourceFile } from './protocol'
 
 export interface ConventionHint {
   level: 'warn' | 'info'

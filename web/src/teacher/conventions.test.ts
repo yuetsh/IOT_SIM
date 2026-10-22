@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from 'bun:test'
-import { conventionHints } from './conventions'
+import { conventionHints } from '@iot/shared'
 
 const designer = (fields: string) => ({ path: 'Form1.Designer.cs', content: `partial class Form1\n{\n${fields}\n}` })
 

@@ -34,4 +34,8 @@ export const config = {
   teacherUsername: env.TEACHER_USERNAME ?? 'admin',
   teacherPassword: env.TEACHER_PASSWORD ?? '',
   timeZone: env.TZ ?? 'Asia/Shanghai',
+  /** AI 评阅（DeepSeek，OpenAI 格式接口）；不设置密钥就不做 AI 评阅 */
+  aiApiKey: env.DEEPSEEK_API_KEY ?? '',
+  aiBaseUrl: env.AI_BASE_URL ?? 'https://api.deepseek.com',
+  aiModel: env.AI_MODEL ?? 'deepseek-flash',
 }

@@ -59,3 +59,23 @@ export interface Review {
   comment: string
   updatedAt: number
 }
+
+/** 提交时浏览器截的窗体图（PNG 的 base64，不含 data: 前缀） */
+export interface Screenshot {
+  form: string
+  png: string
+}
+
+/**
+ * AI 评阅：老师评分项的建议分（和 scoring.manual 一一对应）、理由和给学生的评语。
+ * 只是建议，老师采纳（或修改后保存）才成为老师评分。
+ * status：pending 排队中；done 已评；error 出错；skipped 学生又交了新的，这份不评了
+ */
+export interface AiReview {
+  status: 'pending' | 'done' | 'error' | 'skipped'
+  scores: { score: number; reason: string }[]
+  comment: string
+  error?: string
+  model?: string
+  at?: number
+}

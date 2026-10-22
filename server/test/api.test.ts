@@ -1,5 +1,6 @@
 // HTTP 接口测试：内存数据库，直接调用 app.fetch。
-import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+import { createAiQueue, normalizeAiResult } from '../src/ai-review'
 import { createApp } from '../src/app'
 import { ensureTeacher } from '../src/auth'
 import { config } from '../src/config'
@@ -10,12 +11,14 @@ import { loadSample } from '../src/samples'
 
 let app: ReturnType<typeof createApp>
 let queue: GradingQueue
+let aiQueue: ReturnType<typeof createAiQueue>
 
 beforeEach(() => {
   const db = openDatabase(':memory:')
   ensureTeacher(db)
-  queue = createGradingQueue(db)
-  app = createApp(db, queue)
+  aiQueue = createAiQueue(db)
+  queue = createGradingQueue(db, (id) => aiQueue.enqueue(id))
+  app = createApp(db, queue, aiQueue)
 })
 
 /** 一个浏览器：记住访问令牌和刷新令牌 */
@@ -421,5 +424,76 @@ describe('语言服务', () => {
 
     expect((await t.post('/api/language', { type: 'run', session: 'tab1' })).status).toBe(400)
     expect((await new Browser().post('/api/language', { type: 'complete', session: 'tab1', files })).status).toBe(401)
+  }, 60000)
+})
+
+describe('AI 评阅', () => {
+  const SAMPLE = 'p4-t3-报警灯'
+  const scoring = { auto: [10, 10], manual: [{ title: '窗体界面', points: 10 }, { title: '注释规范', points: 5 }] }
+  /** 假的模型服务：记下收到的请求，返回固定的评分（第二项故意超出满分，检查服务器会限制） */
+  const requests: any[] = []
+  let fake: ReturnType<typeof Bun.serve>
+  const saved = { key: config.aiApiKey, url: config.aiBaseUrl }
+
+  beforeAll(() => {
+    fake = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        requests.push(await req.json())
+        const content = JSON.stringify({ scores: [{ item: '窗体界面', score: 8.6, reason: '布局整齐' }, { item: '注释规范', score: 9, reason: '注释充分' }], comment: '界面整齐，继续加油。' })
+        return Response.json({ choices: [{ message: { content } }] })
+      },
+    })
+    config.aiApiKey = 'test-key'
+    config.aiBaseUrl = `http://localhost:${fake.port}`
+  })
+
+  afterAll(() => {
+    fake.stop()
+    config.aiApiKey = saved.key
+    config.aiBaseUrl = saved.url
+  })
+
+  test('分数限制在 0 到满分并取整；评分项个数不对时报错', () => {
+    const manual = [{ title: 'A', points: 10 }, { title: 'B', points: 5 }]
+    expect(normalizeAiResult({ scores: [{ score: 8.6, reason: 'x' }, { score: -1 }], comment: ' 好 ' }, manual)).toEqual({
+      scores: [{ score: 9, reason: 'x' }, { score: 0, reason: '' }],
+      comment: '好',
+    })
+    expect(() => normalizeAiResult({ scores: [{ score: 1 }] }, manual)).toThrow('评分项个数不对')
+  })
+
+  test('自动评分后做 AI 评阅：老师看到建议分，"全部采纳"后学生才看到；发给模型的内容不含姓名', async () => {
+    const t = await teacher()
+    const classId = await classWithStudents(t, [{ username: 's1', name: '甲同学', password: 'p1' }])
+    const files = (await loadSample(SAMPLE))!
+    const { body } = await t.post('/api/teacher/assignments', { classId, sampleId: SAMPLE, title: '报警灯', startMode: 'ui', template: files, scoring, deadline: null })
+    const assignmentId = body.id as number
+    const student = new Browser()
+    await student.login('s1', 'p1')
+    const png = Buffer.from('fake-png').toString('base64')
+    await student.post(`/api/assignments/${assignmentId}/submit`, { files, screenshots: [{ form: 'Form1', png }] })
+    await queue.idle()
+    await aiQueue.idle()
+
+    const userId = (await student.get('/api/me')).body.user.id
+    const detail = (await t.get(`/api/teacher/assignments/${assignmentId}/students/${userId}`)).body
+    expect(detail.aiReview).toMatchObject({ status: 'done', scores: [{ score: 9, reason: '布局整齐' }, { score: 5, reason: '注释充分' }], comment: '界面整齐，继续加油。' })
+    expect(detail.screenshots).toEqual([{ form: 'Form1', png }])
+    expect((await t.get(`/api/teacher/assignments/${assignmentId}/submissions`)).body[0]).toMatchObject({ aiStatus: 'done', aiManual: 14, review: null })
+    expect((await t.get(`/api/teacher/classes/${classId}/gradebook`)).body.students[0].scores[assignmentId]).toMatchObject({ manual: null, aiManual: 14 })
+
+    // 请求里有代码和截图，没有学生姓名
+    const sent = JSON.stringify(requests.at(-1))
+    expect(sent).toContain('AlarmOnOff')
+    expect(sent).toContain(`data:image/png;base64,${png}`)
+    expect(sent).not.toContain('甲同学')
+
+    // 老师确认前学生看不到 AI 的建议
+    expect((await student.get(`/api/assignments/${assignmentId}`)).body.review).toBeNull()
+    expect((await t.post(`/api/teacher/assignments/${assignmentId}/adopt-ai`)).body).toEqual({ adopted: 1 })
+    expect((await student.get(`/api/assignments/${assignmentId}`)).body.review).toMatchObject({ scores: [9, 5], comment: '界面整齐，继续加油。' })
+    // 已经评阅过的不会再被覆盖
+    expect((await t.post(`/api/teacher/assignments/${assignmentId}/adopt-ai`)).body).toEqual({ adopted: 0 })
   }, 60000)
 })

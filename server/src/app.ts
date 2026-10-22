@@ -15,13 +15,14 @@ import {
   listAssignments,
   updateAssignment,
 } from './assignments'
+import { aiEnabled, getAiReview, type AiQueue } from './ai-review'
 import { parseChecks } from './grading/checks'
 import { languageService } from './language-service'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
 import { listSamples, loadChecks, loadSample } from './samples'
 import { serveStatic } from './static'
-import { deleteWork, getWork, saveWork, validFiles } from './works'
+import { deleteWork, getWork, saveWork, validFiles, validScreenshots } from './works'
 
 /** Bun.serve 的 server 对象（测试里直接调用 app.fetch 时没有） */
 interface Env {
@@ -38,7 +39,7 @@ function clientIp(c: AppContext) {
 /** 读取 JSON 请求体，格式不对时返回空对象 */
 const body = <T>(c: AppContext) => c.req.json<Partial<T>>().catch(() => ({}) as Partial<T>)
 
-export function createApp(db: Database, gradingQueue: GradingQueue) {
+export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQueue) {
   const app = new Hono<{ Bindings: Env; Variables: { user: User } }>()
 
   app.post('/api/login', async (c) => {
@@ -146,9 +147,10 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
     if (user.role === 'student' && assignment.deadline !== null && Date.now() > assignment.deadline) {
       return c.json({ message: '已经过了截止时间，不能再提交' }, 400)
     }
-    const { files } = await body<{ files: unknown }>(c)
+    const { files, screenshots = [] } = await body<{ files: unknown; screenshots: unknown }>(c)
     if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
-    const submissionId = createSubmission(db, assignment.id, user.id, files)
+    if (!validScreenshots(screenshots)) return c.json({ message: '界面截图格式不对或太大' }, 400)
+    const submissionId = createSubmission(db, assignment.id, user.id, files, screenshots)
     if (submissionId === null) return c.json({ message: '上一次提交还在评分，请等评分结束再提交' }, 409)
     gradingQueue.enqueue(submissionId)
     return c.json(latestSubmission(db, assignment.id, user.id))
@@ -255,7 +257,8 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
     c.json(
       classSubmissions(db, id(c)).map((s) => {
         const review = getReview(db, id(c), s.userId)
-        return { ...s, manualScore: manualScore(review), review }
+        const ai = s.submissionId ? getAiReview(db, s.submissionId) : null
+        return { ...s, manualScore: manualScore(review), review, aiStatus: ai?.status ?? null, aiManual: ai?.status === 'done' ? ai.scores.reduce((a, x) => a + x.score, 0) : null }
       }),
     ),
   )
@@ -272,6 +275,26 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
     const userId = Number(c.req.param('userId'))
     const result = saveReview(db, id(c), userId, scores, comment)
     return result.error ? c.json({ message: result.error }, 400) : c.json(getReview(db, id(c), userId))
+  })
+
+  // 全部采纳 AI 建议：只处理老师还没评阅、最近一次提交已有 AI 建议的学生，不覆盖老师自己打的分
+  app.post('/api/teacher/assignments/:id/adopt-ai', (c) => {
+    let adopted = 0
+    for (const s of classSubmissions(db, id(c))) {
+      if (!s.submissionId || getReview(db, id(c), s.userId)) continue
+      const ai = getAiReview(db, s.submissionId)
+      if (ai?.status !== 'done') continue
+      if (!saveReview(db, id(c), s.userId, ai.scores.map((x) => x.score), ai.comment).error) adopted++
+    }
+    return c.json({ adopted })
+  })
+
+  // 重新做 AI 评阅（出错时或老师想再评一次）
+  app.post('/api/teacher/submissions/:id/ai-review', (c) => {
+    if (!aiEnabled()) return c.json({ message: '没有配置 AI 评阅（DEEPSEEK_API_KEY）' }, 400)
+    if (!submissionFiles(db, id(c))) return c.json({ message: '提交不存在' }, 404)
+    aiQueue.enqueue(id(c))
+    return c.json({})
   })
 
   // 一份提交的代码（老师在实验页里运行学生的程序）

@@ -1,5 +1,5 @@
 // 评分队列：学生提交后立即返回，后台按提交顺序评分（同时最多评 MAX_ACTIVE 份），结果写回数据库。
-// 服务器重启前没评完的提交，启动时继续评。
+// 服务器重启前没评完的提交，启动时继续评。评完调用 onGraded（接着做 AI 评阅）。
 import type { Database } from 'bun:sqlite'
 import { mkdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -10,7 +10,7 @@ import { grade } from './grader'
 
 const MAX_ACTIVE = 3
 
-export function createGradingQueue(db: Database) {
+export function createGradingQueue(db: Database, onGraded: (submissionId: number) => void = () => {}) {
   const queue: number[] = []
   let active = 0
   let idleWaiters: (() => void)[] = []
@@ -28,6 +28,7 @@ export function createGradingQueue(db: Database) {
         await Bun.write(target, file.content)
       }
       saveGrade(db, id, await grade(dir, checks))
+      onGraded(id)
     } catch (error) {
       console.error(`评分出错（提交 ${id}）：`, error)
       saveGrade(db, id, null)
