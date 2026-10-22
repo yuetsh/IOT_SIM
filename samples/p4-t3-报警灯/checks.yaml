@@ -1,0 +1,18 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 能正确打开报警灯
+  steps:
+    - select: { control: com_port, item: COM3 }
+    - click: btn_open
+    - click: btn_alarmOpen
+    - expect: { relay: 0, on: true }
+    - expect: { control: alarm1, on: true }
+
+- title: 能正确关闭报警灯
+  steps:
+    - select: { control: com_port, item: COM3 }
+    - click: btn_open
+    - click: btn_alarmOpen
+    - click: btn_alarmClose
+    - expect: { relay: 0, on: false }
+    - expect: { control: alarm1, on: false }

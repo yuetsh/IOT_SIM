@@ -1,0 +1,18 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 计算器能正确计算（装箱与拆箱）
+  steps:
+    - text: { control: txtNum1, value: "7" }
+    - text: { control: txtNum2, value: "2" }
+    - select: { control: cmboxType, item: "+" }
+    - click: btnCalculate
+    - expect: { control: txtResult, text: "9" }
+    - select: { control: cmboxType, item: "/" }
+    - click: btnCalculate
+    - expect: { control: txtResult, text: "3.5" }
+
+- title: 多态：不同国家的人说不同的语言
+  steps:
+    - click: btnDisplay
+    - expect: { control: txtDispaly, contains: 张三说的是汉语 }
+    - expect: { control: txtDispaly, contains: Mary说的是英语 }

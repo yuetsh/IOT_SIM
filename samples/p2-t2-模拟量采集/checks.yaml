@@ -1,0 +1,20 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 环境值能正确获取和显示
+  steps:
+    - select: { control: com_port, item: COM2 }
+    - click: btn_Open
+    - expect: { control: btn_Open, text: 关闭, desc: 按钮文字变成"关闭" }
+    - click: btn_get
+    - expect: { control: txt_temperature, text: "25" }
+    - expect: { control: txt_humidity, text: "60" }
+    - expect: { control: txt_light, text: "500" }
+
+- title: 环境变化后能获取到新的数值
+  steps:
+    - select: { control: com_port, item: COM2 }
+    - click: btn_Open
+    - board: { temperature: 31, light: 300 }
+    - click: btn_get
+    - expect: { control: txt_temperature, text: "31" }
+    - expect: { control: txt_light, text: "300" }

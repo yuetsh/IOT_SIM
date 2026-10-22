@@ -1,0 +1,16 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: LED 屏能正常显示推送的文字
+  steps:
+    - select: { control: com_Port, item: COM5 }
+    - click: btn_Open
+    - text: { control: txt_SendText, value: 欢迎光临 }
+    - click: btn_Send
+    - expect: { led: 欢迎光临 }
+    - expect: { control: led, ledText: 欢迎光临, desc: 窗体上的 LED 控件也显示"欢迎光临" }
+
+- title: 没有打开串口时推送，弹出出错提示
+  steps:
+    - text: { control: txt_SendText, value: 欢迎光临 }
+    - click: btn_Send
+    - expect: { messageBox: 发送失败 }

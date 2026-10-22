@@ -134,3 +134,5 @@ export type ServerMessage =
   | { type: 'board'; state: BoardState }
   | { type: 'status'; state: 'compiling' | 'running' | 'stopped' }
   | { type: 'serverError'; message: string }
+
+export * from './grading'

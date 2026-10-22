@@ -1,0 +1,18 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 能通过 ZigBee 打开路灯
+  steps:
+    - select: { control: com_port, item: COM4 }
+    - click: btn_open
+    - click: rb_Open
+    - expect: { zigbee: 1, on: true }
+    - expect: { control: lamp1, on: true }
+
+- title: 能通过 ZigBee 关闭路灯
+  steps:
+    - select: { control: com_port, item: COM4 }
+    - click: btn_open
+    - click: rb_Open
+    - click: rb_Close
+    - expect: { zigbee: 1, on: false }
+    - expect: { control: lamp1, on: false }

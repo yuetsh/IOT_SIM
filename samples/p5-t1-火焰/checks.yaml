@@ -1,0 +1,26 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 按钮能打开串口、开启定时器，更改按钮文字
+  steps:
+    - select: { control: com_port, item: COM3 }
+    - click: btn_open
+    - expect: { control: btn_open, text: 关闭, desc: 按钮文字变成"关闭" }
+    - expect: { control: txt_time, matches: '\d{1,2}:\d{2}', within: 7s, desc: 显示当前时间 }
+
+- title: 能实时显示火焰传感器数据
+  steps:
+    - select: { control: com_port, item: COM3 }
+    - click: btn_open
+    - board: { fire: true }
+    - expect: { control: txt_even, contains: 发现火情, within: 7s }
+    - board: { fire: false }
+    - expect: { control: txt_even, contains: 正常, within: 7s }
+
+- title: 再点按钮能关闭串口、停止定时器
+  steps:
+    - select: { control: com_port, item: COM3 }
+    - click: btn_open
+    - expect: { control: txt_time, matches: '\d{1,2}:\d{2}', within: 7s, desc: 显示当前时间 }
+    - click: btn_open
+    - expect: { control: btn_open, text: 开启, desc: 按钮文字变回"开启" }
+    - expect: { control: txt_time, unchanged: 7s, desc: 不再更新时间（定时器应已停止） }
