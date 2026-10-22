@@ -51,13 +51,38 @@
 
 4. 浏览器打开域名，输入口令进入。
 
+## 自动部署（GitHub Actions）
+
+`.github/workflows/ci.yml`：
+
+- 每次推送和 PR：编译 C# 运行时，跑服务端测试（含沙箱）、网页端测试和类型检查。
+- 推送到 GitHub 的 main 且测试通过：构建镜像，经 SSH 传到服务器并重启，等到"编译服务已就绪"才算成功。**重启会结束正在运行的学生程序**，上课时间尽量不要推送 main。
+- 在 GitHub 的 Actions 页面点 Run workflow 可以手动重新部署。
+- 只在 github.com 上运行；推到 git.xuyue.cc 不会触发。
+
+一次性配置（在本机执行，需要已登录的 `gh`）：
+
+1. 服务器上的部署用户要能运行 docker（在 docker 组里），并按上面"第一次部署"第 1 步准备好 `~/IOT_SIM/.env`。
+2. 生成部署专用的 SSH 密钥，公钥放到服务器，私钥和服务器信息存进仓库 Secrets：
+
+   ```bash
+   ssh-keygen -t ed25519 -N '' -C iot-sim-deploy -f /tmp/iot_deploy
+   ssh-copy-id -i /tmp/iot_deploy.pub 用户@服务器
+   gh secret set DEPLOY_SSH_KEY -R yuetsh/IOT_SIM < /tmp/iot_deploy
+   gh secret set DEPLOY_HOST -R yuetsh/IOT_SIM -b 服务器地址
+   gh secret set DEPLOY_USER -R yuetsh/IOT_SIM -b 用户名
+   rm /tmp/iot_deploy /tmp/iot_deploy.pub
+   ```
+
+   SSH 端口不是 22 时，再设置 `DEPLOY_PORT`；服务器目录不是 `~/IOT_SIM` 时，设置变量 `gh variable set DEPLOY_DIR -R yuetsh/IOT_SIM -b 目录`。
+
 ## 日常操作
 
 在服务器的 `~/IOT_SIM` 目录下：
 
 | 做什么 | 命令 |
 |---|---|
-| 更新到新版本 | 在本机再执行一次 `deploy/deploy.sh 用户@服务器` |
+| 更新到新版本 | 推送到 GitHub 的 main（自动部署），或在本机执行 `deploy/deploy.sh 用户@服务器` |
 | 换口令 | 修改 `.env` 后 `docker compose up -d`（所有人要重新输入口令） |
 | 看日志 | `docker compose logs -f app` |
 | 看资源占用 | `docker stats` |

@@ -1,0 +1,115 @@
+# 每次推送和 PR 都跑测试；推送到 main 且测试通过后，构建镜像并经 SSH 部署到服务器。
+# 部署需要的 Secrets 见 deploy/README.md 的"自动部署"一节。
+# 只在 github.com 上运行；仓库同时推到 git.xuyue.cc，那边的 Gitea Actions 也会读这个目录，用 if 跳过。
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # 在 Actions 页面手动重新部署（比如改了服务器上的 .env 之后）
+  workflow_dispatch:
+
+jobs:
+  test:
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # 测试里学生程序在 bubblewrap 沙箱中运行；Ubuntu 24.04 默认禁止非特权用户命名空间，要先放开
+      - name: 准备沙箱
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - run: bun install --frozen-lockfile
+
+      - name: 编译 C# 运行时
+        run: bun run build:runtime
+
+      - name: 服务端测试（编译并运行示例、沙箱、编译检查）
+        working-directory: server
+        run: bun test
+
+      - name: 网页端测试和类型检查
+        working-directory: web
+        run: |
+          bun test src
+          bunx vue-tsc --noEmit
+
+  deploy:
+    needs: test
+    if: github.server_url == 'https://github.com' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    # 连续推送时排队部署，不会两次部署同时进行
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    environment: production
+    steps:
+      # Secrets 还没配置时跳过部署（只跑测试），不算失败
+      - name: 检查部署配置
+        id: check
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -n "$DEPLOY_HOST" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::没有配置 DEPLOY_HOST 等 Secrets，跳过部署（配置方法见 deploy/README.md）"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.configured == 'true'
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.check.outputs.configured == 'true'
+
+      - name: 构建镜像（带缓存）
+        if: steps.check.outputs.configured == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: iot-sim:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 配置 SSH
+        if: steps.check.outputs.configured == 'true'
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat > ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            Port ${DEPLOY_PORT:-22}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            # 不预先登记服务器公钥，第一次连接时自动接受
+            StrictHostKeyChecking accept-new
+            ServerAliveInterval 30
+          EOF
+
+      - name: 部署
+        if: steps.check.outputs.configured == 'true'
+        env:
+          SKIP_BUILD: '1'
+        run: deploy/deploy.sh deploy-target "${{ vars.DEPLOY_DIR || 'IOT_SIM' }}"
