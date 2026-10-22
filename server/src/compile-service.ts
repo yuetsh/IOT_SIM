@@ -31,8 +31,14 @@ class CompileService {
     return result
   }
 
+  /** 结束进程；立即清空状态，下一次请求会启动新进程（不会发给正在退出的旧进程） */
   stop() {
-    this.proc?.kill()
+    const proc = this.proc
+    this.proc = undefined
+    this.ready = undefined
+    for (const waiter of this.pending.values()) waiter.reject(new Error('编译服务已停止'))
+    this.pending.clear()
+    proc?.kill()
   }
 
   /** 服务器启动时调用，提前完成编译器的加载和预热 */
