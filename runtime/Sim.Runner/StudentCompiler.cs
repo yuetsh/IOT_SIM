@@ -31,9 +31,18 @@ internal static class StudentCompiler
 
     public sealed record Result(bool Success, byte[] Assembly, byte[] Pdb, JsonArray Diagnostics);
 
+    /// <summary>编译和语言服务（代码补全等）共用同一套选项</summary>
+    internal static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest);
+
+    internal static readonly CSharpCompilationOptions CompilationOptions = new CSharpCompilationOptions(OutputKind.WindowsApplication)
+        .WithOptimizationLevel(OptimizationLevel.Debug)
+        .WithNullableContextOptions(NullableContextOptions.Disable)
+        .WithAllowUnsafe(false)
+        .WithConcurrentBuild(true);
+
     public static Result Compile(string projectDir)
     {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
+        var parseOptions = ParseOptions;
         var trees = Directory.EnumerateFiles(projectDir, "*.cs", SearchOption.AllDirectories)
             .Where(path => !IsBuildOutput(projectDir, path))
             .OrderBy(path => path, StringComparer.Ordinal)
@@ -43,13 +52,7 @@ internal static class StudentCompiler
                 path: Path.GetRelativePath(projectDir, path)))
             .ToList();
 
-        var options = new CSharpCompilationOptions(OutputKind.WindowsApplication)
-            .WithOptimizationLevel(OptimizationLevel.Debug)
-            .WithNullableContextOptions(NullableContextOptions.Disable)
-            .WithAllowUnsafe(false)
-            .WithConcurrentBuild(true);
-
-        var compilation = CSharpCompilation.Create("StudentApp", trees, References.Value, options);
+        var compilation = CSharpCompilation.Create("StudentApp", trees, References.Value, CompilationOptions);
 
         using var peStream = new MemoryStream();
         using var pdbStream = new MemoryStream();
@@ -67,7 +70,7 @@ internal static class StudentCompiler
         return new Result(emit.Success && denied.Count == 0, peStream.ToArray(), pdbStream.ToArray(), diagnostics);
     }
 
-    private static JsonObject ToJson(Diagnostic diagnostic)
+    internal static JsonObject ToJson(Diagnostic diagnostic)
     {
         var span = diagnostic.Location.GetMappedLineSpan();
         var message = diagnostic.GetMessage(Chinese);
@@ -92,7 +95,7 @@ internal static class StudentCompiler
     }
 
     /// <summary>学生代码可引用的程序集：.NET 框架（去掉冲突的门面）+ 仿真库</summary>
-    private static readonly Lazy<IReadOnlyList<MetadataReference>> References = new(() =>
+    internal static readonly Lazy<IReadOnlyList<MetadataReference>> References = new(() =>
     {
         var frameworkDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var framework = Directory.EnumerateFiles(frameworkDir, "*.dll")

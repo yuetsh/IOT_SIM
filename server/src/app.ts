@@ -16,6 +16,7 @@ import {
   updateAssignment,
 } from './assignments'
 import { parseChecks } from './grading/checks'
+import { languageService } from './language-service'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
 import { listSamples, loadChecks, loadSample } from './samples'
@@ -81,6 +82,17 @@ export function createApp(db: Database, gradingQueue: GradingQueue) {
   app.get('/api/samples/:id', async (c) => {
     const files = await loadSample(c.req.param('id'))
     return files ? c.json(files) : c.notFound()
+  })
+
+  // 代码编辑器的语言服务：补全、悬停提示、参数提示、边写边检查
+  const LANGUAGE_REQUESTS = new Set(['complete', 'completionDetail', 'hover', 'signature', 'diagnostics'])
+  app.post('/api/language', async (c) => {
+    const r = await body<{ type: string; session: string; files: unknown; file: string; line: number; column: number; index: number }>(c)
+    if (!LANGUAGE_REQUESTS.has(String(r.type)) || typeof r.session !== 'string') return c.json({ message: '请求格式不对' }, 400)
+    if (r.files !== undefined && !validFiles(r.files)) return c.json({ message: '作品格式不对或太大' }, 400)
+    // 会话按用户区分，不同学生的工程不会混在一起
+    const reply = await languageService.request({ ...r, session: `${c.get('user').id}:${r.session.slice(0, 64)}` })
+    return c.json(reply ?? { type: 'empty' })
   })
 
   // 自己的作品：key 如 "sample:p2-t1-LED显示屏"

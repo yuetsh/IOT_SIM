@@ -39,11 +39,12 @@ bun test/load.ts 100  # 压力测试：同时运行 100 个学生程序
 
 Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到 GitHub 的 main 后，GitHub Actions 跑完测试，SSH 到服务器执行 `deploy/update.sh`：服务器从 git.xuyue.cc 拉代码、构建镜像、重启。详见 [deploy/README.md](deploy/README.md)。
 
-## 运行器的两种模式
+## 运行器的三种模式
 
 `Sim.Runner` 通过标准输入输出与 Bun 服务器交换 JSON 消息（每行一条）：
 
 - `compile-server`：常驻编译服务，全服务器共用一个。Roslyn 只加载一次，编译结果写回工程目录。
+- `language-server`：常驻语言服务，全服务器共用一个：代码补全、悬停提示、参数提示、边写边检查。
 - `run <工程目录>`：运行已编译的学生程序，每次运行一个进程，不加载编译器。
 
 ## 当前进度：第 0 阶段（技术验证）已跑通

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // 代码编辑器：每个文件一个 Monaco 模型（各自保留撤销记录），切换标签页时换模型。
-// 编译错误以波浪线标在代码里。F5 / Shift+F5 由页面统一处理（见 App.vue），这里不再单独绑定。
+// 编译错误以波浪线标在代码里：点"运行"时的编译结果，以及停止输入一会儿后的自动检查结果，以较新的为准。
+// 代码补全、悬停提示、参数提示见 language.ts。F5 / Shift+F5 由页面统一处理，这里不再单独绑定。
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { Diagnostic, SourceFile } from '@iot/shared'
+import { checkProject, registerLanguageFeatures, setLanguageFiles } from './language'
 import { monaco } from './monaco'
 
 const props = defineProps<{
@@ -25,7 +27,10 @@ function modelFor(file: SourceFile) {
   let model = models.get(file.path)
   if (!model) {
     model = monaco.editor.createModel(file.content, 'csharp', monaco.Uri.file(file.path))
-    model.onDidChangeContent(() => emit('change', file.path, model!.getValue()))
+    model.onDidChangeContent(() => {
+      emit('change', file.path, model!.getValue())
+      scheduleCheck()
+    })
     models.set(file.path, model)
   } else if (model.getValue() !== file.content) {
     // 外部换了内容（切换示例、恢复原始代码）
@@ -53,9 +58,12 @@ function showActive() {
   if (editor.value.getModel() !== model) editor.value.setModel(model)
 }
 
+/** 当前显示的错误：新的编译结果或自动检查结果到来时替换 */
+let shown: Diagnostic[] = props.diagnostics
+
 function applyMarkers() {
   for (const [path, model] of models) {
-    const markers = props.diagnostics
+    const markers = shown
       .filter((d) => d.file === path)
       .map((d) => ({
         severity: d.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
@@ -83,7 +91,28 @@ function reveal(path: string, line: number, column: number) {
 
 defineExpose({ reveal })
 
+// ---------- 边写边检查：停止输入 1 秒后检查整个工程 ----------
+const CHECK_DELAY_MS = 1000
+let checkTimer: ReturnType<typeof setTimeout> | undefined
+
+function scheduleCheck() {
+  if (props.readOnly) return
+  clearTimeout(checkTimer)
+  checkTimer = setTimeout(() => void check(), CHECK_DELAY_MS)
+}
+
+async function check() {
+  const versions = new Map([...models].map(([path, model]) => [path, model.getVersionId()]))
+  const result = await checkProject()
+  // 检查期间又改了代码：这次的结果作废，等下一次
+  if (!result || [...models].some(([path, model]) => versions.get(path) !== model.getVersionId())) return
+  shown = result
+  applyMarkers()
+}
+
 onMounted(() => {
+  registerLanguageFeatures()
+  setLanguageFiles(() => props.files)
   editor.value = monaco.editor.create(container.value!, {
     language: 'csharp',
     theme: 'vs',
@@ -111,9 +140,16 @@ watch(() => props.files, () => {
   applyMarkers()
 })
 watch(() => props.activeFile, showActive)
-watch(() => props.diagnostics, applyMarkers)
+watch(
+  () => props.diagnostics,
+  (diagnostics) => {
+    shown = diagnostics
+    applyMarkers()
+  },
+)
 
 onBeforeUnmount(() => {
+  clearTimeout(checkTimer)
   editor.value?.dispose()
   for (const model of models.values()) model.dispose()
   models.clear()

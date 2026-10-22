@@ -2,6 +2,7 @@ import type { ClientMessage, ServerMessage } from '@iot/shared'
 import { createApp } from './app'
 import { ensureTeacher, tokenUser } from './auth'
 import { compileService } from './compile-service'
+import { languageService } from './language-service'
 import { config } from './config'
 import { openDatabase } from './db'
 import { createGradingQueue } from './grading/queue'
@@ -69,5 +70,5 @@ const server = Bun.serve({
 })
 
 console.log(`服务器已启动：http://localhost:${server.port}`)
-await compileService.start()
+await Promise.all([compileService.start(), languageService.start()])
 console.log('C# 编译服务已就绪')

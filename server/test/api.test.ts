@@ -1,10 +1,11 @@
 // HTTP 接口测试：内存数据库，直接调用 app.fetch。
-import { beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
 import { createApp } from '../src/app'
 import { ensureTeacher } from '../src/auth'
 import { config } from '../src/config'
 import { openDatabase } from '../src/db'
 import { createGradingQueue, type GradingQueue } from '../src/grading/queue'
+import { languageService } from '../src/language-service'
 import { loadSample } from '../src/samples'
 
 let app: ReturnType<typeof createApp>
@@ -403,5 +404,22 @@ describe('评阅与成绩', () => {
     const files = await t.get(`/api/teacher/submissions/${submission.id}`)
     expect(files.body).toMatchObject({ assignmentTitle: '报警灯', studentName: '甲' })
     expect((await student.get(`/api/teacher/submissions/${submission.id}`)).status).toBe(403)
+  }, 60000)
+})
+
+describe('语言服务', () => {
+  afterAll(() => languageService.stop())
+
+  test('代码补全、边写边检查（中文提示）；请求格式不对拒绝；没登录不能用', async () => {
+    const t = await teacher()
+    const files = [{ path: 'Program.cs', content: 'using System.Windows.Forms;\nstatic class P\n{\n    static void Main()\n    {\n        var b = new Button();\n        b.\n    }\n}\n' }]
+    const completions = await t.post('/api/language', { type: 'complete', session: 'tab1', files, file: 'Program.cs', line: 7, column: 11 })
+    expect(completions.body.items.map((i: any) => i.label)).toEqual(expect.arrayContaining(['Text', 'Click', 'Enabled']))
+
+    const check = await t.post('/api/language', { type: 'diagnostics', session: 'tab1', files })
+    expect(check.body.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CS1002', hint: 'C# 每条语句末尾要有英文分号 ;' })]))
+
+    expect((await t.post('/api/language', { type: 'run', session: 'tab1' })).status).toBe(400)
+    expect((await new Browser().post('/api/language', { type: 'complete', session: 'tab1', files })).status).toBe(401)
   }, 60000)
 })
