@@ -26,44 +26,57 @@
 
 ## 第一次部署
 
-1. 在服务器上准备目录和口令：
+服务器上的 `~/IOT_SIM` 是从 origin（git.xuyue.cc）克隆的仓库，镜像在服务器上构建；配置只放在 `.env`（不进 git）。
+
+1. 服务器要能拉取 origin：仓库是私有的话，在服务器上生成一把密钥（`ssh-keygen -t ed25519`），把公钥加到 git.xuyue.cc 仓库的部署密钥（只读）里。
+
+2. 克隆仓库，准备口令：
 
    ```bash
-   mkdir -p ~/IOT_SIM && cd ~/IOT_SIM
-   # 部署脚本会上传 .env.example；也可以直接新建 .env：
+   git clone git@git.xuyue.cc:xuyue/IOT_SIM.git ~/IOT_SIM
+   cd ~/IOT_SIM
    echo 'ACCESS_PASSWORD=换成你的口令' > .env
    chmod 600 .env
    ```
 
-2. 在本机（开发机）执行：
+   `~/IOT_SIM` 已经存在（比如以前用脚本上传过文件）时，就地变成仓库，已有的 `.env` 会保留：
 
    ```bash
-   deploy/deploy.sh 用户@服务器
+   cd ~/IOT_SIM
+   git init -q && git remote add origin git@git.xuyue.cc:xuyue/IOT_SIM.git
+   git fetch origin && git checkout -f -B main origin/main
    ```
 
-   脚本在本机构建镜像，通过 ssh 传到服务器并启动。日志最后应看到"C# 编译服务已就绪"，且没有"沙箱无法启动"。
+3. 构建并启动：
 
-3. 在 Nginx Proxy Manager 里添加 Proxy Host：
+   ```bash
+   deploy/update.sh
+   ```
+
+   拉取代码、构建镜像（第一次要下载 .NET SDK、Bun 等镜像和依赖，之后有缓存）、启动，最后应看到"部署成功"。
+
+4. 在 Nginx Proxy Manager 里添加 Proxy Host：
    - Domain Names：已备案的域名
    - Scheme：`http`，Forward Hostname / IP：`iot-sim`，Forward Port：`80`
    - **打开 Websockets Support**（运行程序靠 WebSocket，不打开会一直连不上）
    - SSL：申请证书，打开 Force SSL
 
-4. 浏览器打开域名，输入口令进入。
+5. 浏览器打开域名，输入口令进入。
 
 ## 自动部署（GitHub Actions）
 
 `.github/workflows/ci.yml`：
 
 - 每次推送和 PR：编译 C# 运行时，跑服务端测试（含沙箱）、网页端测试和类型检查。
-- 推送到 GitHub 的 main 且测试通过：构建镜像，经 SSH 传到服务器并重启，等到"编译服务已就绪"才算成功。**重启会结束正在运行的学生程序**，上课时间尽量不要推送 main。
+- 推送到 GitHub 的 main 且测试通过：SSH 到服务器执行 `deploy/update.sh <提交号>`，服务器从 origin 拉代码、构建、重启，等到"编译服务已就绪"才算成功。**重启会结束正在运行的学生程序**，上课时间尽量不要推送 main。
+- 服务器从 origin 拉代码，所以**两个仓库都要推送**（`git push origin main`、`git push github main`）。GitHub 先到时，脚本会等 origin 最多约 100 秒。
 - 在 GitHub 的 Actions 页面点 Run workflow 可以手动重新部署。
 - 只在 github.com 上运行；推到 git.xuyue.cc 不会触发。
 
 一次性配置（在本机执行，需要已登录的 `gh`）：
 
-1. 服务器上的部署用户要能运行 docker（在 docker 组里），并按上面"第一次部署"第 1 步准备好 `~/IOT_SIM/.env`。
-2. 生成部署专用的 SSH 密钥，公钥放到服务器，私钥和服务器信息存进仓库 Secrets：
+1. 服务器上的部署用户要能运行 docker（在 docker 组里），并按上面"第一次部署"准备好 `~/IOT_SIM`。
+2. 生成部署专用的 SSH 密钥（GitHub Actions 用它登录服务器），公钥放到服务器，私钥和服务器信息存进仓库 Secrets：
 
    ```bash
    ssh-keygen -t ed25519 -N '' -C iot-sim-deploy -f /tmp/iot_deploy
@@ -82,7 +95,7 @@
 
 | 做什么 | 命令 |
 |---|---|
-| 更新到新版本 | 推送到 GitHub 的 main（自动部署），或在本机执行 `deploy/deploy.sh 用户@服务器` |
+| 更新到新版本 | 推送到两个仓库的 main（GitHub 测试通过后自动部署），或在服务器上执行 `deploy/update.sh` |
 | 换口令 | 修改 `.env` 后 `docker compose up -d`（所有人要重新输入口令） |
 | 看日志 | `docker compose logs -f app` |
 | 看资源占用 | `docker stats` |

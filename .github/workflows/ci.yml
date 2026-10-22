@@ -1,4 +1,4 @@
-# 每次推送和 PR 都跑测试；推送到 main 且测试通过后，构建镜像并经 SSH 部署到服务器。
+# 每次推送和 PR 都跑测试；推送到 main 且测试通过后，SSH 到服务器执行 deploy/update.sh（服务器从 origin 拉代码、构建、重启）。
 # 部署需要的 Secrets 见 deploy/README.md 的"自动部署"一节。
 # 只在 github.com 上运行；仓库同时推到 git.xuyue.cc，那边的 Gitea Actions 也会读这个目录，用 if 跳过。
 name: CI/CD
@@ -51,6 +51,8 @@ jobs:
     needs: test
     if: github.server_url == 'https://github.com' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
+    # 服务器构建约几分钟；卡住时及时失败，不要一直占着
+    timeout-minutes: 20
     # 连续推送时排队部署，不会两次部署同时进行
     concurrency:
       group: deploy
@@ -68,22 +70,6 @@ jobs:
           else
             echo "::notice::没有配置 DEPLOY_HOST 等 Secrets，跳过部署（配置方法见 deploy/README.md）"
           fi
-
-      - uses: actions/checkout@v4
-        if: steps.check.outputs.configured == 'true'
-
-      - uses: docker/setup-buildx-action@v3
-        if: steps.check.outputs.configured == 'true'
-
-      - name: 构建镜像（带缓存）
-        if: steps.check.outputs.configured == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: true
-          tags: iot-sim:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: 配置 SSH
         if: steps.check.outputs.configured == 'true'
@@ -105,11 +91,12 @@ jobs:
             IdentitiesOnly yes
             # 不预先登记服务器公钥，第一次连接时自动接受
             StrictHostKeyChecking accept-new
+            # 认证失败立即报错，不等输入密码
+            BatchMode yes
+            ConnectTimeout 30
             ServerAliveInterval 30
           EOF
 
-      - name: 部署
+      - name: 部署（在服务器上拉代码、构建、重启）
         if: steps.check.outputs.configured == 'true'
-        env:
-          SKIP_BUILD: '1'
-        run: deploy/deploy.sh deploy-target "${{ vars.DEPLOY_DIR || 'IOT_SIM' }}"
+        run: ssh deploy-target "cd ${{ vars.DEPLOY_DIR || 'IOT_SIM' }} && deploy/update.sh ${{ github.sha }}"

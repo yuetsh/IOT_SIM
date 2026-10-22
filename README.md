@@ -37,7 +37,7 @@ bun test/load.ts 100  # 压力测试：同时运行 100 个学生程序
 
 ## 部署
 
-Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到 GitHub 的 main 后，GitHub Actions 跑完测试自动部署；也可以在开发机执行 `deploy/deploy.sh 用户@服务器`。详见 [deploy/README.md](deploy/README.md)。
+Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到 GitHub 的 main 后，GitHub Actions 跑完测试，SSH 到服务器执行 `deploy/update.sh`：服务器从 git.xuyue.cc 拉代码、构建镜像、重启。详见 [deploy/README.md](deploy/README.md)。
 
 ## 运行器的两种模式
 
