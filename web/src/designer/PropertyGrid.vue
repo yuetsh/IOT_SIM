@@ -23,7 +23,8 @@ const emit = defineEmits<{
 
 const tab = ref<'props' | 'events'>('props')
 const def = computed<ControlDef>(() => (props.selected === '' ? FORM_DEF : controlDef(typeOf(props.doc, props.selected) ?? '')))
-const title = computed(() => `${props.selected || props.doc.formName}  ${def.value.type.split('.').at(-1)}`)
+const typeName = computed(() => def.value.type.split('.').at(-1)!)
+const title = computed(() => `${props.selected || props.doc.formName}（${def.value.label}）`)
 
 function current(prop: PropDef): Value | undefined {
   const text = getPropText(props.doc, props.selected, prop.name)
@@ -131,7 +132,7 @@ function renameHandler(event: string, value: string) {
 
 <template>
   <div class="grid">
-    <div class="grid-title" :title="title">{{ title }}</div>
+    <div class="grid-title" :title="`类型：${typeName}`">{{ title }}</div>
     <div class="tabs">
       <button :class="{ active: tab === 'props' }" @click="tab = 'props'">属性</button>
       <button :class="{ active: tab === 'events' }" title="事件" @click="tab = 'events'">⚡ 事件</button>
@@ -139,7 +140,7 @@ function renameHandler(event: string, value: string) {
 
     <div v-if="tab === 'props'" class="rows">
       <div class="row">
-        <label title="控件的名称，代码里用 this.名称 访问它">(Name)</label>
+        <label title="Name：控件的名称，代码里用这个名字访问它">名称</label>
         <div class="editor">
           <input v-model="nameDraft" :disabled="selected === ''" @change="commitName" @keydown.enter="commitName" />
           <div v-if="nameError" class="error">{{ nameError }}</div>
@@ -148,7 +149,7 @@ function renameHandler(event: string, value: string) {
       </div>
 
       <div v-for="prop in def.props" :key="prop.name" class="row">
-        <label :title="prop.label">{{ prop.name }}</label>
+        <label :title="`${prop.name}：${prop.description}`">{{ prop.label }}</label>
         <div class="editor">
           <code v-if="raw(prop) !== undefined" class="raw" :title="raw(prop)">{{ raw(prop) }}</code>
 
@@ -162,8 +163,8 @@ function renameHandler(event: string, value: string) {
 
           <select v-else-if="prop.type === 'bool'" :value="String(boolOf(prop))"
             @change="set(prop, { kind: 'bool', value: ($event.target as HTMLSelectElement).value === 'true' })">
-            <option value="true">True</option>
-            <option value="false">False</option>
+            <option value="true">是</option>
+            <option value="false">否</option>
           </select>
 
           <input v-else-if="prop.type === 'int'" type="number" :value="num(prop)"
@@ -181,7 +182,7 @@ function renameHandler(event: string, value: string) {
 
           <select v-else-if="prop.type === 'enum'" :value="enumOf(prop)"
             @change="set(prop, { kind: 'enum', type: prop.enumType!, member: ($event.target as HTMLSelectElement).value })">
-            <option v-for="option in prop.options" :key="option" :value="option">{{ option }}</option>
+            <option v-for="option in prop.options" :key="option" :value="option">{{ prop.optionLabels?.[option] ?? option }}</option>
           </select>
 
           <span v-else-if="prop.type === 'color'" class="color">
@@ -211,7 +212,6 @@ function renameHandler(event: string, value: string) {
           <textarea v-else-if="prop.type === 'items'" rows="4" :value="itemsText" placeholder="每行一项"
             @change="setItemsFromText(($event.target as HTMLTextAreaElement).value)" />
 
-          <div class="hint">{{ prop.label }}</div>
         </div>
       </div>
     </div>
@@ -219,13 +219,12 @@ function renameHandler(event: string, value: string) {
     <div v-else class="rows">
       <div class="note events-note">双击事件名生成事件处理方法，并跳到代码</div>
       <div v-for="event in def.events" :key="event.name" class="row">
-        <label class="event-name" :title="`${event.label}（双击生成处理方法）`" @dblclick="emit('openEvent', selected, event.name)">{{ event.name }}</label>
+        <label class="event-name" :title="`${event.name}：双击生成事件处理方法`" @dblclick="emit('openEvent', selected, event.name)">{{ event.label }}</label>
         <div class="editor">
           <span class="pair">
             <input :value="handlerOf(event.name)" placeholder="（未绑定）" @change="renameHandler(event.name, ($event.target as HTMLInputElement).value)" />
             <button class="go" title="生成或跳到事件处理方法" @click="emit('openEvent', selected, event.name)">→</button>
           </span>
-          <div class="hint">{{ event.label }}</div>
         </div>
       </div>
     </div>

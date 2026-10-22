@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NButton, NConfigProvider, NPopconfirm, NSelect, NTab, NTabs, NTag, zhCN } from 'naive-ui'
 import type { SourceFile } from '@iot/shared'
 import FormDesigner from './designer/FormDesigner.vue'
+import { createDesignerHistory } from './designer/history'
 import CodeEditor from './editor/CodeEditor.vue'
 import { clearDraft, loadDraft, saveDraft } from './editor/drafts'
 import { createRunSession } from './run/session'
@@ -35,6 +36,10 @@ const activeForm = computed(() => forms.value.find((f) => f.tab === activeTab.va
 /** 代码编辑器显示的文件：设计器打开时保持上一次的代码文件 */
 const activeFile = computed(() => (activeForm.value ? undefined : activeTab.value))
 const fileText = (path: string) => files.value.find((f) => f.path === path)?.content ?? ''
+const designerHistory = createDesignerHistory({ read: fileText, write: (path, content) => updateFile(path, content) })
+
+// 开发模式下暴露页面状态，供浏览器自动化测试读取
+if (import.meta.env.DEV) Object.assign(window, { __iot: { files, fileText, designerHistory, activeTab } })
 /** 当前代码是否和示例原始代码不同（来自浏览器里保存的草稿） */
 const modified = ref(false)
 const editorRef = ref<InstanceType<typeof CodeEditor>>()
@@ -74,6 +79,7 @@ async function loadSample(id: string, discardDraft = false) {
   sampleId.value = id
   history.replaceState(null, '', `?sample=${encodeURIComponent(id)}`)
   if (discardDraft) clearDraft(id)
+  designerHistory.clear()
   const draft = discardDraft ? null : loadDraft(id)
   modified.value = draft !== null
   files.value = draft ?? (await (await fetch(`/api/samples/${encodeURIComponent(id)}`)).json())
@@ -94,6 +100,14 @@ function updateFile(path: string, content: string) {
 function onDesignerUpdate(designerText: string, codeText?: string) {
   const form = activeForm.value
   if (!form) return
+  // 没有实际改动（如双击已绑定的事件，只是跳到代码）不记入历史
+  const codeChanged = codeText !== undefined && codeText !== fileText(form.code)
+  if (designerText === fileText(form.designer) && !codeChanged) return
+  designerHistory.record(form.designer, {
+    designerBefore: fileText(form.designer),
+    designerAfter: designerText,
+    ...(codeText !== undefined ? { codeBefore: fileText(form.code), codeAfter: codeText } : {}),
+  })
   updateFile(form.designer, designerText)
   if (codeText !== undefined) updateFile(form.code, codeText)
 }
@@ -160,7 +174,11 @@ function run() {
             class="code"
             :designer-text="fileText(activeForm.designer)"
             :code-text="fileText(activeForm.code)"
+            :can-undo="designerHistory.canUndo(activeForm.designer)"
+            :can-redo="designerHistory.canRedo(activeForm.designer)"
             @update="onDesignerUpdate"
+            @undo="designerHistory.undo(activeForm.designer, activeForm.code)"
+            @redo="designerHistory.redo(activeForm.designer, activeForm.code)"
             @open-code="openCode"
           />
           <CodeEditor

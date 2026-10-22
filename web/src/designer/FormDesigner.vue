@@ -29,6 +29,8 @@ import { parseValue, type Value } from './values'
 const props = defineProps<{
   designerText: string
   codeText: string
+  canUndo: boolean
+  canRedo: boolean
 }>()
 
 const emit = defineEmits<{
@@ -36,7 +38,24 @@ const emit = defineEmits<{
   update: [designerText: string, codeText?: string]
   /** 跳到窗体代码文件的某一行 */
   openCode: [line: number]
+  undo: []
+  redo: []
 }>()
+
+/** Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做；在属性窗口的输入框里打字时不拦截（输入框有自己的撤销） */
+function onShortcut(event: KeyboardEvent) {
+  const target = event.target as HTMLElement
+  if (target.closest('input, textarea, select')) return
+  if (!(event.ctrlKey || event.metaKey)) return
+  const key = event.key.toLowerCase()
+  if (key === 'z' && !event.shiftKey) {
+    event.preventDefault()
+    emit('undo')
+  } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+    event.preventDefault()
+    emit('redo')
+  }
+}
 
 // ---------- 文档 ----------
 const parsed = computed<{ doc?: DesignerDocument; error?: string }>(() => {
@@ -257,6 +276,10 @@ function onKeyDown(event: KeyboardEvent) {
 
 // ---------- 工具箱 ----------
 const TOOLBOX_GROUPS = ['常用控件', '容器', '组件', '物联网设备'] as const
+const ICONS: Record<string, string> = {
+  按钮: '▭', 标签: 'A', 文本框: '▤', 下拉框: '☰', 复选框: '☑', 单选按钮: '◉', 分组框: '⬚', 面板: '▢',
+  定时器: '⏱', 'LED 显示屏': '▬', 灯泡: '💡', 报警灯: '🚨',
+}
 const DRAG_TYPE = 'application/x-winforms-control'
 
 function onToolDragStart(event: DragEvent, def: ControlDef) {
@@ -384,7 +407,7 @@ const noop = () => {}
     <p>Designer.cs 的内容不是窗体设计器能识别的格式，可能是手动修改造成的。可以在代码里改回来，或者用"恢复原始代码"。</p>
   </div>
 
-  <div v-else-if="doc && tree" class="designer">
+  <div v-else-if="doc && tree" class="designer" @keydown="onShortcut">
     <aside class="toolbox">
       <div class="panel-title">工具箱</div>
       <template v-for="group in TOOLBOX_GROUPS" :key="group">
@@ -394,16 +417,21 @@ const noop = () => {}
           :key="def.type"
           class="tool"
           draggable="true"
-          :title="`拖到窗体上，或双击添加`"
+          :title="`${def.type.split('.').at(-1)}：拖到窗体上，或双击添加`"
           @dragstart="onToolDragStart($event, def)"
           @dblclick="onToolDoubleClick(def)"
         >
-          {{ def.label }}
+          <span class="tool-icon">{{ ICONS[def.label] ?? '▫' }}</span>{{ def.label }}
         </div>
       </template>
     </aside>
 
     <section class="canvas">
+      <div class="actions">
+        <button :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</button>
+        <button :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</button>
+        <span class="tips">拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span>
+      </div>
       <div class="window" :class="{ selected: selected === '' }">
         <div class="titlebar" @pointerdown="selected = ''">
           <span class="title">{{ displayText(formTitle) }}</span>
@@ -510,6 +538,12 @@ const noop = () => {}
   user-select: none;
 }
 
+.tool-icon {
+  display: inline-block;
+  width: 18px;
+  color: #6b7280;
+}
+
 .tool:hover {
   background: #e8f0fe;
 }
@@ -522,6 +556,32 @@ const noop = () => {}
   background: #e9edf2;
   padding: 16px;
   gap: 12px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.actions button {
+  padding: 2px 10px;
+  border: 1px solid #c5ccd5;
+  border-radius: 3px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  color: #b0b6bf;
+  cursor: default;
+}
+
+.tips {
+  margin-left: 8px;
+  color: #7a838e;
 }
 
 .window {
