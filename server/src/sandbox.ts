@@ -76,8 +76,9 @@ export function runCommand(projectDir: string, extraEnv: Record<string, string>,
   const cmd = [
     // 学生程序写出死循环时，降低它的优先级，网页服务和编译服务仍然流畅
     'nice', '-n', '10',
-    // CPU 时间用完先收到 SIGXCPU 结束，过几秒还在就强制结束
-    'prlimit', `--cpu=${config.cpuLimitSeconds}:${config.cpuLimitSeconds + 5}`,
+    // CPU 时间用完直接 SIGKILL 结束（软硬上限相同）。软上限更小时内核先发 SIGXCPU，它默认生成 core dump：
+    // 学生每写一次死循环就留下一个转储，本机桌面还会弹出"程序崩溃"
+    'prlimit', `--cpu=${config.cpuLimitSeconds}:${config.cpuLimitSeconds}`, '--core=0',
     ...bwrapArgs(projectDir),
     ...(dbDir ? ['--bind', dbDir, DB_DIR] : []),
     'dotnet', `${RUNNER_DIR}/${config.runnerDll.split('/').pop()}`, 'run', APP_DIR,
@@ -85,12 +86,15 @@ export function runCommand(projectDir: string, extraEnv: Record<string, string>,
   return { cmd, env }
 }
 
-const SIGXCPU = 24
+const SIGKILL = 9
 
-/** 运行进程退出时，如果是因为 CPU 时间用完，给学生的说明 */
+/**
+ * 运行进程退出时，如果是因为 CPU 时间用完，给学生的说明。
+ * CPU 上限到时内核发 SIGKILL，bwrap 把子进程"被信号结束"转成退出码 128 + 信号编号；
+ * 平台自己结束程序（停止、超时、关闭页面）用的是 SIGTERM，不会误报。
+ */
 export function cpuLimitMessage(code: number | null, signal: string | number | null) {
-  // bwrap 把子进程"被信号结束"转成退出码 128 + 信号编号
-  return signal === 'SIGXCPU' || code === 128 + SIGXCPU
+  return signal === 'SIGKILL' || code === 128 + SIGKILL
     ? `\n程序占用 CPU 太多，已被结束（累计超过 ${config.cpuLimitSeconds} 秒）。检查是否有死循环：循环里要有退出条件，等待请用 Timer 或 Thread.Sleep。\n`
     : undefined
 }

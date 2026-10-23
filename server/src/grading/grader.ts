@@ -8,6 +8,8 @@ import type { Check, Expectation, Step } from './checks'
 import { ProgramDriver } from './driver'
 
 const GRADE_CONCURRENCY = 6
+/** 点数据表格的单元格前，最多等多久让那一行出现（程序可能还在查询数据库、刷新表格） */
+const GRID_WAIT = 5000
 /** 程序启动后多久内应该显示出窗体 */
 const START_TIMEOUT = 10_000
 
@@ -63,7 +65,11 @@ async function runCheck(dir: string, check: Check, sampleId?: string): Promise<C
     }
     return { title: check.title, passed: true }
   } catch (error) {
-    if (error instanceof Failure) return { title: check.title, passed: false, message: error.message }
+    if (error instanceof Failure) {
+      // 程序抛了异常时，它才是不通过的根本原因（异常消息可能比失败的检查晚到一点）
+      const message = driver.exceptions[0] ? `程序出错：${driver.exceptions[0]}` : error.message
+      return { title: check.title, passed: false, message }
+    }
     throw error
   } finally {
     driver.stop()
@@ -111,6 +117,8 @@ async function runStep(driver: ProgramDriver, step: Step) {
     case 'edit': {
       const node = need(driver, step.control)
       if (node.type !== 'DataGridView') throw new Failure(`${step.control} 不是数据表格`)
+      // 上一步（如保存后重新查询）可能还在刷新表格：等这一行出现
+      await driver.waitFor(() => gridRows(need(driver, step.control)).length > step.row, GRID_WAIT)
       const rows = gridRows(node)
       if (step.row >= rows.length) throw new Failure(`数据表格 ${step.control} 里没有第 ${step.row + 1} 行（现在有 ${rows.length} 行数据）`)
       const column = typeof step.column === 'number' ? step.column : gridColumns(node).findIndex((c) => c.header === step.column || c.name === step.column)
