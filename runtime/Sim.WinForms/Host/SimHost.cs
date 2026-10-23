@@ -86,19 +86,23 @@ public static class SimHost
     public static string AppBaseDirectory { get; set; } = AppContext.BaseDirectory;
 
     /// <summary>图片在浏览器端的编号；第一次用到时先把图片数据发过去，浏览器缓存后同一张图不再重发</summary>
-    public static string ImageKey(System.Drawing.Image image)
+    public static string ImageKey(System.Drawing.Image image) => DataKey(image.SimKey, image.Data, image.MimeType);
+
+    /// <summary>
+    /// 图片、声音等数据在浏览器端的编号（key 通常是内容的哈希）：第一次用到时先把数据发过去，之后只发编号。
+    /// </summary>
+    public static string DataKey(string key, byte[] data, string mime)
     {
-        var key = image.SimKey;
         bool isNew;
         lock (SentImages) isNew = SentImages.Add(key);
         if (isNew)
         {
             Send(new JsonObject
             {
-                ["type"] = "image",
+                ["type"] = "blob",
                 ["key"] = key,
-                ["mime"] = image.MimeType,
-                ["data"] = Convert.ToBase64String(image.Data),
+                ["mime"] = mime,
+                ["data"] = Convert.ToBase64String(data),
             });
         }
         return key;

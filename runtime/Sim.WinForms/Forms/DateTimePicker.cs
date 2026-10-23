@@ -13,7 +13,7 @@ public class DateTimePicker : Control
     public static readonly DateTime MinimumDateTime = new(1753, 1, 1);
     public static readonly DateTime MaximumDateTime = new(9998, 12, 31);
 
-    private DateTime _value = DateTime.Now;
+    private DateTime _value = SimClock.Now;
     private DateTimePickerFormat _format = DateTimePickerFormat.Long;
     private string? _customFormat;
     private bool _showUpDown;

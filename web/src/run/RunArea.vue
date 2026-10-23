@@ -37,7 +37,7 @@ const viewing = ref<{ path: string; url: string } | null>(null)
       />
       <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
     </div>
-    <TrainingBoard :board="state.board" @set="session.setBoard" @reset="session.resetBoard" />
+    <TrainingBoard :board="state.board" :playing="state.playing" @set="session.setBoard" @reset="session.resetBoard" />
     <div v-if="state.savedImages.length" class="photos">
       <div class="photos-title">程序保存的图片（{{ state.savedImages.length }}）<span>只在这次运行中保留</span></div>
       <div class="photos-list">

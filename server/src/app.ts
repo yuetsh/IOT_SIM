@@ -1,5 +1,6 @@
 // HTTP 接口。除登录外都要先登录；/api/teacher/* 只有老师能用。
 import type { Database } from 'bun:sqlite'
+import { dirname } from 'node:path'
 import { Hono, type Context } from 'hono'
 import { bearerToken, login, logout, refresh, tokenUser, tooManyFailures, type Tokens, type User } from './auth'
 import { createClass, deleteClass, deleteStudent, importStudents, listClasses, listStudents, renameClass, resetPassword, type ImportRow } from './classes'
@@ -69,6 +70,15 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     const { refreshToken } = await body<{ refreshToken: string }>(c)
     if (typeof refreshToken === 'string') logout(db, refreshToken)
     return c.json({})
+  })
+
+  // 项目资源素材库（Properties.Resources 的图片、声音）：设计器预览用 <img> 直接显示，不需要登录
+  app.get('/resources/:file', async (c) => {
+    const name = c.req.param('file')
+    if (!/^[\w.-]+$/.test(name)) return c.notFound()
+    const file = Bun.file(`${dirname(config.runnerDll)}/Resources/gallery/${name}`)
+    if (!(await file.exists())) return c.notFound()
+    return new Response(file, { headers: { 'Cache-Control': 'public, max-age=3600' } })
   })
 
   // 其余接口都要先登录（请求头 Authorization: Bearer <令牌>）

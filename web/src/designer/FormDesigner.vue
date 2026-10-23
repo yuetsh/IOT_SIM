@@ -31,6 +31,8 @@ const props = defineProps<{
   codeText: string
   canUndo: boolean
   canRedo: boolean
+  /** 项目资源（图片属性的选项） */
+  resources?: { names: string[]; prefix: string }
 }>()
 
 const emit = defineEmits<{
@@ -42,6 +44,8 @@ const emit = defineEmits<{
   openDesignerFile: []
   undo: []
   redo: []
+  /** 属性窗口里要添加项目资源 */
+  addResource: []
 }>()
 
 /** Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做；在属性窗口的输入框里打字时不拦截（输入框有自己的撤销） */
@@ -492,11 +496,13 @@ const noop = () => {}
       class="properties"
       :doc="doc"
       :selected="selected"
+      :resources="resources"
       @set-prop="onSetProp"
       @set-items="onSetItems"
       @rename="onRename"
       @open-event="openEvent"
       @clear-event="clearEvent"
+      @add-resource="emit('addResource')"
     />
   </div>
 </template>

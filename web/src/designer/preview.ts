@@ -4,6 +4,7 @@ import type { ControlNode } from '@iot/shared'
 import { controlDef } from './catalog'
 import type { DesignerDocument } from './document'
 import { childrenOf, findBlock, getItems, listControls } from './edit'
+import { resourceNameOf, resourceUrl } from './resources'
 import { parseValue, type Value } from './values'
 
 /** 窗体在预览树里的 id；控件的 id 就是控件名 */
@@ -11,6 +12,7 @@ export const FORM_ID = '__form'
 
 /** 运行时控件树里的类型名：System.Windows.Forms.Button → Button，教材控件库保留完整类名 */
 function clientType(type: string) {
+  if (type === 'AxWMPLib.AxWindowsMediaPlayer') return 'AxWindowsMediaPlayer'
   return type.startsWith('System.Windows.Forms.') ? type.slice('System.Windows.Forms.'.length) : type
 }
 
@@ -43,6 +45,12 @@ function propsOf(doc: DesignerDocument, target: string): Record<string, unknown>
   const props: Record<string, unknown> = {}
   for (const stmt of findBlock(doc, target)?.stmts ?? []) {
     if (stmt.kind !== 'prop' || stmt.path.includes('.')) continue
+    // 项目资源里的图片：预览时直接显示素材文件
+    const resource = resourceNameOf(stmt.value)
+    if (resource) {
+      props[stmt.path] = { key: '', url: resourceUrl(resource), width: 0, height: 0 }
+      continue
+    }
     const value = runtimeValue(parseValue(stmt.value))
     if (value !== undefined) props[stmt.path] = value
   }

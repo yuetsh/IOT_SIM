@@ -1,0 +1,31 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 情景模式按时刻切换：用 clock 拨实训台的虚拟时钟（今天的某个时刻）。格式说明见 server/src/grading/checks.ts
+- title: 能实时显示环境数据
+  steps:
+    - select: { control: com_import, item: COM2 }
+    - click: btn_apply
+    - expect: { control: btn_apply, text: 停止情景模式, desc: 按钮文字变成"停止情景模式" }
+    - board: { light: 650, temperature: 23, humidity: 51 }
+    - expect: { control: txt_light, text: '650', within: 5s }
+    - expect: { control: txt_temperature, text: '23', within: 5s }
+    - expect: { control: txt_time, matches: '^\d{2}:\d{2}:\d{2}$', desc: 显示当前时间 }
+
+- title: 能根据时间段的变化判断寝室情景实时控制智能设备
+  steps:
+    - clock: '06:50:00'
+    - select: { control: com_import, item: COM2 }
+    - click: btn_apply
+    - expect: { control: lbl_mode, contains: 起床模式, within: 5s, desc: 6:50 是起床模式 }
+    - expect: { relay: 1, on: true, desc: 起床模式打开灯光 }
+    - expect: { control: trb_curtain, value: 5, desc: 起床模式窗帘半开 }
+    - expect: { media: ring.mp3, desc: 起床模式广播播放铃声 }
+    - clock: '08:00:00'
+    - expect: { control: lbl_mode, contains: 上课模式, within: 5s, desc: 8:00 是上课模式 }
+    - expect: { relay: 1, on: false, desc: 上课模式关闭灯光 }
+    - expect: { control: trb_curtain, value: 0, desc: 上课模式窗帘全开 }
+    - clock: '21:30:00'
+    - expect: { control: lbl_mode, contains: 回寝模式, within: 5s, desc: 21:30 是回寝模式 }
+    - expect: { control: trb_curtain, value: 10, desc: 回寝模式关窗帘 }
+    - clock: '23:00:00'
+    - expect: { control: lbl_mode, contains: 熄灯模式, within: 5s, desc: 23:00 是熄灯模式 }
+    - expect: { relay: 1, on: false, desc: 熄灯模式关闭灯光 }

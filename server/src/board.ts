@@ -1,4 +1,5 @@
 import {
+  clockWall,
   ANALOG_CHANNELS,
   ANALOG_INFO,
   type BoardState,
@@ -7,6 +8,7 @@ import {
   type RunnerInput,
   type RunnerMessage,
 } from '@iot/shared'
+import { config } from './config'
 
 export function defaultBoardState(): BoardState {
   return {
@@ -16,6 +18,7 @@ export function defaultBoardState(): BoardState {
     zigbee: [false, false],
     ledText: '',
     camera: { on: false, x: 3, y: 1 },
+    clock: null,
   }
 }
 
@@ -29,6 +32,7 @@ export class Board {
       type: 'board',
       analog: ANALOG_CHANNELS.map((key) => this.state.analog[key]),
       digital: DIGITAL_CHANNELS.map((key) => this.state.digital[key]),
+      clock: this.state.clock,
     }
   }
 
@@ -49,7 +53,29 @@ export class Board {
       this.state.digital[name] = value
       changed = true
     }
+    if (message.clock === null) {
+      changed ||= this.state.clock !== null
+      this.state.clock = null
+    } else if (message.clock && typeof message.clock === 'object') {
+      changed = this.setClock(message.clock.time, message.clock.speed) || changed
+    }
     return changed
+  }
+
+  /**
+   * 拨虚拟时钟：time 是墙上时间（yyyy-MM-ddTHH:mm:ss，不给就从现在的时刻接着走），speed 是倍速（不给就保持原来的）。
+   * 恢复真实时间是 clock = null。
+   */
+  setClock(time: string | undefined, speed: number | undefined) {
+    if (time !== undefined && (typeof time !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(time) || Number.isNaN(Date.parse(`${time}Z`)))) return false
+    if (speed !== undefined && (typeof speed !== 'number' || !Number.isFinite(speed) || speed < 1 || speed > 3600)) return false
+    const now = Date.now()
+    this.state.clock = {
+      wall: time ?? (this.state.clock ? clockWall(this.state.clock, now) : wallNow()),
+      realAt: now,
+      speed: speed ?? this.state.clock?.speed ?? 1,
+    }
+    return true
   }
 
   /** 学生程序控制了输出设备；返回 true 表示实训台状态有变化 */
@@ -92,4 +118,12 @@ export class Board {
   reset() {
     this.state = defaultBoardState()
   }
+}
+
+/** 服务器所在时区（config.timeZone）现在的墙上时间 yyyy-MM-ddTHH:mm:ss */
+export function wallNow(now = new Date()) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: config.timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).format(now).replace(' ', 'T')
 }

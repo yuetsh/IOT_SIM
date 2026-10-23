@@ -8,7 +8,9 @@ import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, N
 import type { Assignment, Review, SourceFile, Submission } from '@iot/shared'
 import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
-import { formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
+import { gallery, loadGallery, projectResources, resourcePrefix, resourcesFile, RESOURCES_FILE } from '../designer/resources'
+import ResourcesDialog from '../designer/ResourcesDialog.vue'
+import { formNameTaken, isFormDesigner, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
 import CodeEditor from '../editor/CodeEditor.vue'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
@@ -34,7 +36,7 @@ const DESIGN = '设计:'
 const forms = computed(() => {
   const startup = startupForm(files.value)
   return files.value
-    .filter((f) => f.path.endsWith('.Designer.cs'))
+    .filter((f) => isFormDesigner(f.path))
     .map((f) => ({ tab: DESIGN + f.path, designer: f.path, code: f.path.replace(/\.Designer\.cs$/, '.cs') }))
     // 启动窗体排在最前
     .sort((a, b) => Number(b.code === `${startup}.cs`) - Number(a.code === `${startup}.cs`))
@@ -43,6 +45,7 @@ const forms = computed(() => {
  * 标签页按窗体分组：每个窗体依次是 [设计]、代码；其他文件（Program.cs 等）放最后。
  * Designer.cs 由设计器生成，平时不显示（和 VS 里藏在窗体文件下面一样），
  * 在设计器里点"查看生成的代码"或点到其中的编译错误时才临时出现，切走后收起。
+ * 项目资源生成的 Properties/Resources.Designer.cs 也一样，在"项目资源"里管理。
  */
 const tabs = computed(() => {
   const grouped = new Set(forms.value.flatMap((f) => [f.code, f.designer]))
@@ -52,7 +55,9 @@ const tabs = computed(() => {
       { name: f.code, label: f.code },
       ...(activeTab.value === f.designer ? [{ name: f.designer, label: f.designer }] : []),
     ]),
-    ...files.value.filter((f) => !grouped.has(f.path)).map((f) => ({ name: f.path, label: f.path })),
+    ...files.value
+      .filter((f) => !grouped.has(f.path) && (f.path !== RESOURCES_FILE || activeTab.value === RESOURCES_FILE))
+      .map((f) => ({ name: f.path, label: f.path })),
   ]
 })
 const activeForm = computed(() => forms.value.find((f) => f.tab === activeTab.value))
@@ -270,6 +275,24 @@ function filesChanged() {
   if (workKey.value) scheduleSave()
 }
 
+// ---------- 项目资源 ----------
+void loadGallery()
+const resourcesOpen = ref(false)
+const resourceNames = computed(() => projectResources(files.value))
+/** 设计器里图片属性的选项：项目资源里的图片（声音不能当图片用） */
+const designerResources = computed(() => ({
+  names: resourceNames.value.filter((name) => gallery.value.find((g) => g.name === name)?.kind !== 'audio'),
+  prefix: resourcePrefix(projectNamespace(files.value)),
+}))
+
+/** 保存勾选的项目资源：重新生成 Properties/Resources.Designer.cs（一个都没有时删掉） */
+function saveResources(names: string[]) {
+  const file = resourcesFile(projectNamespace(files.value), names)
+  const rest = files.value.filter((f) => f.path !== RESOURCES_FILE)
+  files.value = file ? [...rest, file] : rest
+  filesChanged()
+}
+
 // ---------- 新建、删除窗体 ----------
 const newFormOpen = ref(false)
 const newFormName = ref('')
@@ -444,6 +467,9 @@ function run() {
               <NButton size="small" type="primary" :disabled="!!newFormError" @click="createForm">创建</NButton>
             </div>
           </NPopover>
+          <NButton size="small" quaternary title="相当于 VS 的“项目属性 → 资源”：添加图片和声音，代码里用 Properties.Resources.名字" @click="resourcesOpen = true">
+            项目资源{{ resourceNames.length ? `（${resourceNames.length}）` : '' }}
+          </NButton>
           <NPopconfirm v-if="deletableForm" positive-text="删除" negative-text="取消" @positive-click="deleteForm">
             <template #trigger>
               <NButton size="small" quaternary>删除窗体</NButton>
@@ -463,7 +489,10 @@ function run() {
           @redo="designerHistory.redo(activeForm.designer, activeForm.code)"
           @open-code="openCode"
           @open-designer-file="activeTab = activeForm.designer"
+          :resources="designerResources"
+          @add-resource="resourcesOpen = true"
         />
+        <ResourcesDialog v-model:show="resourcesOpen" :selected="resourceNames" @save="saveResources" />
         <CodeEditor
           v-show="!activeForm"
           ref="editorRef"

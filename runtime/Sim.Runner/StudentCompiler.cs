@@ -56,9 +56,10 @@ internal static class StudentCompiler
 
         using var peStream = new MemoryStream();
         using var pdbStream = new MemoryStream();
-        // 编译改写后的代码（旧版线程 API 换成平台实现），API 检查仍针对学生写的原始代码
-        var emit = LegacyThreadRewriter.Rewrite(compilation).Emit(peStream, pdbStream,
-            options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
+        // 编译改写后的代码（旧版线程 API 换成平台实现，DateTime.Now 换成虚拟时钟），API 检查仍针对学生写的原始代码
+        var emit = ClockRewriter.Rewrite(LegacyThreadRewriter.Rewrite(compilation)).Emit(peStream, pdbStream,
+            options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb),
+            manifestResources: EmptyControlResources(compilation));
         var denied = ApiPolicy.Check(compilation).ToList();
 
         var diagnostics = new JsonArray();
@@ -69,6 +70,39 @@ internal static class StudentCompiler
             diagnostics.Add(ToJson(diagnostic));
         }
         return new Result(emit.Success && denied.Count == 0, peStream.ToArray(), pdbStream.ToArray(), diagnostics);
+    }
+
+    private static readonly Lazy<byte[]> EmptyResources = new(() =>
+    {
+        var stream = new MemoryStream();
+        using (var writer = new System.Resources.ResourceWriter(stream)) writer.Generate();
+        return stream.ToArray();
+    });
+
+    /// <summary>
+    /// 给学生工程里的每个窗体、控件类嵌一份空的 .resources：VS 生成的 Designer.cs 会用
+    /// ComponentResourceManager(typeof(窗体)).GetObject("…OcxState") 读窗体的 .resx（如 Windows Media Player 控件），
+    /// 平台没有 .resx，有了空资源时取到 null，而不是报"找不到资源"。
+    /// </summary>
+    private static List<ResourceDescription> EmptyControlResources(CSharpCompilation compilation)
+    {
+        var control = compilation.GetTypeByMetadataName("System.Windows.Forms.Control");
+        var resources = new List<ResourceDescription>();
+        if (control == null) return resources;
+        var names = new HashSet<string>();
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            var model = compilation.GetSemanticModel(tree);
+            foreach (var declaration in tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>())
+            {
+                if (model.GetDeclaredSymbol(declaration) is not { } type) continue;
+                var derives = false;
+                for (var t = type.BaseType; t != null && !derives; t = t.BaseType) derives = SymbolEqualityComparer.Default.Equals(t, control);
+                var name = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "") + ".resources";
+                if (derives && names.Add(name)) resources.Add(new ResourceDescription(name, () => new MemoryStream(EmptyResources.Value), isPublic: true));
+            }
+        }
+        return resources;
     }
 
     internal static JsonObject ToJson(Diagnostic diagnostic)

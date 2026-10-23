@@ -1,0 +1,5 @@
+[
+  { "name": "switch_on", "file": "switch_on.png", "label": "开关：开", "kind": "image" },
+  { "name": "switch_off", "file": "switch_off.png", "label": "开关：关", "kind": "image" },
+  { "name": "ring", "file": "ring.mp3", "label": "铃声", "kind": "audio" }
+]

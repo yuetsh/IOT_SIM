@@ -42,6 +42,8 @@ export function createRunSession() {
     board: null as BoardState | null,
     /** 本次运行保存的图片，显示在运行区的照片列表里；下次运行时清空 */
     savedImages: [] as SavedImage[],
+    /** 正在播放的声音（媒体播放器控件，实训台上的广播喇叭随之亮起） */
+    playing: null as { name: string } | null,
     metrics: { compileMs: 0, startMs: 0, lastRoundTripMs: 0 },
   })
   /** id → 控件节点，patch 按 id 修改节点属性 */
@@ -52,6 +54,34 @@ export function createRunSession() {
   /** 正在建立或已建立的连接；同时多处调用 connect() 时共用同一个 */
   let connecting: Promise<void> | undefined
   let actionSentAt = 0
+  /** 每个媒体播放器控件一个 <audio> */
+  const players = new Map<string, HTMLAudioElement>()
+
+  function stopAudio() {
+    for (const audio of players.values()) audio.pause()
+    players.clear()
+    state.playing = null
+  }
+
+  function media(message: Extract<ServerMessage, { type: 'media' }>) {
+    players.get(message.id)?.pause()
+    players.delete(message.id)
+    if (message.action === 'stop' || !message.key) {
+      if (players.size === 0) state.playing = null
+      return
+    }
+    const url = images.get(message.key)
+    if (!url) return
+    const audio = new Audio(url)
+    players.set(message.id, audio)
+    state.playing = { name: message.name ?? '' }
+    audio.onended = () => {
+      players.delete(message.id)
+      if (players.size === 0) state.playing = null
+    }
+    // 浏览器可能因为页面还没被点过而拒绝自动播放：喇叭照样亮一会儿
+    audio.play().catch(() => setTimeout(() => audio.onended?.(new Event('ended')), 2000))
+  }
 
   function connect() {
     connecting ??= validAccessToken().then(
@@ -87,6 +117,7 @@ export function createRunSession() {
     state.forms = []
     state.messageBoxes = []
     state.savedImages = []
+    stopAudio()
     nodes.clear()
     for (const url of images.values()) URL.revokeObjectURL(url)
     images.clear()
@@ -186,11 +217,14 @@ export function createRunSession() {
       case 'messageBox':
         state.messageBoxes.push(message)
         break
-      case 'image': {
+      case 'blob': {
         const bytes = Uint8Array.from(atob(message.data), (c) => c.charCodeAt(0))
         images.set(message.key, URL.createObjectURL(new Blob([bytes], { type: message.mime })))
         break
       }
+      case 'media':
+        media(message)
+        break
       case 'imageSaved':
         state.savedImages.push({ path: message.path, image: message.image })
         break
@@ -207,6 +241,7 @@ export function createRunSession() {
         state.errors.push(message.message)
         break
       case 'exited':
+        stopAudio()
         state.forms = []
         state.messageBoxes = []
         break

@@ -9,4 +9,6 @@ export interface ImageValue {
   key: string
   width: number
   height: number
+  /** 设计器预览里的项目资源：直接给出素材网址（运行时用 key） */
+  url?: string
 }

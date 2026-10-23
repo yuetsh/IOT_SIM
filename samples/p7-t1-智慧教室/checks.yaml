@@ -1,0 +1,25 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 能实时显示环境数据
+  steps:
+    - select: { control: com_import, item: COM2 }
+    - click: btn_apply
+    - expect: { control: btn_apply, text: 关闭, desc: 按钮文字变成"关闭" }
+    - board: { light: 600, temperature: 22, humidity: 48 }
+    - expect: { control: txt_light, text: '600', within: 5s }
+    - expect: { control: txt_temperature, text: '22', within: 5s }
+    - expect: { control: txt_humidity, text: '48', within: 5s }
+
+- title: 能根据环境数据的变化实时控制智能设备
+  steps:
+    - select: { control: com_import, item: COM2 }
+    - click: btn_apply
+    - board: { light: 300, temperature: 22 }
+    - expect: { relay: 1, on: true, within: 5s, desc: 光照低于 400 时打开照明灯 }
+    - expect: { control: lamp, on: true, desc: 窗体上的灯亮 }
+    - board: { light: 900 }
+    - expect: { relay: 1, on: false, within: 5s, desc: 光照高于 800 时关闭照明灯 }
+    - board: { temperature: 33 }
+    - expect: { control: trb_airconditione, value: 26, within: 5s, desc: 温度高于 30℃ 时空调设为 26℃ }
+    - board: { temperature: 3 }
+    - expect: { control: trb_airconditione, value: 25, within: 5s, desc: 温度低于 5℃ 时空调设为 25℃ }

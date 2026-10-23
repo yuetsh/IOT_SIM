@@ -4,6 +4,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test'
 import { cp, mkdir, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ControlNode, RunnerInput, RunnerMessage } from '@iot/shared'
+import { wallNow } from '../src/board'
 import { compileService } from '../src/compile-service'
 import { config, ROOT } from '../src/config'
 import { cpuLimitMessage, runCommand } from '../src/sandbox'
@@ -332,7 +333,7 @@ test('项目4 任务2：打开摄像机显示画面，转动后画面变化，�
   const center = imageOf(await first)
   expect(center).toMatchObject({ width: 640, height: 480 })
   // 图片数据先于（或随）属性变化发给浏览器，同一张图只发一次
-  const sent = runner.messages.filter((m) => m.type === 'image' && m.key === center.key)
+  const sent = runner.messages.filter((m) => m.type === 'blob' && m.key === center.key)
   expect(sent.length).toBe(1)
   expect(sent[0]).toMatchObject({ mime: 'image/jpeg' })
 
@@ -628,6 +629,56 @@ test('数据库：照书上的写法建库建表、插入、查询、SqlCommandB
   ]) {
     expect(output).toContain(line)
   }
+}, 30000)
+
+test('虚拟时钟：拨时间、倍速后 DateTime.Now / Today 跟着走，恢复后是真实时间', async () => {
+  const { runner } = await runMain(
+    'clock',
+    `
+        for (int i = 0; i < 40; i++)
+        {
+            Console.WriteLine("now=" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " today=" + DateTime.Today.ToString("yyyy-MM-dd"));
+            System.Threading.Thread.Sleep(100);
+        }`,
+  )
+  expect((await runner.waitFor('compiled')).ok).toBe(true)
+  await runner.waitFor('console')
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: DIGITAL_OFF, clock: { wall: '2024-01-16T06:44:58', realAt: Date.now(), speed: 60 } })
+  // 60 倍速：真实的 1 秒是虚拟的 1 分钟
+  await runner.next('console', (m) => /now=2024-01-16 06:4[6-9]/.test(m.text), 5000)
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: DIGITAL_OFF, clock: null })
+  const real = await runner.next('console', (m) => !m.text.includes('2024-01-16'), 3000)
+  // 学生程序按服务器配置的时区（config.timeZone）计时，CI 机器本身是 UTC
+  expect(real.text).toContain(`today=${wallNow().slice(0, 10)}`)
+  expect(runner.messages.some((m) => m.type === 'console' && m.text.includes('today=2024-01-16'))).toBe(true)
+}, 30000)
+
+test('TrackBar：拖动时先 ValueChanged 再 Scroll，超出范围的值截到两端；代码设超出范围的 Value 报错', async () => {
+  const { runner } = await runMain(
+    'trackbar',
+    `
+        var form = new Form();
+        var bar = new TrackBar { Name = "bar", Minimum = 18, Maximum = 32 };
+        bar.ValueChanged += (s, e) => Console.WriteLine("changed=" + bar.Value);
+        bar.Scroll += (s, e) => Console.WriteLine("scroll=" + bar.Value);
+        form.Load += (s, e) =>
+        {
+            try { bar.Value = 40; } catch (ArgumentOutOfRangeException ex) { Console.WriteLine("error=" + ex.Message); }
+        };
+        form.Controls.Add(bar);
+        Application.Run(form);`,
+    'using System.Windows.Forms;',
+  )
+  const { form } = await runner.waitFor('formShown')
+  const bar = findByName(form, 'bar')
+  expect(bar.props).toMatchObject({ Minimum: 18, Maximum: 32, Value: 18 })
+  runner.send({ type: 'action', id: bar.id, action: 'scroll', value: '26' })
+  await runner.waitFor('console', (m) => m.text === 'scroll=26\n')
+  runner.send({ type: 'action', id: bar.id, action: 'scroll', value: '99' })
+  await runner.waitFor('console', (m) => m.text === 'scroll=32\n')
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(output).toContain("error=“40”的值对于“Value”无效。")
+  expect(output).toContain('changed=26\nscroll=26\nchanged=32\nscroll=32\n')
 }, 30000)
 
 test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读', async () => {

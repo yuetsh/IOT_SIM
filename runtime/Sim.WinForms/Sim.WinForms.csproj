@@ -7,4 +7,8 @@
     <!-- 仿真类型的公开 API 要和真实 WinForms 一致，很多成员没有 XML 注释 -->
     <NoWarn>$(NoWarn);CS1591;CS8618</NoWarn>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- 项目资源素材库（Properties.Resources 的图片、声音），随运行器一起输出 -->
+    <None Include="Resources/gallery/*" CopyToOutputDirectory="PreserveNewest" LinkBase="Resources/gallery" />
+  </ItemGroup>
 </Project>

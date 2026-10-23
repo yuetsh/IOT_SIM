@@ -141,6 +141,10 @@ async function runStep(driver: ProgramDriver, step: Step) {
       driver.setBoard(step)
       await driver.settle()
       break
+    case 'clock':
+      driver.setClock(step.time, step.speed)
+      await driver.settle()
+      break
     case 'wait':
       await Bun.sleep(step.ms)
       break
@@ -227,6 +231,8 @@ function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'uncha
     }
     case 'savedImage':
       return driver.savedImages.some((path) => path.includes(e.path))
+    case 'media':
+      return driver.played.includes(e.name)
     case 'row': {
       const node = driver.find(e.control)
       return node !== undefined && rowMatches(node, e.cells) === e.present
@@ -244,6 +250,7 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
       if (e.prop === 'Enabled') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '可用' : '变成灰色不可用')}，实际${actual === false ? '不可用' : '可用'}`
       if (e.prop === 'Checked') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '被选中' : '没有被选中')}，实际${actual ? '被选中' : '没有被选中'}`
       if (e.prop === 'IsOn') return `期望${prefix}窗体上的 ${e.control} ${desc ?? (e.value ? '亮' : '灭')}，实际是${actual ? '亮' : '灭'}的`
+      if (e.prop === 'Value') return `期望${prefix} ${e.control} ${desc ?? `的值是 ${String(e.value)}`}，实际是 ${String(actual)}`
       return `期望${prefix} ${e.control} 的 ${e.prop} 是 ${String(e.value)}，实际是 ${String(actual)}`
     }
     case 'contains': {
@@ -274,6 +281,8 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
       const saved = driver.savedImages.map((p) => `"${p}"`).join('、')
       return `期望${prefix}${desc ?? `保存图片到"${e.path}"`}，${saved ? `实际保存的是 ${saved}` : '实际没有保存图片'}`
     }
+    case 'media':
+      return `期望${prefix}${desc ?? `播放 ${e.name}`}，${driver.played.length ? `实际播放的是 ${driver.played.join('、')}` : '实际没有播放声音'}`
     case 'row': {
       const node = need(driver, e.control)
       const wanted = Object.entries(e.cells).map(([k, v]) => `${k}=${v}`).join('，')

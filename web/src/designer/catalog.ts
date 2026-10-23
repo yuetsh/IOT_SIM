@@ -2,7 +2,7 @@
 // 只列出仿真运行时已经实现的控件和属性；默认值与 WinForms 一致（等于默认值的属性不写进 Designer.cs）。
 import type { Value } from './values'
 
-export type PropType = 'string' | 'multiline' | 'bool' | 'int' | 'char' | 'point' | 'size' | 'color' | 'font' | 'enum' | 'items'
+export type PropType = 'string' | 'multiline' | 'bool' | 'int' | 'char' | 'point' | 'size' | 'color' | 'font' | 'enum' | 'items' | 'image'
 
 export interface PropDef {
   /** WinForms 的属性名，写进 Designer.cs，代码里也用它 */
@@ -187,6 +187,7 @@ export const CONTROLS: ControlDef[] = [
     defaultEvent: 'Click',
     props: [
       ...COMMON_PROPS.filter((p) => p.name !== 'Text' && p.name !== 'ForeColor' && p.name !== 'Font'),
+      { name: 'Image', label: '图片', description: '显示的图片：从项目资源里选（Properties.Resources）', type: 'image', category: '外观' },
       {
         name: 'SizeMode', label: '显示方式', description: '图片在图片框里怎样显示', type: 'enum', enumType: `${FORMS}.PictureBoxSizeMode`,
         options: ['Normal', 'StretchImage', 'AutoSize', 'CenterImage', 'Zoom'],
@@ -255,6 +256,38 @@ export const CONTROLS: ControlDef[] = [
     initial: () => [['Size', size(200, 21)]],
   },
   {
+    type: `${FORMS}.TrackBar`,
+    label: '滑动条',
+    group: '常用控件',
+    namePrefix: 'trackBar',
+    defaultEvent: 'Scroll',
+    props: [
+      ...COMMON_PROPS.filter((p) => p.name !== 'Text' && p.name !== 'ForeColor' && p.name !== 'Font'),
+      { name: 'Minimum', label: '最小值', description: '滑块在最小端时的值', type: 'int', default: int(0), category: '行为' },
+      { name: 'Maximum', label: '最大值', description: '滑块在最大端时的值', type: 'int', default: int(10), category: '行为' },
+      { name: 'Value', label: '值', description: '滑块现在的值', type: 'int', default: int(0), category: '行为' },
+      { name: 'TickFrequency', label: '刻度间隔', description: '每隔多少画一个刻度', type: 'int', default: int(1), category: '外观' },
+      { name: 'LargeChange', label: '大步长', description: '点击轨道时每次改变多少', type: 'int', default: int(5), category: '行为' },
+      { name: 'SmallChange', label: '小步长', description: '按方向键时每次改变多少', type: 'int', default: int(1), category: '行为' },
+      {
+        name: 'TickStyle', label: '刻度位置', description: '刻度画在哪一边', type: 'enum', enumType: `${FORMS}.TickStyle`,
+        options: ['None', 'TopLeft', 'BottomRight', 'Both'], optionLabels: { None: '不画刻度', TopLeft: '上方（左边）', BottomRight: '下方（右边）', Both: '两边' },
+        default: enumValue(`${FORMS}.TickStyle`, 'BottomRight'), category: '外观',
+      },
+      {
+        name: 'Orientation', label: '方向', description: '横向或竖向', type: 'enum', enumType: `${FORMS}.Orientation`,
+        options: ['Horizontal', 'Vertical'], optionLabels: { Horizontal: '横向', Vertical: '竖向' },
+        default: enumValue(`${FORMS}.Orientation`, 'Horizontal'), category: '外观',
+      },
+    ],
+    events: [
+      ...COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
+      { name: 'Scroll', label: '拖动滑块', ...EVENT },
+      { name: 'ValueChanged', label: '值改变', ...EVENT },
+    ],
+    initial: () => [['Size', size(104, 45)]],
+  },
+  {
     type: `${FORMS}.CheckBox`,
     label: '复选框',
     group: '常用控件',
@@ -311,6 +344,16 @@ export const CONTROLS: ControlDef[] = [
     ],
     events: [{ name: 'Tick', label: '计时到', ...EVENT }],
     initial: () => [],
+  },
+  {
+    type: 'AxWMPLib.AxWindowsMediaPlayer',
+    label: '媒体播放器',
+    group: '物联网设备',
+    namePrefix: 'axWindowsMediaPlayer',
+    defaultEvent: 'Enter',
+    props: COMMON_PROPS.filter((p) => ['Location', 'Size', 'Enabled', 'Visible', 'TabIndex'].includes(p.name)),
+    events: [{ name: 'Enter', label: '获得焦点', ...EVENT }],
+    initial: () => [['Enabled', bool(true)], ['Size', size(245, 240)]],
   },
   {
     type: 'WinFormsDeviceControlLibrary.LED',

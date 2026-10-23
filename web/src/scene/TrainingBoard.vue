@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // 虚拟实训台：按教材实训台布局图（顶棚 → LED 屏 → 传感器 → 采集模块）排列。
 // 传感器卡片上的滑块和开关调节环境（经服务器推给学生程序），灯和继电器的状态由学生程序控制。
-import { computed, ref } from 'vue'
-import { ANALOG_INFO, type AnalogKey, type BoardState, type ClientMessage, type DigitalKey } from '@iot/shared'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { ANALOG_INFO, clockWall, type AnalogKey, type BoardState, type ClientMessage, type DigitalKey } from '@iot/shared'
 
 type BoardInput = Omit<Extract<ClientMessage, { type: 'boardInput' }>, 'type'>
 
-const props = defineProps<{ board: BoardState | null }>()
+/** playing：学生程序正在播放的声音（媒体播放器），广播喇叭亮起 */
+const props = defineProps<{ board: BoardState | null; playing?: { name: string } | null }>()
 const emit = defineEmits<{ set: [input: BoardInput]; reset: [] }>()
 
 const MORE_SENSORS: AnalogKey[] = ['airPressure', 'airQuality', 'co2', 'wind']
@@ -78,6 +79,38 @@ const streetLampOn = computed(() => props.board?.zigbee[1] === true)
 const alarmOn = computed(() => relays.value[0] === true)
 const ledText = computed(() => props.board?.ledText ?? '')
 const camera = computed(() => props.board?.camera ?? { on: false, x: 3, y: 1 })
+// ---------- 虚拟时钟：显示学生程序看到的时间，可以拨时间、调倍速 ----------
+const SPEEDS = [1, 10, 60]
+const tick = ref(Date.now())
+const ticker = setInterval(() => (tick.value = Date.now()), 250)
+onBeforeUnmount(() => clearInterval(ticker))
+
+const clock = computed(() => props.board?.clock ?? null)
+/** 现在的墙上时间 yyyy-MM-ddTHH:mm:ss：拨过时间时按虚拟时钟算，否则是本机时间 */
+const wall = computed(() => {
+  if (clock.value) return clockWall(clock.value, tick.value)
+  const d = new Date(tick.value)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+})
+const clockDate = ref('')
+const clockTime = ref('')
+
+function openClockEditor() {
+  clockDate.value = wall.value.slice(0, 10)
+  clockTime.value = wall.value.slice(11, 19)
+}
+
+function setClock() {
+  if (!clockDate.value || !clockTime.value) return
+  const time = clockTime.value.length === 5 ? `${clockTime.value}:00` : clockTime.value
+  emit('set', { clock: { time: `${clockDate.value}T${time}` } })
+}
+
+function setSpeed(speed: number) {
+  emit('set', { clock: { speed } })
+}
+
 const cameraTitle = computed(() =>
   camera.value.on ? `网络摄像头：正在传送画面（云台左右 ${camera.value.x + 1}/7，上下 ${camera.value.y + 1}/3）` : '网络摄像头（项目 4 使用）：未开启',
 )
@@ -106,6 +139,7 @@ const cameraTitle = computed(() =>
       <i />{{ input.label }}
     </button>
     <span v-if="ledText" class="summary-led" :title="ledText">LED：{{ ledText }}</span>
+    <span v-if="clock" class="summary-clock" title="虚拟时钟：学生程序里的 DateTime.Now">🕒 {{ wall.slice(11) }}（{{ clock.speed }}×）</span>
     <button class="link expand" @click="setCollapsed(false)">展开 ▾</button>
   </div>
 
@@ -190,6 +224,15 @@ const cameraTitle = computed(() =>
         </label>
       </div>
 
+      <div class="card" :title="playing ? `广播正在播放 ${playing.name}` : '广播（教材项目 7 用 Windows Media Player 播放铃声）'">
+        <svg viewBox="0 0 24 24" width="30" height="30" class="icon speaker" :class="{ on: playing }">
+          <path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z" />
+          <path v-if="playing" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <div class="card-title">广播</div>
+        <div class="card-note">{{ playing ? `播放 ${playing.name}` : '静音' }}</div>
+      </div>
+
       <button class="card toggle" :class="{ active: digital.smoke }" title="点击切换：有烟雾 / 正常" @click="toggle('smoke')">
         <div class="smoke" :class="{ on: digital.smoke }"><i /><i /><i /></div>
         <div class="card-title">烟雾传感器</div>
@@ -253,6 +296,31 @@ const cameraTitle = computed(() =>
         </div>
         <button class="reset" :disabled="!board" @click="emit('reset')">实训台复位</button>
       </div>
+    </div>
+
+    <!-- 虚拟时钟：学生程序里的 DateTime.Now 跟着它走 -->
+    <div class="clock-strip" :class="{ virtual: clock }">
+      <span class="module-title">时钟</span>
+      <b class="clock-time">{{ wall.slice(11) }}</b>
+      <span class="clock-date">{{ wall.slice(0, 10) }}</span>
+      <span class="clock-tag">{{ clock ? `虚拟时间 · ${clock.speed}×` : '真实时间' }}</span>
+      <span class="spacer" />
+      <input v-model="clockDate" type="date" :disabled="!board" @focus="!clockDate && openClockEditor()" />
+      <input v-model="clockTime" type="time" step="1" :disabled="!board" @focus="!clockTime && openClockEditor()" />
+      <button class="chip-button" :disabled="!board || !clockDate || !clockTime" title="把学生程序看到的时间拨到这个时刻" @click="setClock">拨到</button>
+      <span class="speeds" title="倍速：60× 时真实的 1 秒是 1 分钟">
+        <button
+          v-for="speed in SPEEDS"
+          :key="speed"
+          class="chip-button"
+          :class="{ active: (clock?.speed ?? 1) === speed && (clock !== null || speed === 1) }"
+          :disabled="!board"
+          @click="setSpeed(speed)"
+        >
+          {{ speed }}×
+        </button>
+      </span>
+      <button v-if="clock" class="chip-button" :disabled="!board" @click="emit('set', { clock: null })">恢复真实时间</button>
     </div>
   </div>
 </template>
@@ -580,6 +648,91 @@ button {
 }
 
 /* 模块 */
+.clock-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 6px 8px;
+  background: #3a4556;
+  border-radius: 4px;
+}
+
+.clock-strip.virtual {
+  box-shadow: inset 0 0 0 1px #f5a623;
+}
+
+.clock-time {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.clock-date {
+  color: var(--muted);
+}
+
+.clock-tag {
+  color: var(--muted);
+}
+
+.virtual .clock-tag {
+  color: #f5a623;
+}
+
+.clock-strip .spacer {
+  flex: 1;
+}
+
+.clock-strip input {
+  background: #2b3340;
+  color: var(--text);
+  border: 1px solid #556175;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font: inherit;
+  color-scheme: dark;
+}
+
+.chip-button {
+  background: #2b3340;
+  color: var(--text);
+  border: 1px solid #556175;
+  border-radius: 3px;
+  padding: 1px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip-button.active {
+  border-color: var(--accent);
+  color: #fff;
+  background: #2f5f99;
+}
+
+.chip-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.speeds {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.speaker {
+  color: var(--muted);
+}
+
+.speaker.on {
+  color: #4cd964;
+  animation: blink 0.8s steps(2) infinite;
+}
+
+.summary-clock {
+  color: #f5a623;
+}
+
 .modules {
   display: grid;
   grid-template-columns: 1.2fr 1.5fr 1fr;

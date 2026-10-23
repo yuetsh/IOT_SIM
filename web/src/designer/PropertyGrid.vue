@@ -4,12 +4,15 @@ import { computed, ref, watch } from 'vue'
 import { type ControlDef, FORM_DEF, type PropDef, controlDef } from './catalog'
 import type { DesignerDocument } from './document'
 import { checkName, getEventHandler, getItems, getPropText, typeOf } from './edit'
+import { resourceNameOf } from './resources'
 import { NAMED_COLORS, hexToRgb, parseValue, rgb, type Value } from './values'
 
 const props = defineProps<{
   doc: DesignerDocument
   /** '' 表示窗体本身 */
   selected: string
+  /** 项目资源（图片属性从这里选）和引用资源的前缀 global::命名空间.Properties.Resources. */
+  resources?: { names: string[]; prefix: string }
 }>()
 
 const emit = defineEmits<{
@@ -19,6 +22,8 @@ const emit = defineEmits<{
   /** 双击事件或点"生成"：绑定（必要时生成）事件处理方法并跳到代码 */
   openEvent: [target: string, event: string, handler?: string]
   clearEvent: [target: string, event: string]
+  /** 图片属性里选了"添加资源…"：打开项目资源对话框 */
+  addResource: []
 }>()
 
 const tab = ref<'props' | 'events'>('props')
@@ -35,6 +40,22 @@ function current(prop: PropDef): Value | undefined {
 function set(prop: PropDef, value: Value) {
   const isDefault = prop.default && JSON.stringify(prop.default) === JSON.stringify(value)
   emit('setProp', props.selected, prop.name, isDefault ? null : value)
+}
+
+/** 图片属性：项目资源里的名字，没有设置时为空 */
+function imageOf(prop: PropDef) {
+  const text = getPropText(props.doc, props.selected, prop.name)
+  return text === undefined ? '' : resourceNameOf(text) ?? text
+}
+
+function setImage(prop: PropDef, choice: string, select: HTMLSelectElement) {
+  if (choice === '+') {
+    select.value = imageOf(prop)
+    emit('addResource')
+    return
+  }
+  if (choice === '') reset(prop)
+  else emit('setProp', props.selected, prop.name, { kind: 'raw', text: `${props.resources?.prefix ?? ''}${choice}` })
 }
 
 function reset(prop: PropDef) {
@@ -152,7 +173,7 @@ function renameHandler(event: string, value: string) {
       <div v-for="prop in def.props" :key="prop.name" class="row">
         <label :title="`${prop.name}：${prop.description}`">{{ prop.label }}</label>
         <div class="editor">
-          <code v-if="raw(prop) !== undefined" class="raw" :title="raw(prop)">{{ raw(prop) }}</code>
+          <code v-if="prop.type !== 'image' && raw(prop) !== undefined" class="raw" :title="raw(prop)">{{ raw(prop) }}</code>
 
           <input v-else-if="prop.type === 'string'" :value="str(prop)" @change="set(prop, { kind: 'string', value: ($event.target as HTMLInputElement).value })" />
 
@@ -212,6 +233,14 @@ function renameHandler(event: string, value: string) {
 
           <textarea v-else-if="prop.type === 'items'" rows="4" :value="itemsText" placeholder="每行一项"
             @change="setItemsFromText(($event.target as HTMLTextAreaElement).value)" />
+
+          <select v-else-if="prop.type === 'image'" :value="imageOf(prop)"
+            @change="setImage(prop, ($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)">
+            <option value="">（无）</option>
+            <option v-for="name in resources?.names ?? []" :key="name" :value="name">Resources.{{ name }}</option>
+            <option v-if="imageOf(prop) && !resources?.names.includes(imageOf(prop))" :value="imageOf(prop)">{{ imageOf(prop) }}（不在项目资源里）</option>
+            <option value="+">添加资源…</option>
+          </select>
 
         </div>
       </div>

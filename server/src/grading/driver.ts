@@ -2,7 +2,7 @@
 // 提示框自动点第一个按钮（"确定"/"是"），免得程序一直等在 MessageBox.Show 上。
 import type { Subprocess } from 'bun'
 import type { ControlNode, RunnerInput, RunnerMessage, UserAction } from '@iot/shared'
-import { Board } from '../board'
+import { Board, wallNow } from '../board'
 import { readLines } from '../runner-process'
 import { runCommand } from '../sandbox'
 import type { Step } from './checks'
@@ -18,6 +18,8 @@ export class ProgramDriver {
   readonly messageBoxes: { text: string; caption: string }[] = []
   /** 程序用 Image.Save 保存的图片路径 */
   readonly savedImages: string[] = []
+  /** 媒体播放器播放过的文件名 */
+  readonly played: string[] = []
   readonly exceptions: string[] = []
   console = ''
   exited = false
@@ -111,6 +113,9 @@ export class ProgramDriver {
       case 'imageSaved':
         this.savedImages.push(message.path)
         break
+      case 'media':
+        if (message.action === 'play' && message.name) this.played.push(message.name)
+        break
       case 'console':
         this.console += message.text
         break
@@ -137,6 +142,12 @@ export class ProgramDriver {
     // 和浏览器一样同步记下输入的文字（运行器不回传）
     if (action.action === 'text') node.props.Text = action.value
     this.send({ type: 'action', id: node.id, ...action })
+  }
+
+  /** 拨虚拟时钟到今天的某个时刻（服务器所在时区） */
+  setClock(time: string, speed?: number) {
+    this.board.setClock(`${wallNow().slice(0, 10)}T${time}`, speed)
+    this.send(this.board.runnerInputs())
   }
 
   setBoard(step: BoardStep) {

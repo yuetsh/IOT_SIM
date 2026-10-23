@@ -104,6 +104,9 @@ internal static class StudentProgramHost
             baseDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "StudentApp", "bin", "Debug")).FullName;
         }
         baseDir = Path.TrimEndingDirectorySeparator(baseDir) + Path.DirectorySeparatorChar;
+        // 程序目录下的 Resources 文件夹指向素材库：教材用 BaseDirectory + "//Resources//ring.mp3" 播放铃声
+        var resources = Path.Combine(baseDir, "Resources");
+        if (!Path.Exists(resources)) Directory.CreateSymbolicLink(resources, ProjectResources.Directory);
         AppContext.SetData("APP_CONTEXT_BASE_DIRECTORY", baseDir);
         Directory.SetCurrentDirectory(baseDir);
         SimHost.AppBaseDirectory = baseDir;

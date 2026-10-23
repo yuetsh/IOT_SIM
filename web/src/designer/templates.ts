@@ -123,7 +123,10 @@ export function assignmentTemplate(files: SourceFile[], mode: StartMode): Source
     return [...(programText ? [{ path: 'Program.cs', content: programText }] : []), ...newFormFiles(namespace, 'Form1')]
   }
   const result: SourceFile[] = program ? [{ ...program }] : []
-  for (const designer of files.filter((f) => f.path.endsWith('.Designer.cs'))) {
+  // 界面里的图片引用了项目资源，资源类一起带上（空白工程由学生自己按书上的步骤添加）
+  const resources = files.find((f) => f.path.startsWith('Properties/') && f.path.endsWith('.Designer.cs'))
+  if (resources) result.push({ ...resources })
+  for (const designer of files.filter((f) => isFormDesigner(f.path))) {
     const doc = parseDesigner(designer.content)
     for (const block of doc.blocks) block.stmts = block.stmts.filter((s) => s.kind !== 'event')
     const [code] = newFormFiles(namespace, doc.className)
@@ -131,3 +134,6 @@ export function assignmentTemplate(files: SourceFile[], mode: StartMode): Source
   }
   return result
 }
+
+/** 窗体的 Designer.cs（Properties/ 下平台生成的 Resources.Designer.cs 不是窗体） */
+export const isFormDesigner = (path: string) => path.endsWith('.Designer.cs') && !path.startsWith('Properties/')

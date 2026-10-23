@@ -64,7 +64,9 @@ internal static class ApiPolicy
                 if (name.Parent is QualifiedNameSyntax q && q.Left == name) continue;
                 // var 推断出的类型在初始化表达式里已经检查过
                 if (name is IdentifierNameSyntax { IsVar: true }) continue;
-                if (name.Parent is MemberAccessExpressionSyntax m && m.Expression == name && model.GetSymbolInfo(name).Symbol is INamespaceOrTypeSymbol) continue;
+                // 类型名只是用来限定成员（AppDomain.CurrentDomain、System.AppDomain.CurrentDomain）：检查后面的成员就够了
+                ExpressionSyntax qualifier = name.Parent is MemberAccessExpressionSyntax inner && inner.Name == name ? inner : name;
+                if (qualifier.Parent is MemberAccessExpressionSyntax m && m.Expression == qualifier && model.GetSymbolInfo(name).Symbol is INamespaceOrTypeSymbol) continue;
 
                 var symbol = model.GetSymbolInfo(name).Symbol;
                 if (symbol == null) continue;

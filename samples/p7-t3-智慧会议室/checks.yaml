@@ -1,0 +1,23 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 预约时刻用 clock 拨实训台的虚拟时钟。格式说明见 server/src/grading/checks.ts
+- title: 能实时显示环境数据
+  steps:
+    - select: { control: com_import, item: COM2 }
+    - board: { light: 640, temperature: 24, airQuality: 88 }
+    - expect: { control: txt_light, text: '640', within: 5s }
+    - expect: { control: txt_temperature, text: '24', within: 5s }
+    - expect: { control: txt_airQuality, text: '88', within: 5s }
+
+- title: 能根据预约时间控制智能设备
+  steps:
+    - clock: '13:19:54'
+    - select: { control: com_import, item: COM2 }
+    - select: { control: com_mode, item: 讨论 }
+    - text: { control: txt_hour, value: '13' }
+    - text: { control: txt_minute, value: '20' }
+    - text: { control: txt_second, value: '00' }
+    - click: btn_reserve
+    - expect: { relay: 1, on: false, desc: 预约时间（13:20:00）没到时不开灯 }
+    - expect: { control: lbl_mode, contains: 讨论模式, within: 15s, desc: 到了预约时间开启讨论模式 }
+    - expect: { relay: 1, on: true, desc: 讨论模式打开灯光 }
+    - expect: { control: trb_curtain, value: 0, desc: 讨论模式打开窗帘 }

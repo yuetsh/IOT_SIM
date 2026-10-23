@@ -17,13 +17,15 @@ export type Step =
   | { kind: 'edit'; control: string; row: number; column: number | string; value: string }
   /** 在日期时间选择器里选日期（和时间）：2024-01-15 或 2024-01-15 08:30:00 */
   | { kind: 'pick'; control: string; value: string }
+  /** 拨虚拟时钟到今天的某个时刻（HH:mm:ss），可以同时设倍速 */
+  | { kind: 'clock'; time: string; speed?: number }
   | { kind: 'board'; analog: Partial<Record<AnalogKey, number>>; digital: Partial<Record<DigitalKey, boolean>> }
   | { kind: 'wait'; ms: number }
   /** desc：给学生看的期望说明，如"显示当前时间"，不写就按期望自动生成 */
   | { kind: 'expect'; expect: Expectation; within: number; desc?: string }
 
 export type Expectation =
-  /** 控件属性等于某个值：text → Text，ledText → LedText（LED 控件），enabled → Enabled，checked → Checked，on → IsOn（灯泡、报警灯） */
+  /** 控件属性等于某个值：text → Text，ledText → LedText（LED 控件），enabled → Enabled，checked → Checked，on → IsOn（灯泡、报警灯），value → Value（滑动条） */
   | { kind: 'prop'; control: string; prop: string; value: unknown }
   /** 控件文字包含某段文字；列表框是任意一个列表项包含 */
   | { kind: 'contains'; control: string; text: string }
@@ -38,6 +40,8 @@ export type Expectation =
   | { kind: 'image'; control: string }
   /** 摄像头在传画面（on）/ 已关闭（off），或云台比开始时朝某个方向转过 */
   | { kind: 'camera'; state: 'on' | 'off' | 'up' | 'down' | 'left' | 'right' }
+  /** 程序用媒体播放器播放了这个文件（如 ring.mp3） */
+  | { kind: 'media'; name: string }
   /** 程序用 Image.Save 保存了图片，路径包含这段文字（如 Camera/） */
   | { kind: 'savedImage'; path: string }
   /** 数据表格里有（present）/ 没有一行同时满足这些"列标题=值" */
@@ -47,8 +51,9 @@ export type Expectation =
 /** 期望默认最多等多久（毫秒）；依赖定时器的检查在规则里写 within */
 const DEFAULT_WITHIN = 2000
 
-const PROP_KEYS: Record<string, string> = { text: 'Text', ledText: 'LedText', enabled: 'Enabled', checked: 'Checked', on: 'IsOn' }
+const PROP_KEYS: Record<string, string> = { text: 'Text', ledText: 'LedText', enabled: 'Enabled', checked: 'Checked', on: 'IsOn', value: 'Value' }
 const STRING_PROPS = new Set(['Text', 'LedText'])
+const NUMBER_PROPS = new Set(['Value'])
 
 /** "6s"、"500ms" 或毫秒数 */
 function duration(value: unknown, where: string): number {
@@ -78,6 +83,7 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
     if (!['on', 'off', 'up', 'down', 'left', 'right'].includes(state)) throw new Error(`${where}：camera 要写 on、off、up、down、left 或 right`)
     return { kind: 'camera', state: state as Extract<Expectation, { kind: 'camera' }>['state'] }
   }
+  if ('media' in raw) return { kind: 'media', name: str(raw.media, where, '播放的文件名') }
   if ('savedImage' in raw) return { kind: 'savedImage', path: str(raw.savedImage, where, '保存的图片路径应包含的文字') }
   if ('relay' in raw) return { kind: 'relay', index: Number(raw.relay), on: bool(raw.on, where, 'on') }
   if ('zigbee' in raw) return { kind: 'zigbee', index: Number(raw.zigbee), on: bool(raw.on, where, 'on') }
@@ -102,7 +108,10 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
   }
   if ('image' in raw) return { kind: 'image', control }
   for (const [key, prop] of Object.entries(PROP_KEYS)) {
-    if (key in raw) return { kind: 'prop', control, prop, value: STRING_PROPS.has(prop) ? String(raw[key]) : bool(raw[key], where, key) }
+    if (key in raw) {
+      if (NUMBER_PROPS.has(prop) && typeof raw[key] !== 'number') throw new Error(`${where}：${key} 要写数字`)
+      return { kind: 'prop', control, prop, value: STRING_PROPS.has(prop) ? String(raw[key]) : NUMBER_PROPS.has(prop) ? raw[key] : bool(raw[key], where, key) }
+    }
   }
   throw new Error(`${where}：不认识的期望 ${JSON.stringify(raw)}`)
 }
@@ -140,6 +149,14 @@ function parseStep(raw: unknown, where: string): Step {
       return { kind, control: str(obj.control, where, '控件名 control'), value: String(obj.value ?? '') }
     case 'select':
       return { kind, control: str(obj.control, where, '控件名 control'), item: str(obj.item, where, '要选的项 item') }
+    case 'clock': {
+      // clock: 06:44:50 或 clock: { time: 06:44:50, speed: 60 }
+      const time = typeof value === 'string' ? value : str(obj.time, where, '时刻 time')
+      if (!/^\d{2}:\d{2}:\d{2}$/.test(time)) throw new Error(`${where}：时刻要写成 06:44:50（加引号）`)
+      const speed = typeof value === 'object' && obj.speed !== undefined ? Number(obj.speed) : undefined
+      if (speed !== undefined && !(speed >= 1 && speed <= 3600)) throw new Error(`${where}：倍速 speed 要在 1 到 3600 之间`)
+      return { kind, time, ...(speed === undefined ? {} : { speed }) }
+    }
     case 'pick': {
       const value = str(obj.value, where, '日期 value')
       if (!/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/.test(value)) throw new Error(`${where}：日期要写成 2024-01-15 或 2024-01-15 08:30:00`)

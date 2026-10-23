@@ -301,6 +301,96 @@
   padding: 0;
 }
 
+/* TrackBar：灰色轨道、刻度、蓝色滑块（Windows 10 样式） */
+.wf-trackbar {
+  outline: none;
+  touch-action: none;
+  cursor: default;
+}
+
+.wf-trackbar-track {
+  position: absolute;
+  top: 12px;
+  height: 4px;
+  background: #e7e7e7;
+  border: 1px solid #d6d6d6;
+}
+
+.wf-trackbar-vertical .wf-trackbar-track {
+  top: auto;
+  left: 12px;
+  width: 4px;
+  height: auto;
+}
+
+.wf-trackbar-tick {
+  position: absolute;
+  width: 1px;
+  background: #c4c4c4;
+}
+
+.wf-trackbar-vertical .wf-trackbar-tick {
+  width: auto;
+  height: 1px;
+}
+
+.wf-trackbar-thumb {
+  position: absolute;
+  top: 4px;
+  width: 11px;
+  height: 20px;
+  background: #007ad9;
+  border-radius: 1px;
+}
+
+.wf-trackbar-vertical .wf-trackbar-thumb {
+  top: auto;
+  left: 4px;
+  width: 20px;
+  height: 11px;
+}
+
+.wf-trackbar:focus-visible .wf-trackbar-thumb {
+  outline: 1px dotted #000;
+  outline-offset: 1px;
+}
+
+.wf-disabled .wf-trackbar-thumb {
+  background: #cccccc;
+}
+
+.wf-wmp {
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  color: #9aa4b2;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.wf-wmp-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wf-wmp-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+  padding: 0 6px;
+  background: linear-gradient(#3a3f47, #1c1f24);
+}
+
+.wf-wmp-progress {
+  flex: 1;
+  height: 3px;
+  background: #555;
+}
+
 .wf-listbox {
   overflow-y: auto;
   overflow-x: hidden;

@@ -17,6 +17,8 @@ internal static class CompileHints
             ("CS0103", "Catch") or ("CS0246", "Catch") => "catch 要小写，括号里写异常类型，例如 catch (Exception ex)。",
             ("CS0246", var name) when name.StartsWith("bool") || name.StartsWith("private") || name.StartsWith("public") || name.StartsWith("string") || name.StartsWith("int") =>
                 $"“{name}”像是类型和名字之间少了一个空格。",
+            ("CS0234", var s) when s.Contains("Properties") => "要用 Properties.Resources，先点代码上方的“项目资源”，添加需要的图片或声音。",
+            ("CS0117", var s) when s.Contains("Resources.") => $"项目资源里还没有“{s[(s.LastIndexOf('.') + 1)..]}”：点代码上方的“项目资源”添加（名字要和代码里一致）。",
             ("CS0103", _) => $"找不到“{source}”。检查拼写和大小写（C# 区分大小写），以及控件的 Name 是否和代码里一致。",
             ("CS1002", _) => "C# 每条语句末尾要有英文分号 ;",
             ("CS1056", _) or ("CS1525", _) when source.Length == 1 && source[0] > 127 => "这里出现了中文标点，C# 代码里的符号要用英文半角。",

@@ -35,7 +35,7 @@ async function prepare(id: string, name: string, edit?: { file: string; from: st
 
 describe('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
-  test('每个示例都有评分规则', () => expect(ids.length).toBe(15))
+  test('每个示例都有评分规则', () => expect(ids.length).toBe(18))
   for (const id of ids) {
     test(id, async () => {
       const result = await grade(await prepare(id, id), await checksOf(id), id)
@@ -108,6 +108,22 @@ describe('改坏的代码', () => {
     const result = await grade(dir, await checksOf(id), id)
     expect(result.results[0].passed).toBe(false)
     expect(result.results[0].message).toStartWith('程序出错：System.ArgumentNullException')
+  }, 60000)
+
+  test('情景控制：照书上把手动开关灯的判断写反，点了灯不亮', async () => {
+    const id = 'p7-t1-智慧教室'
+    const dir = await prepare(id, 'lamp-reversed', { file: '教室情景模式.cs', from: '            if (IsLampOpen)\n', to: '            if (!IsLampOpen)\n' })
+    const checks = [
+      ...(await checksOf(id)),
+      ...parseChecks(`
+- title: 能手动开关灯
+  steps:
+    - click: pic_lightsStatus
+    - expect: { control: lamp, on: true, desc: 点开关后灯亮 }
+`),
+    ]
+    const result = await grade(dir, checks, id)
+    expect(result.results.at(-1)).toMatchObject({ passed: false, message: '期望窗体上的 lamp 点开关后灯亮，实际是灭的' })
   }, 60000)
 
   test('关闭时忘了挂起线程', async () => {

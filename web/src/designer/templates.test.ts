@@ -31,7 +31,7 @@ test('新窗体的 Designer.cs 能被设计器打开，添加控件后格式正�
 /** 读取 samples/ 下的示例工程 */
 async function sample(id: string) {
   const dir = `${import.meta.dir}/../../../samples/${id}`
-  const paths = await Array.fromAsync(new Bun.Glob('*.cs').scan({ cwd: dir }))
+  const paths = await Array.fromAsync(new Bun.Glob('**/*.cs').scan({ cwd: dir }))
   return Promise.all(paths.sort().map(async (path) => ({ path, content: await Bun.file(`${dir}/${path}`).text() })))
 }
 
@@ -51,6 +51,12 @@ test('作业起点"界面已做好"：多个窗体都保留，其他类（Public
   const files = assignmentTemplate(await sample('p1-t1-登录'), 'ui')
   expect(files.map((f) => f.path).sort()).toEqual(['AddUser.Designer.cs', 'AddUser.cs', 'Login.Designer.cs', 'Login.cs', 'Program.cs'])
   expect(files.find((f) => f.path === 'AddUser.cs')!.content).toContain('public partial class AddUser : Form')
+})
+
+test('作业起点"界面已做好"：图片引用了项目资源时带上资源类，资源类不当作窗体', async () => {
+  const files = assignmentTemplate(await sample('p7-t1-智慧教室'), 'ui')
+  expect(files.map((f) => f.path).sort()).toEqual(['Program.cs', 'Properties/Resources.Designer.cs', '教室情景模式.Designer.cs', '教室情景模式.cs'])
+  expect(files.find((f) => f.path === '教室情景模式.Designer.cs')!.content).toContain('global::教室情景模式.Properties.Resources.switch_off')
 })
 
 test('作业起点"空白工程"：Program.cs 启动空的 Form1', async () => {

@@ -64,6 +64,23 @@ export interface BoardState {
   ledText: string
   /** 网络摄像机：是否在传画面，云台位置（左右 0–6、上下 0–2，开始时在正中） */
   camera: { on: boolean; x: number; y: number }
+  /** 虚拟时钟；null 表示真实时间 */
+  clock: VirtualClock | null
+}
+
+/**
+ * 虚拟时钟：从真实时刻 realAt（毫秒时间戳）起，墙上时间从 wall（本地时间 yyyy-MM-ddTHH:mm:ss）开始按 speed 倍速走。
+ * 学生程序的 DateTime.Now 跟着它（教材项目 7 按时刻切换情景模式）。
+ */
+export interface VirtualClock {
+  wall: string
+  realAt: number
+  speed: number
+}
+
+/** 虚拟时钟现在的墙上时间（yyyy-MM-ddTHH:mm:ss）；按 UTC 做加减，只用来算时刻，不涉及时区 */
+export function clockWall(clock: VirtualClock, now = Date.now()) {
+  return new Date(Date.parse(`${clock.wall}Z`) + (now - clock.realAt) * clock.speed).toISOString().slice(0, 19)
 }
 
 export type AnalogKey = keyof BoardState['analog']
@@ -94,8 +111,10 @@ export type RunnerMessage =
   | { type: 'controlAdded'; parentId: string; index: number; node: ControlNode }
   | { type: 'controlRemoved'; id: string }
   | { type: 'messageBox'; requestId: number; text: string; caption: string; buttons: string; icon: string }
-  /** 图片数据（base64），同一张图只发一次；控件属性和 imageSaved 里用 key 引用 */
-  | { type: 'image'; key: string; mime: string; data: string }
+  /** 图片、声音数据（base64），同一份数据只发一次；控件属性、imageSaved、media 里用 key 引用 */
+  | { type: 'blob'; key: string; mime: string; data: string }
+  /** 媒体播放器（教材项目 7 的广播）：开始 / 停止播放；name 是文件名，id 是播放器控件 */
+  | { type: 'media'; id: string; action: 'play' | 'stop'; key?: string; name?: string }
   /** 学生程序用 Image.Save 保存了图片；path 相对程序所在目录，如 Camera/20241022_10 30 00.jpg */
   | { type: 'imageSaved'; path: string; image: string }
   /** 学生程序操作了实训台输出：led/text、adam4150/do、zigbee/relay、camera/on、camera/pan，data 见 DeviceCtrlHelper.cs、IPCameraHelper.cs */
@@ -120,6 +139,8 @@ export type UserAction =
   | { action: 'cellEdit'; row: number; column: number; value: string }
   /** DateTimePicker 选了日期或时间：value 是本地时间 yyyy-MM-ddTHH:mm:ss */
   | { action: 'pick'; value: string }
+  /** TrackBar 拖动滑块、点轨道或按方向键：value 是新值 */
+  | { action: 'scroll'; value: string }
   | { action: 'mouseDown'; button: 'left' | 'right'; x: number; y: number }
   | { action: 'mouseUp'; button: 'left' | 'right'; x: number; y: number }
   | { action: 'close' }
@@ -128,15 +149,16 @@ export type UserAction =
 export type RunnerInput =
   | ({ type: 'action'; id: string } & UserAction)
   | { type: 'reply'; requestId: number; result: unknown }
-  /** 实训台传感器读数，按通道号排列（见 ANALOG_CHANNELS、DIGITAL_CHANNELS） */
-  | { type: 'board'; analog: number[]; digital: boolean[] }
+  /** 实训台传感器读数，按通道号排列（见 ANALOG_CHANNELS、DIGITAL_CHANNELS），以及虚拟时钟（不带时表示不变） */
+  | { type: 'board'; analog: number[]; digital: boolean[]; clock?: VirtualClock | null }
   | { type: 'stop' }
 
 /** 浏览器发给服务器的消息 */
 export type ClientMessage =
   | { type: 'run'; files: SourceFile[] }
   /** 调节实训台环境：拖动滑块、触发传感器 */
-  | { type: 'boardInput'; analog?: Partial<BoardState['analog']>; digital?: Partial<BoardState['digital']> }
+  /** clock：拨到某个时刻（time：yyyy-MM-ddTHH:mm:ss）、改倍速，或 null 恢复真实时间 */
+  | { type: 'boardInput'; analog?: Partial<BoardState['analog']>; digital?: Partial<BoardState['digital']>; clock?: { time?: string; speed?: number } | null }
   /** 实训台复位：关掉所有灯和继电器、清空 LED 屏，传感器恢复默认 */
   | { type: 'boardReset' }
   | Exclude<RunnerInput, { type: 'board' }>

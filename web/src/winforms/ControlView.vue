@@ -8,6 +8,7 @@ import { RUN_IMAGES, type ImageValue } from './images'
 import DataGridViewControl from './DataGridViewControl.vue'
 import DateTimePickerControl from './DateTimePickerControl.vue'
 import LedControl from './LedControl.vue'
+import TrackBarControl from './TrackBarControl.vue'
 
 const props = defineProps<{
   node: ControlNode
@@ -55,9 +56,11 @@ function selectItem(index: number) {
 // PictureBox：按 SizeMode 摆放图片
 const runImages = inject(RUN_IMAGES, new Map<string, string>())
 const image = computed(() => p.value.Image as ImageValue | null | undefined)
-const imageUrl = computed(() => (image.value ? runImages.get(image.value.key) : undefined))
+const imageUrl = computed(() => (image.value ? image.value.url ?? runImages.get(image.value.key) : undefined))
+// 设计器预览里不知道素材的尺寸，原样大小显示时让浏览器按图片本身的大小
+const naturalSize = computed(() => (image.value?.width ? { width: `${image.value.width}px`, height: `${image.value.height}px` } : {}))
 const imageStyle = computed((): CSSProperties => {
-  const natural = { width: `${image.value?.width ?? 0}px`, height: `${image.value?.height ?? 0}px` }
+  const natural = naturalSize.value
   switch (p.value.SizeMode) {
     case 'StretchImage':
       return { width: '100%', height: '100%', objectFit: 'fill' }
@@ -167,6 +170,14 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   <DataGridViewControl v-else-if="node.type === 'DataGridView'" :node="node" :style="style" :enabled="enabled" :act="act" />
 
   <DateTimePickerControl v-else-if="node.type === 'DateTimePicker'" :node="node" :style="style" :enabled="enabled" :act="act" />
+
+  <TrackBarControl v-else-if="node.type === 'TrackBar'" :node="node" :style="style" :enabled="enabled" :act="act" />
+
+  <!-- Windows Media Player（教材里通常设为不可见，只用来播放声音） -->
+  <div v-else-if="node.type === 'AxWindowsMediaPlayer'" class="wf-control wf-wmp" :style="style">
+    <div class="wf-wmp-screen">Windows Media Player</div>
+    <div class="wf-wmp-bar"><span>▶</span><span>■</span><span class="wf-wmp-progress" /></div>
+  </div>
 
   <!-- CheckBox / RadioButton：自绘勾选框，状态完全由运行器决定（点击只上报，不在浏览器里自行切换） -->
   <div

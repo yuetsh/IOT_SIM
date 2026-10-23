@@ -22,9 +22,10 @@ public static class TrainingBoard
         if (!string.IsNullOrEmpty(initial) && JsonNode.Parse(initial) is JsonObject json) Update(json);
     }
 
-    /// <summary>平台内部使用：应用服务器推送的 {"analog":[…],"digital":[…]}</summary>
+    /// <summary>平台内部使用：应用服务器推送的 {"analog":[…],"digital":[…],"clock":…}（clock 不带时表示不变）</summary>
     public static void Update(JsonObject json)
     {
+        if (json.ContainsKey("clock")) Sim.Host.SimClock.Update(json["clock"]);
         lock (Lock)
         {
             if (json["analog"] is JsonArray analog)
