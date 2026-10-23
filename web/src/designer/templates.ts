@@ -22,6 +22,42 @@ export function formNameTaken(files: SourceFile[], name: string): boolean {
   return files.some((f) => f.path === `${name}.cs` || f.path === `${name}.Designer.cs` || new RegExp(`(?<![\\p{L}\\p{N}_])class\\s+${name}(?![\\p{L}\\p{N}_])`, 'u').test(f.content))
 }
 
+/**
+ * 新建类时输入的名字有什么问题（没有问题返回 null）。可以带文件夹，如 SQLHelpers/SQLHelper：
+ * 和 VS 一样，文件放进文件夹，文件夹也是命名空间的一段。
+ */
+export function classPathError(files: SourceFile[], input: string): string | null {
+  const path = input.trim().replace(/\\/g, '/').replace(/\.cs$/i, '')
+  if (!path) return '请输入类名'
+  const parts = path.split('/')
+  if (parts.some((p) => !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(p))) return '类名和文件夹名只能用字母、汉字、数字、下划线，且不能以数字开头'
+  if (parts[0] === 'Properties') return 'Properties 文件夹由平台管理，请换一个文件夹'
+  if (files.some((f) => f.path.toLowerCase() === `${path}.cs`.toLowerCase())) return `已经有 ${path}.cs 了`
+  if (formNameTaken(files, parts.at(-1)!)) return `已经有名为“${parts.at(-1)}”的类或窗体`
+  return null
+}
+
+/** 新建类（VS 的"添加 → 类"）：和 VS 2012 的模板一样 */
+export function newClassFile(namespace: string, input: string): SourceFile {
+  const path = input.trim().replace(/\\/g, '/').replace(/\.cs$/i, '')
+  const parts = path.split('/')
+  const name = parts.pop()!
+  const content = `using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ${[namespace, ...parts].join('.')}
+{
+    class ${name}
+    {
+    }
+}
+`
+  return { path: `${path}.cs`, content }
+}
+
 /** Program.cs 里 Application.Run(new X()) 启动的窗体类名 */
 export function startupForm(files: SourceFile[]): string | undefined {
   const program = files.find((f) => f.path === 'Program.cs')

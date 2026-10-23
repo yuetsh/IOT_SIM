@@ -10,7 +10,7 @@ import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
 import { gallery, loadGallery, projectResources, resourcePrefix, resourcesFile, RESOURCES_FILE } from '../designer/resources'
 import ResourcesDialog from '../designer/ResourcesDialog.vue'
-import { formNameTaken, isFormDesigner, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
+import { classPathError, formNameTaken, isFormDesigner, newClassFile, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
 import CodeEditor from '../editor/CodeEditor.vue'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
@@ -293,6 +293,41 @@ function saveResources(names: string[]) {
   filesChanged()
 }
 
+// ---------- 新建、删除类 ----------
+const newClassOpen = ref(false)
+const newClassName = ref('')
+const newClassError = computed(() => classPathError(files.value, newClassName.value))
+
+function openNewClass(show: boolean) {
+  newClassOpen.value = show
+  if (show) newClassName.value = ''
+}
+
+/** 新建类：和 VS 的"添加 → 类"一样，可以带文件夹（SQLHelpers/SQLHelper） */
+function createClass() {
+  if (newClassError.value) return
+  const created = newClassFile(projectNamespace(files.value), newClassName.value)
+  files.value.push(created)
+  filesChanged()
+  newClassOpen.value = false
+  activeTab.value = created.path
+}
+
+/** 当前标签页的普通类文件能否删除：窗体文件、Program.cs、平台生成的资源类不在这里删 */
+const deletableClass = computed(() => {
+  const path = activeTab.value
+  if (!path || activeForm.value || path === 'Program.cs' || path.startsWith('Properties/') || !path.endsWith('.cs')) return undefined
+  return forms.value.some((f) => f.code === path || f.designer === path) ? undefined : path
+})
+
+function deleteClass() {
+  const path = deletableClass.value
+  if (!path) return
+  files.value = files.value.filter((f) => f.path !== path)
+  filesChanged()
+  activeTab.value = forms.value[0]?.tab ?? files.value[0]?.path
+}
+
 // ---------- 新建、删除窗体 ----------
 const newFormOpen = ref(false)
 const newFormName = ref('')
@@ -467,6 +502,23 @@ function run() {
               <NButton size="small" type="primary" :disabled="!!newFormError" @click="createForm">创建</NButton>
             </div>
           </NPopover>
+          <NPopover trigger="click" placement="bottom-end" :show="newClassOpen" @update:show="openNewClass">
+            <template #trigger>
+              <NButton size="small" quaternary>＋ 新建类</NButton>
+            </template>
+            <div class="new-form">
+              <div>类名（也是文件名；放进文件夹时写成 SQLHelpers/SQLHelper）</div>
+              <NInput v-model:value="newClassName" size="small" placeholder="例如：AppSet" @keydown.enter="createClass" />
+              <div v-if="newClassError && newClassName.trim()" class="new-form-error">{{ newClassError }}</div>
+              <NButton size="small" type="primary" :disabled="!!newClassError" @click="createClass">创建</NButton>
+            </div>
+          </NPopover>
+          <NPopconfirm v-if="deletableClass" positive-text="删除" negative-text="取消" @positive-click="deleteClass">
+            <template #trigger>
+              <NButton size="small" quaternary>删除类</NButton>
+            </template>
+            将删除 {{ deletableClass }}，代码里用到它的地方需要自己修改。确定删除吗？
+          </NPopconfirm>
           <NButton size="small" quaternary title="相当于 VS 的“项目属性 → 资源”：添加图片和声音，代码里用 Properties.Resources.名字" @click="resourcesOpen = true">
             项目资源{{ resourceNames.length ? `（${resourceNames.length}）` : '' }}
           </NButton>

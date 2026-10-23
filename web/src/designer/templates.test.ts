@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test'
 import { generateDesigner, parseDesigner } from './document'
 import { addControl } from './edit'
 import { controlDef } from './catalog'
-import { assignmentTemplate, formNameTaken, newFormFiles, nextFormName, projectNamespace, startupForm } from './templates'
+import { assignmentTemplate, classPathError, formNameTaken, newClassFile, newFormFiles, nextFormName, projectNamespace, startupForm } from './templates'
 
 const files = [
   { path: 'Program.cs', content: 'namespace 登录\n{\n    static class Program\n    {\n        static void Main()\n        {\n            Application.Run(new Login());\n        }\n    }\n}\n' },
@@ -65,4 +65,18 @@ test('作业起点"空白工程"：Program.cs 启动空的 Form1', async () => {
   const program = files.find((f) => f.path === 'Program.cs')!.content
   expect(program).toContain('Application.Run(new Form1())')
   expect(files.find((f) => f.path === 'Form1.Designer.cs')!.content).not.toContain('com_port')
+})
+
+test('新建类：可以带文件夹，文件夹也是命名空间的一段；名字不能重复', () => {
+  const files = [{ path: 'Program.cs', content: 'namespace 智慧校园\n{\n    static class Program { }\n}\n' }, { path: 'AppSet.cs', content: 'class AppSet { }' }]
+  expect(newClassFile('智慧校园', 'SQLHelpers/SQLHelper')).toEqual({
+    path: 'SQLHelpers/SQLHelper.cs',
+    content: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Text;\nusing System.Threading.Tasks;\n\nnamespace 智慧校园.SQLHelpers\n{\n    class SQLHelper\n    {\n    }\n}\n',
+  })
+  expect(newClassFile('智慧校园', 'RecordClass.cs').path).toBe('RecordClass.cs')
+  expect(classPathError(files, 'SQLHelpers/SQLBLL')).toBeNull()
+  expect(classPathError(files, 'AppSet')).toBe('已经有 AppSet.cs 了')
+  expect(classPathError(files, 'Other/AppSet')).toBe('已经有名为“AppSet”的类或窗体')
+  expect(classPathError(files, '1abc')).toContain('不能以数字开头')
+  expect(classPathError(files, 'Properties/X')).toContain('平台管理')
 })
