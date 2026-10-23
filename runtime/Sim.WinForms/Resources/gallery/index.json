@@ -1,5 +1,27 @@
 [
   { "name": "switch_on", "file": "switch_on.png", "label": "开关：开", "kind": "image" },
   { "name": "switch_off", "file": "switch_off.png", "label": "开关：关", "kind": "image" },
-  { "name": "ring", "file": "ring.mp3", "label": "铃声", "kind": "audio" }
+  { "name": "ring", "file": "ring.mp3", "label": "铃声", "kind": "audio" },
+  { "name": "ico_title", "file": "ico_title.png", "label": "标题：智慧校园", "kind": "image" },
+  { "name": "bg_home", "file": "bg_home.png", "label": "主界面背景：校园", "kind": "image" },
+  { "name": "icon_02", "file": "icon_02.png", "label": "图标：校园环境", "kind": "image" },
+  { "name": "icon_03", "file": "icon_03.png", "label": "图标：校园安防", "kind": "image" },
+  { "name": "icon_04", "file": "icon_04.png", "label": "图标：退出", "kind": "image" },
+  { "name": "day_01", "file": "day_01.png", "label": "路灯场景：亮灯", "kind": "image" },
+  { "name": "day_02", "file": "day_02.png", "label": "路灯场景：灭灯", "kind": "image" },
+  { "name": "bg_from1", "file": "bg_from1.png", "label": "面板背景（宽）", "kind": "image" },
+  { "name": "bg_from2", "file": "bg_from2.png", "label": "面板背景（窄）", "kind": "image" },
+  { "name": "icon_monitor", "file": "icon_monitor.png", "label": "监控：无画面", "kind": "image" },
+  { "name": "panel_video_ctrl", "file": "panel_video_ctrl.png", "label": "监控：方向盘底座", "kind": "image" },
+  { "name": "btn_arrow_up_normal", "file": "btn_arrow_up_normal.png", "label": "方向键：上", "kind": "image" },
+  { "name": "btn_arrow_up_press", "file": "btn_arrow_up_press.png", "label": "方向键：上（按下）", "kind": "image" },
+  { "name": "btn_arrow_down_normal", "file": "btn_arrow_down_normal.png", "label": "方向键：下", "kind": "image" },
+  { "name": "btn_arrow_down_press", "file": "btn_arrow_down_press.png", "label": "方向键：下（按下）", "kind": "image" },
+  { "name": "btn_arrow_left_normal", "file": "btn_arrow_left_normal.png", "label": "方向键：左", "kind": "image" },
+  { "name": "btn_arrow_left_press", "file": "btn_arrow_left_press.png", "label": "方向键：左（按下）", "kind": "image" },
+  { "name": "btn_arrow_right_normal", "file": "btn_arrow_right_normal.png", "label": "方向键：右", "kind": "image" },
+  { "name": "btn_arrow_right_press", "file": "btn_arrow_right_press.png", "label": "方向键：右（按下）", "kind": "image" },
+  { "name": "arrow_left_normal", "file": "arrow_left_normal.png", "label": "翻页：上一张", "kind": "image" },
+  { "name": "arrow_right_normal", "file": "arrow_right_normal.png", "label": "翻页：下一张", "kind": "image" },
+  { "name": "windowstate_closed_hover", "file": "windowstate_closed_hover.png", "label": "关闭按钮", "kind": "image" }
 ]

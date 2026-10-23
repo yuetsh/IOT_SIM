@@ -1,0 +1,71 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+# 采集线程每 5.5 秒左右采集一次，所以等待时间写 8s。
+- title: 能实时显示环境数据和火情、烟情
+  steps:
+    - click: pic_environment
+    - board: { temperature: 28, humidity: 55, light: 650 }
+    - expect: { control: txt_temperature, text: '28', within: 8s }
+    - expect: { control: txt_humidity, text: '55', within: 8s }
+    - expect: { control: txt_light, text: '650', within: 8s }
+    - expect: { control: txt_fire, text: 正常, within: 8s }
+    - board: { fire: true, smoke: true }
+    - expect: { control: txt_fire, text: 发生火情, within: 8s }
+    - expect: { control: txt_smoke, text: 发生烟情, within: 8s }
+
+- title: 路灯能手动控制
+  steps:
+    - click: pic_environment
+    - click: pic_lampOpen
+    - expect: { zigbee: 1, on: true, desc: 点灯光开关打开路灯 }
+    - expect: { control: pic_lampOpen, background: switch_on, desc: 开关换成"开"的图片（switch_on） }
+    - expect: { control: panel_bg, background: day_01, desc: 背景换成亮灯的场景（day_01） }
+    - click: pic_lampOpen
+    - expect: { zigbee: 1, on: false, desc: 再点一次关闭路灯 }
+    - expect: { control: pic_lampOpen, background: switch_off }
+    - expect: { control: panel_bg, background: day_02 }
+
+- title: 路灯能根据光照度自动控制
+  steps:
+    - click: pic_environment
+    - text: { control: txt_autoLight, value: '400' }
+    - click: ch_autoLamp
+    - board: { light: 200 }
+    - expect: { zigbee: 1, on: true, within: 8s, desc: 光照低于设定值 400 时自动打开路灯 }
+    - expect: { control: panel_bg, background: day_01 }
+    - board: { light: 800 }
+    - expect: { zigbee: 1, on: false, within: 8s, desc: 光照高于设定值时自动关闭路灯 }
+
+- title: 能推送天气信息和自定义信息到 LED 屏
+  steps:
+    - board: { temperature: 26, humidity: 50 }
+    - click: pic_environment
+    - expect: { control: txt_temperature, text: '26', within: 8s }
+    - click: btn_ledEnvironment1
+    - expect: { led: 当前温度:26℃ 湿度:50%, desc: 显示"当前温度:26℃ 湿度:50%"（点下方的"推送天气信息"） }
+    - text: { control: txt_ledMsg, value: 欢迎参观智慧校园 }
+    - click: btn_ledSendMsg
+    - expect: { led: 欢迎参观智慧校园, desc: 显示输入的文字（点"推送LED信息"） }
+    - click: btn_ledEnvironment2
+    - expect: { led: 当前温度:26℃, desc: 显示天气信息（点右边的"推送天气信息"） }
+
+- title: 能自动推送火情到 LED 屏
+  steps:
+    - click: pic_environment
+    - click: ch_autoLedFire
+    - board: { fire: true }
+    - expect: { led: 发现火情, within: 8s, desc: 显示"发现火情"（勾选"自动推送火情"后有火焰） }
+    - board: { smoke: true }
+    - expect: { led: 发生严重火灾, within: 8s, desc: 显示"发生严重火灾"（火焰和烟雾都有） }
+
+- title: 图表能正确显示数据
+  steps:
+    - click: pic_environment
+    - expect: { control: chart1, visible: false, desc: 刚打开时图表隐藏 }
+    - click: btn_dataAnalyse
+    - expect: { control: chart1, visible: true, desc: 点"数据分析"显示图表 }
+    - expect: { control: chart1, points: 7, desc: 显示最近 7 天的最高温度和平均温度 }
+    - expect: { control: btn_dataAnalyse, text: 关闭图表 }
+    - click: btn_dataAnalyse
+    - expect: { control: chart1, visible: false, desc: 点"关闭图表"隐藏图表 }
+    - expect: { control: btn_dataAnalyse, text: 数据分析 }

@@ -1,0 +1,46 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 摄像机能正常打开
+  steps:
+    - click: pic_security
+    - expect: { window: Security, desc: 点"校园安防"打开 Security 窗体 }
+    - expect: { camera: on }
+    - expect: { control: pic_video, image: true, within: 3s, desc: 显示摄像机拍到的图像 }
+
+- title: 人体入侵有文字提示
+  steps:
+    - click: pic_security
+    - board: { infrared: true }
+    - expect: { control: lb_infrared, text: 发现入侵, within: 3s, desc: 红外对射被遮挡时显示"发现入侵" }
+    - board: { infrared: false }
+    - expect: { control: lb_infrared, text: 正常, within: 3s }
+
+- title: 摄像机可以调整方向
+  steps:
+    - click: pic_security
+    - click: pic_up
+    - expect: { camera: up, desc: 按"↑"向上转 }
+    - expect: { control: pic_up, background: btn_arrow_up_normal, desc: 松开后方向键换回原来的图片 }
+    - click: pic_left
+    - expect: { camera: left, desc: 按"←"向左转 }
+    - click: pic_down
+    - click: pic_down
+    - expect: { camera: down, desc: 按"↓"向下转 }
+    - click: pic_right
+    - click: pic_right
+    - expect: { camera: right, desc: 按"→"向右转 }
+
+- title: 摄像机能拍照并保存图片
+  steps:
+    - click: pic_security
+    - expect: { control: pic_video, image: true, within: 3s }
+    - click: btn_camera
+    - expect: { savedImage: Camera/, desc: 把照片保存到 Camera 文件夹 }
+
+- title: 返回主窗体时关闭摄像机
+  steps:
+    - click: pic_security
+    - expect: { camera: on }
+    - click: lb_return
+    - expect: { window: Security, open: false }
+    - expect: { camera: off }

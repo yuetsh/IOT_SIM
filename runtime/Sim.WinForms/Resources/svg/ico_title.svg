@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="226" height="54" viewBox="0 0 226 54">
+
+  <g transform="translate(8,7)">
+    <circle cx="20" cy="20" r="19" fill="#ffffff" opacity="0.95"/>
+    <path d="M7 27 L20 10 L33 27 Z" fill="#3593ed"/>
+    <rect x="13" y="22" width="14" height="9" fill="#3593ed"/>
+    <rect x="18" y="25" width="4" height="6" fill="#ffffff"/>
+  </g>
+  <text x="56" y="37" font-family="Source Han Sans CN, Noto Sans CJK SC, sans-serif" font-size="27" font-weight="bold" fill="#ffffff" letter-spacing="3">智慧校园</text>
+
+</svg>

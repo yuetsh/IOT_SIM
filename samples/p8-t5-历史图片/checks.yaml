@@ -1,0 +1,55 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+# 先拨虚拟时钟再拍照，照片的时间就是确定的（9:00:00、10:30:00 左右）。
+- title: 能查看拍下的历史照片
+  steps:
+    - clock: '09:00:00'
+    - click: pic_security
+    - expect: { control: pic_video, image: true, within: 3s }
+    - click: btn_camera
+    - click: btn_history
+    - expect: { window: SecurityCameraData, desc: 点"查看历史图像"打开历史报警记录窗体 }
+    - expect: { control: pic_camera, image: true, desc: 显示今天拍的照片 }
+    - expect: { control: lb_noData, visible: false, desc: 有照片时不显示"NO DATA" }
+    - expect: { control: lb_time, contains: ' 9:00:0', desc: 显示照片的拍摄时间 }
+
+- title: 照片能根据图片按钮切换
+  steps:
+    - clock: '09:00:00'
+    - click: pic_security
+    - expect: { control: pic_video, image: true, within: 3s }
+    - click: btn_camera
+    - clock: '10:30:00'
+    - click: btn_camera
+    - click: btn_history
+    - expect: { control: lb_time, contains: ' 9:00:0', desc: 先显示第一张照片 }
+    - click: pic_down
+    - expect: { control: lb_time, contains: '10:30:0', desc: 点右箭头显示下一张 }
+    - click: pic_down
+    - expect: { control: lb_time, contains: ' 9:00:0', desc: 最后一张再往后回到第一张 }
+    - click: pic_up
+    - expect: { control: lb_time, contains: '10:30:0', desc: 点左箭头显示上一张 }
+
+- title: 能正确查找时间段内的历史图片
+  steps:
+    - clock: '09:00:00'
+    - click: pic_security
+    - expect: { control: pic_video, image: true, within: 3s }
+    - click: btn_camera
+    - click: btn_history
+    - pick: { control: dateTimePicker1, value: '2024-01-01' }
+    - click: btn_get
+    - expect: { control: lb_noData, visible: false, desc: 2024-01-01 到今天之间有照片 }
+    - expect: { control: lb_time, contains: ' 9:00:0' }
+    - pick: { control: dateTimePicker2, value: '2024-01-31' }
+    - click: btn_get
+    - expect: { control: lb_noData, visible: true, desc: 2024 年 1 月没有照片，显示"NO DATA" }
+
+- title: 能关闭历史报警记录窗体
+  steps:
+    - click: pic_security
+    - click: btn_history
+    - expect: { window: SecurityCameraData }
+    - click: pic_close
+    - expect: { window: SecurityCameraData, open: false }
+    - expect: { window: Security, desc: 回到校园安防窗体 }

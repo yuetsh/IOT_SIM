@@ -35,7 +35,7 @@ async function prepare(id: string, name: string, edit?: { file: string; from: st
 
 describe('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
-  test('每个示例都有评分规则', () => expect(ids.length).toBe(18))
+  test('每个示例都有评分规则', () => expect(ids.length).toBe(23))
   for (const id of ids) {
     test(id, async () => {
       const result = await grade(await prepare(id, id), await checksOf(id), id)
@@ -89,7 +89,7 @@ describe('改坏的代码', () => {
     const dir = await prepare(id, 'camera', { file: 'Form1.cs', from: 'DeviceCtrlHelper.ipCameraHelper.ImageRead += ipCameraHelper_ImageRead;', to: '' })
     const result = await grade(dir, await checksOf(id), id)
     expect(result.results.map((r) => r.passed)).toEqual([true, false, true, false])
-    expect(result.results[1].message).toBe('期望3 秒内 pictureBox1 显示摄像机拍到的图像，实际是空的')
+    expect(result.results[1].message).toBe('期望3 秒内 pictureBox1 显示摄像机拍到的图像，实际没有图片')
   }, 60000)
 
   test('数据库：照书上 INSERT 不写列名，温度和光照存反了', async () => {
@@ -140,6 +140,27 @@ describe('改坏的代码', () => {
     const dir = await prepare(id, 'listbox', { file: 'Form2.cs', from: 'lstbRecored.Items.Add(', to: 'Console.WriteLine(' })
     const result = await grade(dir, await checksOf(id), id)
     expect(result.results[2]).toMatchObject({ passed: false, message: '期望 lstbRecored 列表里有"发现火情"的记录，实际列表是空的' })
+  }, 60000)
+
+  test('管理平台：照参考工程没给"自动推送火情"复选框绑定 CheckedChanged，有火情时 LED 屏不推送', async () => {
+    const id = 'p8-t3-环境采集与分析'
+    const dir = await prepare(id, 'auto-fire', {
+      file: 'Environment.Designer.cs',
+      from: '            this.ch_autoLedFire.CheckedChanged += new System.EventHandler(this.ch_autoLedFire_CheckedChanged);\n',
+      to: '',
+    })
+    const result = await grade(dir, await checksOf(id), id)
+    const fire = result.results.find((r) => r.title === '能自动推送火情到 LED 屏')!
+    expect(fire).toMatchObject({ passed: false, message: '期望8 秒内实训台 LED 屏显示"发现火情"（勾选"自动推送火情"后有火焰），实际什么也没显示' })
+    expect(result.results.filter((r) => !r.passed)).toHaveLength(1)
+  }, 60000)
+
+  test('管理平台：开灯时换错了背景图片', async () => {
+    const id = 'p8-t3-环境采集与分析'
+    const dir = await prepare(id, 'lamp-image', { file: 'Environment.cs', from: 'panel_bg.BackgroundImage = Properties.Resources.day_01;', to: 'panel_bg.BackgroundImage = Properties.Resources.day_02;' })
+    const result = await grade(dir, await checksOf(id), id)
+    const lamp = result.results.find((r) => r.title === '路灯能手动控制')!
+    expect(lamp).toMatchObject({ passed: false, message: '期望 panel_bg 背景换成亮灯的场景（day_01），实际是别的图片' })
   }, 60000)
 
   test('报警灯接错了 DO 口', async () => {

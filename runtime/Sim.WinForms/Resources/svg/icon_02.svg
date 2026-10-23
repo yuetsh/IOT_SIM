@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="210" viewBox="0 0 180 210">
+
+  <rect x="6" y="6" width="168" height="198" rx="18" fill="#2e9e5b"/>
+  <rect x="6" y="6" width="168" height="198" rx="18" fill="#ffffff" opacity="0.08"/>
+  <g transform="translate(90,82)" fill="#ffffff" stroke="#ffffff">
+    <rect x="-6" y="10" width="12" height="40" stroke="none"/>
+    <circle cx="0" cy="-12" r="34" stroke="none"/><circle cx="-26" cy="8" r="22" stroke="none"/><circle cx="26" cy="8" r="22" stroke="none"/>
+    <path d="M-4 -2 L0 -30 L4 -2" fill="#2e9e5b" stroke="none"/></g>
+  <text x="90" y="178" font-family="Source Han Sans CN, Noto Sans CJK SC, sans-serif" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle">校园环境</text>
+
+</svg>

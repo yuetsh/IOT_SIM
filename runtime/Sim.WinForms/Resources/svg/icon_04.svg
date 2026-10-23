@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="210" viewBox="0 0 180 210">
+
+  <rect x="6" y="6" width="168" height="198" rx="18" fill="#e2803a"/>
+  <rect x="6" y="6" width="168" height="198" rx="18" fill="#ffffff" opacity="0.08"/>
+  <g transform="translate(90,82)" fill="#ffffff" stroke="#ffffff">
+    <path d="M-10 -44 H-40 V44 H-10" fill="none" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M-12 0 H40 M22 -18 L40 0 L22 18" fill="none" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="90" y="178" font-family="Source Han Sans CN, Noto Sans CJK SC, sans-serif" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle">退  出</text>
+
+</svg>

@@ -1,0 +1,38 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 主界面能打开"校园环境"界面
+  steps:
+    - click: pic_environment
+    - expect: { window: Environment, desc: 点"校园环境"打开 Environment 窗体 }
+    - expect: { control: panel_bg, background: day_02, desc: 背景是路灯场景（day_02） }
+
+- title: 界面有环境数据栏
+  steps:
+    - click: pic_environment
+    - expect: { control: txt_fire, visible: true }
+    - expect: { control: txt_smoke, visible: true }
+    - expect: { control: txt_light, visible: true }
+    - expect: { control: txt_temperature, visible: true }
+    - expect: { control: txt_humidity, visible: true }
+    - expect: { control: btn_dataAnalyse, text: 数据分析 }
+    - expect: { control: btn_ledEnvironment1, text: 推送天气信息 }
+
+- title: 界面有路灯控制、LED 推送和图表
+  steps:
+    - click: pic_environment
+    - expect: { control: ch_autoLamp, text: 自动控制 }
+    - expect: { control: txt_autoLight, visible: true }
+    - expect: { control: pic_lampOpen, background: switch_off, desc: 灯光控制显示"关"的开关图片（switch_off） }
+    - expect: { control: ch_autoLedFire, text: 自动推送火情 }
+    - expect: { control: txt_ledMsg, visible: true }
+    - expect: { control: btn_ledSendMsg, text: 推送LED信息 }
+    - expect: { control: btn_ledEnvironment2, text: 推送天气信息 }
+    - expect: { control: chart1, visible: true }
+
+- title: 能返回主窗体
+  steps:
+    - click: pic_environment
+    - expect: { window: Environment }
+    - click: lb_return
+    - expect: { window: Environment, open: false, desc: 点"<返回主窗体"关闭 Environment 窗体 }
+    - expect: { window: Main, desc: 主窗体还在 }

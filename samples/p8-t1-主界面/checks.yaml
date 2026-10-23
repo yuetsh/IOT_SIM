@@ -1,0 +1,14 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序，按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 主界面显示标题和三个功能入口
+  steps:
+    - expect: { control: pictureBox1, image: ico_title, desc: 显示"智慧校园"标题图（ico_title） }
+    - expect: { control: panel2, background: bg_home, desc: 背景是校园图片（bg_home） }
+    - expect: { control: pic_environment, image: icon_02, desc: 显示"校园环境"图标（icon_02） }
+    - expect: { control: pic_security, image: icon_03, desc: 显示"校园安防"图标（icon_03） }
+    - expect: { control: pic_exit, image: icon_04, desc: 显示"退出"图标（icon_04） }
+
+- title: 实现退出功能
+  steps:
+    - click: pic_exit
+    - expect: { exited: true, desc: 点"退出"后关闭主窗体、程序退出 }
