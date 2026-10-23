@@ -1,6 +1,7 @@
 // 对 Designer.cs 文档的编辑操作。每个操作返回新文档，不修改传入的文档。
 // 修改过的语句清掉原文（text），生成时按 VS 格式重写；其余语句原样保留。
 import { type ControlDef, controlDef, isContainerType } from './catalog'
+import { CHART_TYPE, DEFAULT_CHART, removeChartDeclarations, writeChart } from './chart'
 import type { Block, DesignerDocument, Stmt } from './document'
 import { renderValue, type Value } from './values'
 
@@ -180,7 +181,8 @@ export function addControl(
   if (!def.component) insertChild(next, parent, name)
   next.tail = addField(next.tail, def.type, name, next.eol)
   syncLayout(next)
-  return { doc: next, name }
+  // 图表和 VS 一样带一个图表区、一个图例、一个系列
+  return { doc: def.type === CHART_TYPE ? writeChart(next, name, DEFAULT_CHART) : next, name }
 }
 
 /** 新加入的子控件在最上层：Controls.Add 放在已有的 Controls.Add 之前 */
@@ -201,6 +203,8 @@ export function removeControl(doc: DesignerDocument, name: string): DesignerDocu
     for (const child of childrenOf(next, n)) collect(child)
   }
   collect(name)
+  // 图表的图表区、图例、系列是 InitializeComponent 开头的局部变量，一起删掉
+  for (const n of doomed) if (typeOf(next, n) === CHART_TYPE) next.prologue = removeChartDeclarations(next, n).prologue
   const keep = (s: Stmt) =>
     !(
       (s.kind === 'create' && doomed.has(s.name)) ||

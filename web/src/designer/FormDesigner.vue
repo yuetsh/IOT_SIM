@@ -6,6 +6,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import ControlView from '../winforms/ControlView.vue'
 import { displayText, fontCss, type FontValue } from '../winforms/format'
 import { CONTROLS, type ControlDef, FORM_DEF, controlDef, isContainerType } from './catalog'
+import { type ChartModel, writeChart } from './chart'
 import { ensureHandler } from './code'
 import { type DesignerDocument, DesignerParseError, generateDesigner, parseDesigner } from './document'
 import {
@@ -350,6 +351,11 @@ function onSetItems(target: string, items: string[]) {
   if (d) commit(setItems(d, target, items))
 }
 
+function onSetChart(target: string, model: ChartModel) {
+  const d = parsed.value.doc
+  if (d) commit(writeChart(d, target, model))
+}
+
 function onRename(from: string, to: string) {
   const d = parsed.value.doc
   if (!d) return
@@ -505,6 +511,7 @@ const noop = () => {}
       @open-event="openEvent"
       @clear-event="clearEvent"
       @add-resource="emit('addResource')"
+      @set-chart="onSetChart"
     />
   </div>
 </template>

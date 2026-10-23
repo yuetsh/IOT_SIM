@@ -2,6 +2,7 @@
 // 保证设计时看到的样子和运行时一致。
 import type { ControlNode } from '@iot/shared'
 import { controlDef } from './catalog'
+import { CHART_TYPE, previewChart, readChart } from './chart'
 import type { DesignerDocument } from './document'
 import { childrenOf, findBlock, getItems, listControls } from './edit'
 import { resourceNameOf, resourceUrl } from './resources'
@@ -13,6 +14,7 @@ export const FORM_ID = '__form'
 /** 运行时控件树里的类型名：System.Windows.Forms.Button → Button，教材控件库保留完整类名 */
 function clientType(type: string) {
   if (type === 'AxWMPLib.AxWindowsMediaPlayer') return 'AxWindowsMediaPlayer'
+  if (type === 'System.Windows.Forms.DataVisualization.Charting.Chart') return 'Chart'
   return type.startsWith('System.Windows.Forms.') ? type.slice('System.Windows.Forms.'.length) : type
 }
 
@@ -77,6 +79,8 @@ export function previewTree(doc: DesignerDocument): ControlNode {
     })
     // 设计器里不需要滚动：LED 只显示黑底
     if (type === 'WinFormsDeviceControlLibrary.LED') props.LedText = ''
+    // 图表和 VS 一样用示例数据画出各个系列
+    if (type === CHART_TYPE) props.Chart = previewChart(readChart(doc, name))
     // 和 VS 一样显示今天的日期
     if (type === 'System.Windows.Forms.DateTimePicker') props.Text = previewDate(String(props.Format ?? 'Long'))
     return { id: name, type: clientType(type), name, props, children: childrenOf(doc, name).filter((c) => types.has(c)).map(build) }

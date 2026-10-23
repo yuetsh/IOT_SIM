@@ -5,6 +5,7 @@ import { computed, inject, provide, ref, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
 import { AMBIENT_BACK_COLOR, AMBIENT_BACK_TYPES, boxCss, DEFAULT_BACK_COLOR, displayText } from './format'
 import { backgroundCss, RUN_IMAGES, type ImageValue } from './images'
+import ChartControl from './ChartControl.vue'
 import DataGridViewControl from './DataGridViewControl.vue'
 import DateTimePickerControl from './DateTimePickerControl.vue'
 import LedControl from './LedControl.vue'
@@ -189,6 +190,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
 
   <DateTimePickerControl v-else-if="node.type === 'DateTimePicker'" :node="node" :style="style" :enabled="enabled" :act="act" />
 
+  <ChartControl v-else-if="node.type === 'Chart'" :node="node" :style="style" />
 
   <TrackBarControl v-else-if="node.type === 'TrackBar'" :node="node" :style="style" :enabled="enabled" :act="act" />
 

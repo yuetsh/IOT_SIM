@@ -2,7 +2,7 @@
 // 只列出仿真运行时已经实现的控件和属性；默认值与 WinForms 一致（等于默认值的属性不写进 Designer.cs）。
 import type { Value } from './values'
 
-export type PropType = 'string' | 'multiline' | 'bool' | 'int' | 'char' | 'point' | 'size' | 'color' | 'font' | 'enum' | 'items' | 'image'
+export type PropType = 'string' | 'multiline' | 'bool' | 'int' | 'char' | 'point' | 'size' | 'color' | 'font' | 'enum' | 'items' | 'image' | 'chart'
 
 export interface PropDef {
   /** WinForms 的属性名，写进 Designer.cs，代码里也用它 */
@@ -252,6 +252,20 @@ export const CONTROLS: ControlDef[] = [
       { name: 'SelectionChanged', label: '选中改变', ...EVENT },
     ],
     initial: () => [['ColumnHeadersHeightSizeMode', enumValue(`${FORMS}.DataGridViewColumnHeadersHeightSizeMode`, 'AutoSize')], ['Size', size(240, 150)]],
+  },
+  {
+    type: 'System.Windows.Forms.DataVisualization.Charting.Chart',
+    label: '图表',
+    group: '数据',
+    namePrefix: 'chart',
+    defaultEvent: 'Click',
+    props: [
+      ...COMMON_PROPS.filter((p) => p.name !== 'Text' && p.name !== 'ForeColor' && p.name !== 'Font'),
+      // 图表区、图例、系列在 Designer.cs 里是局部变量和一串语句（见 chart.ts），用对话框编辑
+      { name: 'Series', label: '系列和图例', description: '图表里画哪几条线（系列）、数据来自哪一列、图例怎样显示', type: 'chart', category: '数据' },
+    ],
+    events: COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
+    initial: (name) => [['Size', size(300, 300)], ['Text', str(name)]],
   },
   {
     type: `${FORMS}.DateTimePicker`,

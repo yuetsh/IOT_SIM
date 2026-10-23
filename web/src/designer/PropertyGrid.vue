@@ -2,6 +2,8 @@
 // 属性窗口和事件窗口（仿 VS）：显示选中控件的常用属性；改动立即写回 Designer.cs。
 import { computed, ref, watch } from 'vue'
 import { type ControlDef, FORM_DEF, type PropDef, controlDef } from './catalog'
+import { type ChartModel, readChart } from './chart'
+import ChartDialog from './ChartDialog.vue'
 import type { DesignerDocument } from './document'
 import { checkName, getEventHandler, getItems, getPropText, typeOf } from './edit'
 import { resourceNameOf } from './resources'
@@ -24,7 +26,12 @@ const emit = defineEmits<{
   clearEvent: [target: string, event: string]
   /** 图片属性里选了"添加资源…"：打开项目资源对话框 */
   addResource: []
+  /** 图表的"系列和图例"对话框点了确定 */
+  setChart: [target: string, model: ChartModel]
 }>()
+
+const chartOpen = ref(false)
+const chartModel = computed(() => readChart(props.doc, props.selected))
 
 const tab = ref<'props' | 'events'>('props')
 const def = computed<ControlDef>(() => (props.selected === '' ? FORM_DEF : controlDef(typeOf(props.doc, props.selected) ?? '')))
@@ -173,7 +180,7 @@ function renameHandler(event: string, value: string) {
       <div v-for="prop in def.props" :key="prop.name" class="row">
         <label :title="`${prop.name}：${prop.description}`">{{ prop.label }}</label>
         <div class="editor">
-          <code v-if="prop.type !== 'image' && raw(prop) !== undefined" class="raw" :title="raw(prop)">{{ raw(prop) }}</code>
+          <code v-if="prop.type !== 'image' && prop.type !== 'chart' && raw(prop) !== undefined" class="raw" :title="raw(prop)">{{ raw(prop) }}</code>
 
           <input v-else-if="prop.type === 'string'" :value="str(prop)" @change="set(prop, { kind: 'string', value: ($event.target as HTMLInputElement).value })" />
 
@@ -231,6 +238,11 @@ function renameHandler(event: string, value: string) {
             </template>
           </span>
 
+          <span v-else-if="prop.type === 'chart'" class="chart-summary">
+            <span :title="`系列：${chartModel.series.map((s) => s.name).join('、') || '无'}；图例：${chartModel.legends.join('、') || '无'}`">{{ chartModel.series.length }} 个系列</span>
+            <button @click="chartOpen = true">编辑…</button>
+          </span>
+
           <textarea v-else-if="prop.type === 'items'" rows="4" :value="itemsText" placeholder="每行一项"
             @change="setItemsFromText(($event.target as HTMLTextAreaElement).value)" />
 
@@ -258,6 +270,7 @@ function renameHandler(event: string, value: string) {
         </div>
       </div>
     </div>
+    <ChartDialog v-model:show="chartOpen" :model="chartModel" @save="emit('setChart', selected, $event)" />
   </div>
 </template>
 
@@ -382,6 +395,13 @@ function renameHandler(event: string, value: string) {
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
+}
+
+.chart-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
 }
 
 .raw {
