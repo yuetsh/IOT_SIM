@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // 运行区：学生程序的窗体（在一块"桌面"上）、提示框、虚拟实训台，以及编译错误和控制台输出。
 // 实验页和老师的评阅页共用。
-import { provide, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import TrainingBoard from '../scene/TrainingBoard.vue'
-import FormWindow from '../winforms/FormWindow.vue'
+import type { SizeValue } from '../winforms/format'
+import FormWindow, { WINDOW_MARGIN, WINDOW_STEP } from '../winforms/FormWindow.vue'
 import { RUN_IMAGES } from '../winforms/images'
 import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
 import type { RunSession } from './session'
@@ -16,19 +17,59 @@ provide(RUN_IMAGES, props.session.images)
 
 /** 照片列表里点开看大图 */
 const viewing = ref<{ path: string; url: string } | null>(null)
+
+// ---------- 窗体比桌面大时整体缩小（项目 8 的窗体有 1000 多像素宽），"放大"后运行区占满整个网页 ----------
+const maximized = ref(false)
+const desktop = ref<HTMLElement>()
+const desktopSize = ref({ width: 0, height: 0 })
+const observer = new ResizeObserver(([entry]) => {
+  desktopSize.value = { width: entry.contentRect.width, height: entry.contentRect.height }
+})
+onMounted(() => observer.observe(desktop.value!))
+onBeforeUnmount(() => observer.disconnect())
+
+const TITLEBAR = 30
+/** 按窗体最初的层叠位置算出放下所有窗体需要多大，桌面不够时按比例缩小（不放大）；拖动窗体不影响缩放 */
+const scale = computed(() => {
+  let width = 0
+  let height = 0
+  state.forms.forEach((form, index) => {
+    const p = form.root.props
+    if (p.Visible === false) return
+    const client = (p.ClientSize as SizeValue | undefined) ?? { width: 300, height: 300 }
+    const start = WINDOW_MARGIN + index * WINDOW_STEP
+    width = Math.max(width, start + client.width + 2 + WINDOW_MARGIN)
+    height = Math.max(height, start + client.height + 2 + (p.FormBorderStyle === 'None' ? 0 : TITLEBAR) + WINDOW_MARGIN)
+  })
+  const { width: w, height: h } = desktopSize.value
+  if (!width || !w || !h) return 1
+  return Math.min(1, w / width, h / height)
+})
+
+function onKey(event: KeyboardEvent) {
+  if (event.key === 'Escape' && maximized.value) maximized.value = false
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <section class="run-area">
-    <div class="desktop">
-      <FormWindow
-        v-for="(form, index) in state.forms"
-        :key="form.root.id"
-        :form="form.root"
-        :modal="form.modal"
-        :offset="index"
-        :act="session.act"
-      />
+  <section class="run-area" :class="{ maximized }">
+    <div ref="desktop" class="desktop">
+      <div
+        class="desktop-canvas"
+        :style="scale < 1 ? { transform: `scale(${scale})`, width: `${100 / scale}%`, height: `${100 / scale}%` } : undefined"
+      >
+        <FormWindow
+          v-for="(form, index) in state.forms"
+          :key="form.root.id"
+          :form="form.root"
+          :modal="form.modal"
+          :offset="index"
+          :scale="scale"
+          :act="session.act"
+        />
+      </div>
       <MessageBoxDialog
         v-for="box in state.messageBoxes"
         :key="box.requestId"
@@ -36,6 +77,14 @@ const viewing = ref<{ path: string; url: string } | null>(null)
         @reply="session.replyMessageBox(box.requestId, $event)"
       />
       <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
+      <div class="desktop-tools">
+        <span v-if="scale < 1" class="desktop-scale" title="窗体比运行区大，按比例缩小显示；点&quot;放大&quot;可以看得更清楚">
+          缩放 {{ Math.round(scale * 100) }}%
+        </span>
+        <button type="button" :title="maximized ? '还原（Esc）' : '运行区占满整个网页'" @click="maximized = !maximized">
+          {{ maximized ? '还原' : '放大' }}
+        </button>
+      </div>
     </div>
     <TrainingBoard :board="state.board" :playing="state.playing" @set="session.setBoard" @reset="session.resetBoard" />
     <div v-if="state.savedImages.length" class="photos">
@@ -91,8 +140,70 @@ const viewing = ref<{ path: string; url: string } | null>(null)
   min-height: 320px;
   background: #2d6aa3;
   border-radius: 4px;
-  /* 窗体比桌面区域大时可以滚动查看 */
+  /* 窗体被拖到桌面外面时可以滚动查看 */
   overflow: auto;
+}
+
+.desktop-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+
+.desktop-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.desktop-scale {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.35);
+  color: #fff;
+}
+
+.desktop-tools button {
+  padding: 2px 10px;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.35);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.desktop-tools button:hover {
+  background: rgb(0 0 0 / 0.55);
+}
+
+/* 放大：桌面在左边占满高度，实训台、图片列表和输出在右边一栏 */
+.run-area.maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 460px;
+  grid-auto-rows: min-content;
+  align-content: start;
+  background: #f3f4f6;
+}
+
+.run-area.maximized .desktop {
+  grid-column: 1;
+  grid-row: 1 / span 20;
+  height: calc(100vh - 16px);
+}
+
+.run-area.maximized > :not(.desktop) {
+  grid-column: 2;
 }
 
 .desktop-hint {

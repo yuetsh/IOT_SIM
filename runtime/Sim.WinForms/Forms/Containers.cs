@@ -43,7 +43,21 @@ public class Panel : ScrollableControl
     public BorderStyle BorderStyle
     {
         get => _borderStyle;
-        set => SetProp(ref _borderStyle, value, nameof(BorderStyle));
+        set
+        {
+            if (SetProp(ref _borderStyle, value, nameof(BorderStyle))) PerformLayout();
+        }
+    }
+
+    /// <summary>边框占掉的宽度：单线 1 像素，立体 2 像素</summary>
+    public override Rectangle DisplayRectangle
+    {
+        get
+        {
+            var inset = _borderStyle switch { BorderStyle.FixedSingle => 1, BorderStyle.Fixed3D => 2, _ => 0 };
+            var rect = base.DisplayRectangle;
+            return new Rectangle(rect.X, rect.Y, Math.Max(0, rect.Width - 2 * inset), Math.Max(0, rect.Height - 2 * inset));
+        }
     }
 
     protected override void WriteProps(JsonObject props)
@@ -58,4 +72,14 @@ public class GroupBox : Control
     protected override Size DefaultSize => new(200, 100);
 
     public FlatStyle FlatStyle { get; set; } = FlatStyle.Standard;
+
+    /// <summary>分组框的边框和标题占掉的地方（宋体 9pt 时和 WinForms 一致）</summary>
+    public override Rectangle DisplayRectangle
+    {
+        get
+        {
+            var rect = base.DisplayRectangle;
+            return new Rectangle(rect.X + 3, rect.Y + 17, Math.Max(0, rect.Width - 6), Math.Max(0, rect.Height - 20));
+        }
+    }
 }

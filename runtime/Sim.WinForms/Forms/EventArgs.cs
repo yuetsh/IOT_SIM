@@ -41,3 +41,20 @@ public class FormClosedEventArgs : EventArgs
 }
 
 public delegate void FormClosedEventHandler(object? sender, FormClosedEventArgs e);
+
+/// <summary>重绘事件的参数。平台由浏览器绘制控件，不支持在 Graphics 上自己画</summary>
+public class PaintEventArgs : EventArgs, IDisposable
+{
+    public PaintEventArgs(System.Drawing.Graphics graphics, System.Drawing.Rectangle clipRect)
+    {
+        Graphics = graphics;
+        ClipRectangle = clipRect;
+    }
+
+    public System.Drawing.Graphics Graphics { get; }
+    public System.Drawing.Rectangle ClipRectangle { get; }
+
+    public void Dispose() => GC.SuppressFinalize(this);
+}
+
+public delegate void PaintEventHandler(object? sender, PaintEventArgs e);

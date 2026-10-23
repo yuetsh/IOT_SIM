@@ -28,6 +28,10 @@ public class Control : Component, IWin32Window
     private Font? _font;
     private bool _autoSize;
     private DockStyle _dock;
+    private Padding _padding;
+    private int _layoutSuspendCount;
+    private Image? _backgroundImage;
+    private ImageLayout _backgroundImageLayout = ImageLayout.Tile;
     private AnchorStyles _anchor = AnchorStyles.Top | AnchorStyles.Left;
     private Control? _parent;
 
@@ -131,7 +135,13 @@ public class Control : Component, IWin32Window
     public Size Size
     {
         get => _size;
-        set => SetProp(ref _size, value, nameof(Size));
+        set
+        {
+            if (!SetProp(ref _size, value, nameof(Size))) return;
+            // 大小变了：自己的停靠子控件重新排；自己是停靠的，父容器也要重新排
+            PerformLayout();
+            if (_dock != DockStyle.None) _parent?.PerformLayout();
+        }
     }
 
     public int Left { get => _location.X; set => Location = new Point(value, _location.Y); }
@@ -162,7 +172,9 @@ public class Control : Component, IWin32Window
         get => _visible;
         set
         {
-            if (SetProp(ref _visible, value, nameof(Visible))) OnVisibleChanged(EventArgs.Empty);
+            if (!SetProp(ref _visible, value, nameof(Visible))) return;
+            if (_dock != DockStyle.None) _parent?.PerformLayout();
+            OnVisibleChanged(EventArgs.Empty);
         }
     }
 
@@ -202,7 +214,40 @@ public class Control : Component, IWin32Window
     public DockStyle Dock
     {
         get => _dock;
-        set => SetProp(ref _dock, value, nameof(Dock));
+        set
+        {
+            if (SetProp(ref _dock, value, nameof(Dock))) _parent?.PerformLayout();
+        }
+    }
+
+    public Padding Padding
+    {
+        get => _padding;
+        set
+        {
+            if (_padding.Equals(value)) return;
+            _padding = value;
+            PerformLayout();
+        }
+    }
+
+    /// <summary>背景图片；BackgroundImageLayout 决定平铺（默认）、居中、拉伸或按比例缩放</summary>
+    public virtual Image? BackgroundImage
+    {
+        get => _backgroundImage;
+        set
+        {
+            LegacyThreads.CheckPoint();
+            if (ReferenceEquals(_backgroundImage, value)) return;
+            _backgroundImage = value;
+            NotifyChanged(nameof(BackgroundImage), value);
+        }
+    }
+
+    public virtual ImageLayout BackgroundImageLayout
+    {
+        get => _backgroundImageLayout;
+        set => SetProp(ref _backgroundImageLayout, value, nameof(BackgroundImageLayout));
     }
 
     public AnchorStyles Anchor
@@ -216,7 +261,6 @@ public class Control : Component, IWin32Window
     public bool TabStop { get; set; } = true;
     public object? Tag { get; set; }
     public Padding Margin { get; set; } = new(3);
-    public Padding Padding { get; set; }
     public ImeMode ImeMode { get; set; } = ImeMode.NoControl;
     public virtual RightToLeft RightToLeft { get; set; } = RightToLeft.No;
     public virtual bool AllowDrop { get; set; }
@@ -246,6 +290,8 @@ public class Control : Component, IWin32Window
     public event EventHandler? LostFocus;
     public event EventHandler? Enter;
     public event EventHandler? Leave;
+    /// <summary>重绘。平台由浏览器绘制控件，不会触发这个事件（VS 双击 Panel 生成的空处理程序照常能编译）</summary>
+    public event PaintEventHandler? Paint;
 
     protected virtual void OnClick(EventArgs e) => Click?.Invoke(this, e);
     protected virtual void OnDoubleClick(EventArgs e) => DoubleClick?.Invoke(this, e);
@@ -259,6 +305,7 @@ public class Control : Component, IWin32Window
     protected virtual void OnEnabledChanged(EventArgs e) => EnabledChanged?.Invoke(this, e);
     protected virtual void OnGotFocus(EventArgs e) => GotFocus?.Invoke(this, e);
     protected virtual void OnLostFocus(EventArgs e) => LostFocus?.Invoke(this, e);
+    protected virtual void OnPaint(PaintEventArgs e) => Paint?.Invoke(this, e);
     protected virtual void OnEnter(EventArgs e) => Enter?.Invoke(this, e);
     protected virtual void OnLeave(EventArgs e) => Leave?.Invoke(this, e);
 
@@ -305,10 +352,65 @@ public class Control : Component, IWin32Window
     public void Refresh() { }
     public void Invalidate() { }
     public void Update() { }
-    public void SuspendLayout() { }
-    public void ResumeLayout() { }
-    public void ResumeLayout(bool performLayout) { }
-    public void PerformLayout() { }
+    public void SuspendLayout() => _layoutSuspendCount++;
+    public void ResumeLayout() => ResumeLayout(true);
+
+    public void ResumeLayout(bool performLayout)
+    {
+        if (_layoutSuspendCount > 0) _layoutSuspendCount--;
+        if (performLayout) PerformLayout();
+    }
+
+    /// <summary>
+    /// 停靠布局（和 WinForms 一样）：按 Controls 集合从后往前，Top / Bottom / Left / Right 依次贴边并占掉那一条，
+    /// Fill 占剩下的全部。VS 在 Designer.cs 里写的位置大小就是这样排出来的；代码里改停靠、大小、可见时重新排。
+    /// </summary>
+    public void PerformLayout()
+    {
+        if (_layoutSuspendCount > 0) return;
+        var rect = DisplayRectangle;
+        for (var i = Controls.Count - 1; i >= 0; i--)
+        {
+            var child = Controls[i];
+            if (!child._visible || child._dock == DockStyle.None) continue;
+            var size = child._size;
+            Rectangle bounds;
+            switch (child._dock)
+            {
+                case DockStyle.Top:
+                    bounds = new Rectangle(rect.X, rect.Y, rect.Width, size.Height);
+                    rect = new Rectangle(rect.X, rect.Y + size.Height, rect.Width, Math.Max(0, rect.Height - size.Height));
+                    break;
+                case DockStyle.Bottom:
+                    bounds = new Rectangle(rect.X, rect.Bottom - size.Height, rect.Width, size.Height);
+                    rect = new Rectangle(rect.X, rect.Y, rect.Width, Math.Max(0, rect.Height - size.Height));
+                    break;
+                case DockStyle.Left:
+                    bounds = new Rectangle(rect.X, rect.Y, size.Width, rect.Height);
+                    rect = new Rectangle(rect.X + size.Width, rect.Y, Math.Max(0, rect.Width - size.Width), rect.Height);
+                    break;
+                case DockStyle.Right:
+                    bounds = new Rectangle(rect.Right - size.Width, rect.Y, size.Width, rect.Height);
+                    rect = new Rectangle(rect.X, rect.Y, Math.Max(0, rect.Width - size.Width), rect.Height);
+                    break;
+                default:
+                    bounds = rect;
+                    break;
+            }
+            child.SetBoundsFromLayout(bounds);
+        }
+    }
+
+    /// <summary>停靠布局给出的位置大小：不再反过来触发父容器的布局</summary>
+    private void SetBoundsFromLayout(Rectangle bounds)
+    {
+        SetProp(ref _location, bounds.Location, nameof(Location));
+        if (SetProp(ref _size, bounds.Size, nameof(Size))) PerformLayout();
+    }
+
+    /// <summary>容器里用来停靠子控件的区域：客户区去掉内边距（分组框、带边框的面板再去掉边框）</summary>
+    public virtual Rectangle DisplayRectangle =>
+        new(_padding.Left, _padding.Top, Math.Max(0, ClientSize.Width - _padding.Horizontal), Math.Max(0, ClientSize.Height - _padding.Vertical));
 
     public bool InvokeRequired => !SimHost.Ui.IsUiThread;
 
@@ -409,6 +511,8 @@ public class Control : Component, IWin32Window
         props["Font"] = PropValue.From(_font);
         props["AutoSize"] = _autoSize;
         props["Dock"] = _dock.ToString();
+        props["BackgroundImage"] = PropValue.From(_backgroundImage);
+        props["BackgroundImageLayout"] = _backgroundImageLayout.ToString();
     }
 
     /// <summary>浏览器按这个类型名选择渲染方式。学生自己继承的控件按最近的仿真库基类渲染。</summary>
@@ -459,6 +563,7 @@ public class Control : Component, IWin32Window
             value.Parent?.Controls.Remove(value);
             _items.Add(value);
             value.SetParentInternal(Owner);
+            if (value.Dock != DockStyle.None) Owner.PerformLayout();
             if (Owner.IsAttached)
             {
                 SimHost.Send(new JsonObject
@@ -481,6 +586,7 @@ public class Control : Component, IWin32Window
             if (value == null || !_items.Remove(value)) return;
             var wasAttached = Owner.IsAttached;
             value.SetParentInternal(null);
+            if (value.Dock != DockStyle.None) Owner.PerformLayout();
             if (wasAttached) SimHost.Send(new JsonObject { ["type"] = "controlRemoved", ["id"] = value.SimId });
         }
 

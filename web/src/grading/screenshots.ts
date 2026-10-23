@@ -29,7 +29,7 @@ export async function captureForms(files: SourceFile[]): Promise<Screenshot[]> {
       }
       const holder = document.createElement('div')
       host.append(holder)
-      const app = createApp({ render: () => h(FormWindow, { form, modal: false, offset: 0, act: () => {} }) })
+      const app = createApp({ render: () => h(FormWindow, { form, modal: false, offset: 0, scale: 1, act: () => {} }) })
       app.mount(holder)
       await nextTick()
       const frame = holder.querySelector<HTMLElement>('.wf-window')

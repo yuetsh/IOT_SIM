@@ -33,13 +33,16 @@ public class Form : ContainerControl
     public override Size ClientSize
     {
         get => _clientSize;
-        set => SetProp(ref _clientSize, value, nameof(ClientSize));
+        set
+        {
+            if (SetProp(ref _clientSize, value, nameof(ClientSize))) PerformLayout();
+        }
     }
 
     public new Size Size
     {
-        get => _clientSize + NonClientSize;
-        set => ClientSize = value - NonClientSize;
+        get => _formBorderStyle == FormBorderStyle.None ? _clientSize : _clientSize + NonClientSize;
+        set => ClientSize = _formBorderStyle == FormBorderStyle.None ? value : value - NonClientSize;
     }
 
     public FormBorderStyle FormBorderStyle

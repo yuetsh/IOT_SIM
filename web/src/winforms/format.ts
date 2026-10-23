@@ -1,7 +1,7 @@
 // 把运行器发来的 WinForms 属性值转换成 CSS。
 // 运行器的序列化格式：Point → {x,y}，Size → {width,height}，
 // Color → CSS 颜色字符串（未设置时为 null，表示继承父控件），Font → FontValue。
-import type { CSSProperties } from 'vue'
+import type { CSSProperties, InjectionKey, Ref } from 'vue'
 
 export interface PointValue {
   x: number
@@ -44,6 +44,17 @@ export function fontCss(font: FontValue | null | undefined): CSSProperties {
     textDecoration: decorations.length ? decorations.join(' ') : undefined,
   }
 }
+
+/**
+ * 父控件的背景色（BackColor 是"环境属性"：控件没设置时沿用父控件的）。
+ * 父控件有背景图片时，没设置背景色的子控件在 WinForms 里画的是父控件的背景色而不是那张图，
+ * 所以这些控件要自己涂上这个颜色；"transparent" 表示父控件是透明的（Color.Transparent），子控件也透明。
+ */
+export const AMBIENT_BACK_COLOR: InjectionKey<Readonly<Ref<string>>> = Symbol('ambientBackColor')
+export const DEFAULT_BACK_COLOR = '#f0f0f0'
+
+/** 背景色沿用父控件的控件（按钮、文本框等有自己的默认底色） */
+export const AMBIENT_BACK_TYPES = new Set(['Label', 'Panel', 'GroupBox', 'CheckBox', 'RadioButton', 'PictureBox', 'TrackBar'])
 
 /** 控件外框：绝对定位，坐标相对父控件的客户区 */
 export function boxCss(props: Record<string, unknown>, autoSize = false): CSSProperties {

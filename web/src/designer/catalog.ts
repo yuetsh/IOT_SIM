@@ -59,6 +59,8 @@ const int = (value: number): Value => ({ kind: 'int', value })
 const size = (width: number, height: number): Value => ({ kind: 'size', width, height })
 const enumValue = (type: string, member: string): Value => ({ kind: 'enum', type, member })
 
+const FORMS = 'System.Windows.Forms'
+
 const EVENT = { delegate: 'System.EventHandler', args: 'EventArgs' }
 const MOUSE = { delegate: 'System.Windows.Forms.MouseEventHandler', args: 'MouseEventArgs' }
 
@@ -72,6 +74,21 @@ const COMMON_PROPS: PropDef[] = [
   { name: 'Enabled', label: '可用', description: '是否可用', type: 'bool', default: bool(true), category: '行为' },
   { name: 'Visible', label: '可见', description: '是否可见', type: 'bool', default: bool(true), category: '行为' },
   { name: 'TabIndex', label: 'Tab 顺序', description: 'Tab 键顺序', type: 'int', category: '行为' },
+  {
+    name: 'Dock', label: '停靠', description: '贴在所在容器的哪一边（并随容器拉伸）；填充是占满剩下的地方', type: 'enum', enumType: `${FORMS}.DockStyle`,
+    options: ['None', 'Top', 'Bottom', 'Left', 'Right', 'Fill'], optionLabels: { None: '不停靠', Top: '顶部', Bottom: '底部', Left: '左边', Right: '右边', Fill: '填充' },
+    default: enumValue(`${FORMS}.DockStyle`, 'None'), category: '布局',
+  },
+]
+
+/** 背景图片（面板、图片框、窗体）：从项目资源里选，排列方式默认平铺 */
+const BACKGROUND_PROPS: PropDef[] = [
+  { name: 'BackgroundImage', label: '背景图片', description: '背景图片：从项目资源里选（Properties.Resources）', type: 'image', category: '外观' },
+  {
+    name: 'BackgroundImageLayout', label: '背景排列', description: '背景图片怎样摆放', type: 'enum', enumType: `${FORMS}.ImageLayout`,
+    options: ['None', 'Tile', 'Center', 'Stretch', 'Zoom'], optionLabels: { None: '左上角', Tile: '平铺', Center: '居中', Stretch: '拉伸填满', Zoom: '按比例缩放' },
+    default: enumValue(`${FORMS}.ImageLayout`, 'Tile'), category: '外观',
+  },
 ]
 
 const COMMON_EVENTS: EventDef[] = [
@@ -95,7 +112,6 @@ export function textWidth(text: string) {
   return width
 }
 
-const FORMS = 'System.Windows.Forms'
 
 export const CONTROLS: ControlDef[] = [
   {
@@ -188,6 +204,7 @@ export const CONTROLS: ControlDef[] = [
     props: [
       ...COMMON_PROPS.filter((p) => p.name !== 'Text' && p.name !== 'ForeColor' && p.name !== 'Font'),
       { name: 'Image', label: '图片', description: '显示的图片：从项目资源里选（Properties.Resources）', type: 'image', category: '外观' },
+      ...BACKGROUND_PROPS,
       {
         name: 'SizeMode', label: '显示方式', description: '图片在图片框里怎样显示', type: 'enum', enumType: `${FORMS}.PictureBoxSizeMode`,
         options: ['Normal', 'StretchImage', 'AutoSize', 'CenterImage', 'Zoom'],
@@ -327,7 +344,7 @@ export const CONTROLS: ControlDef[] = [
     namePrefix: 'panel',
     container: true,
     defaultEvent: 'Click',
-    props: COMMON_PROPS.filter((p) => p.name !== 'Text'),
+    props: [...COMMON_PROPS.filter((p) => p.name !== 'Text'), ...BACKGROUND_PROPS],
     events: COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
     initial: () => [['Size', size(200, 100)]],
   },
@@ -413,6 +430,7 @@ export const FORM_DEF: ControlDef = {
       optionLabels: { Manual: '手动指定', CenterScreen: '屏幕中央', WindowsDefaultLocation: '系统默认位置', WindowsDefaultBounds: '系统默认位置和大小', CenterParent: '父窗体中央' },
       default: enumValue(`${FORMS}.FormStartPosition`, 'WindowsDefaultLocation'), category: '布局',
     },
+    ...BACKGROUND_PROPS,
     { name: 'MaximizeBox', label: '最大化按钮', description: '显示最大化按钮', type: 'bool', default: bool(true), category: '外观' },
     { name: 'MinimizeBox', label: '最小化按钮', description: '显示最小化按钮', type: 'bool', default: bool(true), category: '外观' },
   ],

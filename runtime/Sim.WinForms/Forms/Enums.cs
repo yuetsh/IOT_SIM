@@ -40,6 +40,8 @@ public enum ComboBoxStyle { Simple, DropDown, DropDownList }
 
 public enum DockStyle { None, Top, Bottom, Left, Right, Fill }
 
+public enum ImageLayout { None, Tile, Center, Stretch, Zoom }
+
 [Flags]
 public enum AnchorStyles { None = 0, Top = 1, Bottom = 2, Left = 4, Right = 8 }
 

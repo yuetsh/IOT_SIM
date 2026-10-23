@@ -22,6 +22,7 @@ import {
   setProp,
   typeOf,
 } from './edit'
+import { dockLayout } from './layout'
 import PropertyGrid from './PropertyGrid.vue'
 import { componentsOf, previewTree } from './preview'
 import { parseValue, type Value } from './values'
@@ -84,9 +85,10 @@ watch(parsed, () => {
   if (selected.value && doc.value && !listControls(doc.value).some((c) => c.name === selected.value)) selected.value = ''
 })
 
+/** 每次修改后像 VS 一样把停靠的控件排好（没有停靠控件时文档不变） */
 function commit(next: DesignerDocument, codeText?: string) {
   dragDoc.value = undefined
-  emit('update', generateDesigner(next), codeText)
+  emit('update', generateDesigner(dockLayout(next)), codeText)
 }
 
 // ---------- 几何 ----------

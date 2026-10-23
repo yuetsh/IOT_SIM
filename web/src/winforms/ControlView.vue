@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // 按控件类型渲染一个 WinForms 控件及其子控件。
 // 用户操作只通过 act() 上报，由运行器按真实 WinForms 的顺序触发事件。
-import { computed, inject, ref, type CSSProperties } from 'vue'
+import { computed, inject, provide, ref, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
-import { boxCss, displayText } from './format'
-import { RUN_IMAGES, type ImageValue } from './images'
+import { AMBIENT_BACK_COLOR, AMBIENT_BACK_TYPES, boxCss, DEFAULT_BACK_COLOR, displayText } from './format'
+import { backgroundCss, RUN_IMAGES, type ImageValue } from './images'
 import DataGridViewControl from './DataGridViewControl.vue'
 import DateTimePickerControl from './DateTimePickerControl.vue'
 import LedControl from './LedControl.vue'
@@ -19,10 +19,26 @@ const p = computed(() => props.node.props)
 // WinForms 中先加入 Controls 的控件在最上层，所以倒序渲染（后渲染的 DOM 元素在上面）
 const childrenTopLast = computed(() => [...props.node.children].reverse())
 const enabled = computed(() => p.value.Enabled !== false)
-const style = computed(() => boxCss(p.value, props.node.type === 'Label' && p.value.AutoSize === true))
+const runImages = inject(RUN_IMAGES, new Map<string, string>())
+const ambient = inject(AMBIENT_BACK_COLOR, ref(DEFAULT_BACK_COLOR))
+/** 这个控件实际的背景色，子控件没设置背景色时沿用 */
+const backColor = computed(() => (p.value.BackColor as string | null) ?? ambient.value)
+provide(AMBIENT_BACK_COLOR, backColor)
+const style = computed(() => ({
+  ...boxCss(p.value, props.node.type === 'Label' && p.value.AutoSize === true),
+  ...(AMBIENT_BACK_TYPES.has(props.node.type) ? { backgroundColor: backColor.value } : {}),
+  ...backgroundCss(p.value.BackgroundImage, p.value.BackgroundImageLayout, runImages),
+}))
 
 function act(action: UserAction) {
   if (enabled.value) props.act(props.node.id, action)
+}
+
+/** 鼠标按下、松开（教材项目 8 的方向键图片：按下转动摄像机、换成按下的图片） */
+function mouse(kind: 'mouseDown' | 'mouseUp', event: PointerEvent) {
+  if (event.target !== event.currentTarget && !(event.target as HTMLElement).matches('img')) return
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  act({ action: kind, button: event.button === 2 ? 'right' : 'left', x: Math.round(event.clientX - rect.left), y: Math.round(event.clientY - rect.top) })
 }
 
 // TextBox
@@ -54,7 +70,6 @@ function selectItem(index: number) {
 }
 
 // PictureBox：按 SizeMode 摆放图片
-const runImages = inject(RUN_IMAGES, new Map<string, string>())
 const image = computed(() => p.value.Image as ImageValue | null | undefined)
 const imageUrl = computed(() => (image.value ? image.value.url ?? runImages.get(image.value.key) : undefined))
 // 设计器预览里不知道素材的尺寸，原样大小显示时让浏览器按图片本身的大小
@@ -163,13 +178,17 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
     :class="`wf-picturebox-border-${p.BorderStyle ?? 'None'}`"
     :style="style"
     @click="act({ action: 'click' })"
+    @pointerdown="mouse('mouseDown', $event)"
+    @pointerup="mouse('mouseUp', $event)"
   >
     <img v-if="imageUrl" :src="imageUrl" :style="imageStyle" alt="" draggable="false" />
+    <ControlView v-for="child in childrenTopLast" :key="child.id" :node="child" :act="props.act" />
   </div>
 
   <DataGridViewControl v-else-if="node.type === 'DataGridView'" :node="node" :style="style" :enabled="enabled" :act="act" />
 
   <DateTimePickerControl v-else-if="node.type === 'DateTimePicker'" :node="node" :style="style" :enabled="enabled" :act="act" />
+
 
   <TrackBarControl v-else-if="node.type === 'TrackBar'" :node="node" :style="style" :enabled="enabled" :act="act" />
 
@@ -201,8 +220,10 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
 
   <!-- GroupBox -->
   <div v-else-if="node.type === 'GroupBox'" class="wf-control wf-groupbox" :style="style">
-    <div class="wf-groupbox-frame" />
-    <span v-if="p.Text" class="wf-groupbox-caption">{{ displayText(p.Text) }}</span>
+    <!-- 标题处的边框断开、透出底下的背景（教材项目 8 的分组框放在背景图上，白色标题） -->
+    <fieldset class="wf-groupbox-frame">
+      <legend v-if="p.Text" class="wf-groupbox-caption">{{ displayText(p.Text) }}</legend>
+    </fieldset>
     <ControlView v-for="child in childrenTopLast" :key="child.id" :node="child" :act="props.act" />
   </div>
 

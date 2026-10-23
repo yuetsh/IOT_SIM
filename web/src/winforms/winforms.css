@@ -105,9 +105,18 @@
   border-color: #0078d7;
 }
 
-.wf-textbox input[readonly],
-.wf-textbox textarea[readonly] {
+/* 文本框的背景色画在外层（控件的 BackColor 写在外层的 style 上），输入框本身透明 */
+.wf-textbox {
+  background: #fff;
+}
+
+.wf-textbox:has(> [readonly]) {
   background: #f0f0f0;
+}
+
+.wf-textbox input,
+.wf-textbox textarea {
+  background: transparent;
 }
 
 .wf-combobox input {
@@ -391,6 +400,10 @@
   background: #555;
 }
 
+.wf-chart {
+  background: #fff;
+}
+
 .wf-listbox {
   overflow-y: auto;
   overflow-x: hidden;
@@ -472,17 +485,21 @@
 
 .wf-groupbox-frame {
   position: absolute;
-  inset: 6px 0 0 0;
+  inset: 0;
+  margin: 0;
+  padding: 0 6px;
   border: 1px solid #dcdcdc;
   border-radius: 2px;
+  min-width: 0;
+}
+
+/* 没有标题时边框的上沿和有标题时一样在 6px 处 */
+.wf-groupbox-frame:not(:has(legend)) {
+  top: 6px;
 }
 
 .wf-groupbox-caption {
-  position: absolute;
-  left: 6px;
-  top: 0;
   padding: 0 2px;
-  background: #f0f0f0;
   line-height: 12px;
   white-space: pre;
 }
