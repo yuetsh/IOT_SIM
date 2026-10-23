@@ -17,13 +17,16 @@ internal static class Values
     };
 
     /// <summary>形如日期的字符串字面量（比较时转成标准格式，例如 BETWEEN '2024/1/16 9:05:03' AND ...）</summary>
-    private static readonly Regex DateLike = new(@"^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}([ T]\d{1,2}:\d{1,2}(:\d{1,2}(\.\d+)?)?)?$");
+    private static readonly Regex DateLike = new(@"^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}((\s+|T)\d{1,2}:\d{1,2}(:\d{1,2}(\.\d+)?)?)?$");
+
+    /// <summary>日期和时间之间多余的空格（教材拼出的 "2024/1/23  23:59:59"）</summary>
+    private static readonly Regex Spaces = new(@"\s+");
 
     public static bool LooksLikeDate(string text) => DateLike.IsMatch(text.Trim());
 
     /// <summary>按 SQL Server 接受的写法解析日期（包括中文 Windows 上 DateTime.ToString() 的 2024/1/16 9:05:03）</summary>
     public static bool TryParseDateTime(string text, out DateTime value) =>
-        DateTime.TryParseExact(text.Trim(), DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out value);
+        DateTime.TryParseExact(Spaces.Replace(text.Trim(), " "), DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out value);
 
     public static string FormatDateTime(DateTime value) =>
         value.Millisecond == 0 && value.Ticks % TimeSpan.TicksPerMillisecond == 0

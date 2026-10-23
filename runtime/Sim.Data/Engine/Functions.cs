@@ -44,6 +44,7 @@ internal static class Functions
         c.CreateFunction<object?, object?>("tsql_ceiling", x => x is null ? null : Math.Ceiling(ToDouble(x)), isDeterministic: true);
         c.CreateFunction<object?, object?, object?>("tsql_power", (x, y) => x is null || y is null ? null : Math.Pow(ToDouble(x), ToDouble(y)), isDeterministic: true);
         c.CreateFunction<object?, object?>("tsql_sqrt", x => x is null ? null : Math.Sqrt(ToDouble(x)), isDeterministic: true);
+        c.CreateFunction<object?, object?>("tsql_cmp", v => v is string s && Values.LooksLikeDate(s) ? Values.NormalizeDateLiteral(s) : v, isDeterministic: true);
         c.CreateFunction("tsql_newid", () => Guid.NewGuid().ToString().ToUpperInvariant());
         c.CreateFunction("tsql_rand", () => Random.Shared.NextDouble());
     }

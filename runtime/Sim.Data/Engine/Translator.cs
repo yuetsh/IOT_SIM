@@ -911,6 +911,14 @@ internal sealed class Translator
             _sql.Append(Values.Quote(Values.NormalizeDateLiteral(s.Value)));
             return;
         }
+        // 参数的值执行时才知道：是日期样子的字符串时同样转成标准格式（教材 BETWEEN @time_start AND @time_end 传的是字符串）
+        if (expression is VariableReference)
+        {
+            _sql.Append("tsql_cmp(");
+            Expression(expression);
+            _sql.Append(')');
+            return;
+        }
         Expression(expression);
     }
 }
