@@ -138,6 +138,14 @@ export class ProgramDriver {
     }
   }
 
+  /** 控件连同它所在的容器都可见（Visible 不是 false） */
+  isVisible(node: ControlNode): boolean {
+    for (let n: ControlNode | undefined = node; n; n = this.parents.get(n.id)) {
+      if (n.props.Visible === false) return false
+    }
+    return true
+  }
+
   act(node: ControlNode, action: UserAction) {
     // 和浏览器一样同步记下输入的文字（运行器不回传）
     if (action.action === 'text') node.props.Text = action.value

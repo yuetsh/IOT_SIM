@@ -25,7 +25,7 @@ export type Step =
   | { kind: 'expect'; expect: Expectation; within: number; desc?: string }
 
 export type Expectation =
-  /** 控件属性等于某个值：text → Text，ledText → LedText（LED 控件），enabled → Enabled，checked → Checked，on → IsOn（灯泡、报警灯），value → Value（滑动条） */
+  /** 控件属性等于某个值：text → Text，ledText → LedText（LED 控件），enabled → Enabled，checked → Checked，visible → Visible（连同所在的容器都可见），on → IsOn（灯泡、报警灯），value → Value（滑动条） */
   | { kind: 'prop'; control: string; prop: string; value: unknown }
   /** 控件文字包含某段文字；列表框是任意一个列表项包含 */
   | { kind: 'contains'; control: string; text: string }
@@ -36,8 +36,14 @@ export type Expectation =
   | { kind: 'relay'; index: number; on: boolean }
   | { kind: 'zigbee'; index: number; on: boolean }
   | { kind: 'messageBox'; text: string }
-  /** 图片框里显示了图片 */
-  | { kind: 'image'; control: string }
+  /** 控件显示了图片：prop 是 Image（图片框的图片）或 BackgroundImage（背景图片）；name 是素材库里的资源名（如 day_01），不写时只要有图片 */
+  | { kind: 'image'; control: string; prop: 'Image' | 'BackgroundImage'; name?: string }
+  /** 窗体（按窗体的 Name）打开着 / 已关闭 */
+  | { kind: 'window'; name: string; open: boolean }
+  /** 程序已经退出（主窗体关闭） */
+  | { kind: 'exited' }
+  /** 图表的每个系列都至少有这么多个数据点 */
+  | { kind: 'chart'; control: string; points: number }
   /** 摄像头在传画面（on）/ 已关闭（off），或云台比开始时朝某个方向转过 */
   | { kind: 'camera'; state: 'on' | 'off' | 'up' | 'down' | 'left' | 'right' }
   /** 程序用媒体播放器播放了这个文件（如 ring.mp3） */
@@ -51,7 +57,7 @@ export type Expectation =
 /** 期望默认最多等多久（毫秒）；依赖定时器的检查在规则里写 within */
 const DEFAULT_WITHIN = 2000
 
-const PROP_KEYS: Record<string, string> = { text: 'Text', ledText: 'LedText', enabled: 'Enabled', checked: 'Checked', on: 'IsOn', value: 'Value' }
+const PROP_KEYS: Record<string, string> = { text: 'Text', ledText: 'LedText', enabled: 'Enabled', checked: 'Checked', visible: 'Visible', on: 'IsOn', value: 'Value' }
 const STRING_PROPS = new Set(['Text', 'LedText'])
 const NUMBER_PROPS = new Set(['Value'])
 
@@ -86,6 +92,11 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
   if ('media' in raw) return { kind: 'media', name: str(raw.media, where, '播放的文件名') }
   if ('savedImage' in raw) return { kind: 'savedImage', path: str(raw.savedImage, where, '保存的图片路径应包含的文字') }
   if ('relay' in raw) return { kind: 'relay', index: Number(raw.relay), on: bool(raw.on, where, 'on') }
+  if ('window' in raw) return { kind: 'window', name: str(raw.window, where, '窗体名 window'), open: raw.open === undefined ? true : bool(raw.open, where, 'open') }
+  if ('exited' in raw) {
+    if (raw.exited !== true) throw new Error(`${where}：exited 只能写 true`)
+    return { kind: 'exited' }
+  }
   if ('zigbee' in raw) return { kind: 'zigbee', index: Number(raw.zigbee), on: bool(raw.on, where, 'on') }
 
   const control = str(raw.control, where, '控件名 control')
@@ -106,7 +117,17 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
     }
     return { kind: 'row', control, cells, present: 'row' in raw }
   }
-  if ('image' in raw) return { kind: 'image', control }
+  // image: true 或 image: 资源名；background: 资源名
+  for (const [key, prop] of [['image', 'Image'], ['background', 'BackgroundImage']] as const) {
+    if (!(key in raw)) continue
+    const value = raw[key]
+    if (value === true) return { kind: 'image', control, prop }
+    return { kind: 'image', control, prop, name: str(value, where, `${key} 要写 true 或素材库里的资源名`) }
+  }
+  if ('points' in raw) {
+    if (typeof raw.points !== 'number' || raw.points < 1) throw new Error(`${where}：points 要写正整数`)
+    return { kind: 'chart', control, points: raw.points }
+  }
   for (const [key, prop] of Object.entries(PROP_KEYS)) {
     if (key in raw) {
       if (NUMBER_PROPS.has(prop) && typeof raw[key] !== 'number') throw new Error(`${where}：${key} 要写数字`)

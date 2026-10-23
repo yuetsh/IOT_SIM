@@ -2,6 +2,8 @@
 // 检查大部分时间在等定时器，CPU 主要花在编译和启动程序上；2 核的服务器全站同时跑 GRADE_CONCURRENCY 个检查，其余排队。
 import type { CheckResult, ControlNode, GradeResult } from '@iot/shared'
 import { rm } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { config } from '../config'
 import { compileService } from '../compile-service'
 import { gradingDatabaseDir } from '../databases'
 import type { Check, Expectation, Step } from './checks'
@@ -77,6 +79,21 @@ async function runCheck(dir: string, check: Check, sampleId?: string): Promise<C
   }
 }
 
+/**
+ * 素材库图片的编号：运行器按图片内容的 SHA-1 给图片编号（Image.SimKey），
+ * 所以拿素材文件算出的编号和控件属性里的编号相同，就是显示了这张素材。
+ */
+const galleryKeys = new Map<string, string | null>()
+
+async function galleryKey(name: string): Promise<string | null> {
+  if (!galleryKeys.has(name)) {
+    const file = Bun.file(`${dirname(config.runnerDll)}/Resources/gallery/${name}.png`)
+    const key = (await file.exists()) ? new Bun.CryptoHasher('sha1').update(await file.arrayBuffer()).digest('hex') : null
+    galleryKeys.set(name, key)
+  }
+  return galleryKeys.get(name)!
+}
+
 function need(driver: ProgramDriver, name: string): ControlNode {
   const node = driver.find(name)
   if (!node) throw new Failure(`找不到名为 ${name} 的控件（书上规定的控件名，注意大小写）`)
@@ -88,6 +105,11 @@ async function runStep(driver: ProgramDriver, step: Step) {
     case 'click': {
       const node = need(driver, step.control)
       if (node.props.Enabled === false) throw new Failure(`${step.control} 是灰色的（Enabled 为 false），点不了`)
+      // 和浏览器一样：图片框先收到鼠标按下、松开，再收到单击（教材项目 8 的方向键在按下、松开时转动摄像机）
+      if (node.type === 'PictureBox') {
+        driver.act(node, { action: 'mouseDown', button: 'left', x: 1, y: 1 })
+        driver.act(node, { action: 'mouseUp', button: 'left', x: 1, y: 1 })
+      }
       driver.act(node, { action: 'click' })
       await driver.settle()
       break
@@ -193,7 +215,13 @@ async function expectStep(driver: ProgramDriver, step: Extract<Step, { kind: 'ex
     return
   }
 
-  const ok = await driver.waitFor(() => satisfied(driver, e), within)
+  let key: string | undefined
+  if (e.kind === 'image' && e.name) {
+    const found = await galleryKey(e.name)
+    if (!found) throw new Error(`评分规则写错了：素材库里没有图片 ${e.name}`)
+    key = found
+  }
+  const ok = await driver.waitFor(() => satisfied(driver, e, key), within)
   if (!ok) throw new Failure(describeFailure(driver, e, step.desc, wait))
 }
 
@@ -202,11 +230,17 @@ function listItems(node: ControlNode | undefined): string[] | undefined {
   return node?.type === 'ListBox' ? ((node.props.Items as unknown[] | undefined) ?? []).map(String) : undefined
 }
 
-function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'unchanged' }>): boolean {
+/** 控件属性里的图片（{ key, width, height }） */
+const imageKey = (value: unknown) => (value as { key?: string } | null | undefined)?.key
+
+function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'unchanged' }>, imageName?: string): boolean {
   const props = (name: string) => driver.find(name)?.props
   switch (e.kind) {
-    case 'prop':
-      return props(e.control)?.[e.prop] === e.value
+    case 'prop': {
+      if (e.prop !== 'Visible') return props(e.control)?.[e.prop] === e.value
+      const node = driver.find(e.control)
+      return node !== undefined && driver.isVisible(node) === e.value
+    }
     case 'contains': {
       const items = listItems(driver.find(e.control))
       return items ? items.some((item) => item.includes(e.text)) : String(props(e.control)?.Text ?? '').includes(e.text)
@@ -223,8 +257,18 @@ function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'uncha
       return driver.messageBoxes.some((box) => box.text.includes(e.text))
     case 'console':
       return driver.console.includes(e.text)
-    case 'image':
-      return Boolean(props(e.control)?.Image)
+    case 'image': {
+      const key = imageKey(props(e.control)?.[e.prop])
+      return imageName ? key === imageName : Boolean(key)
+    }
+    case 'window':
+      return driver.forms.some((f) => f.name === e.name) === e.open
+    case 'exited':
+      return driver.exited
+    case 'chart': {
+      const series = chartSeries(driver.find(e.control))
+      return series.length > 0 && series.every((s) => s.points.length >= e.points)
+    }
     case 'camera': {
       const { on, x, y } = driver.board.state.camera
       return { on, off: !on, up: y < CAMERA_START.y, down: y > CAMERA_START.y, left: x < CAMERA_START.x, right: x > CAMERA_START.x }[e.state]
@@ -240,6 +284,10 @@ function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'uncha
   }
 }
 
+function chartSeries(node: ControlNode | undefined): { name: string; points: unknown[] }[] {
+  return (node?.props.Chart as { series?: { name: string; points: unknown[] }[] } | undefined)?.series ?? []
+}
+
 function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'unchanged' }>, desc: string | undefined, wait: string): string {
   const prefix = wait ? `${wait}` : ''
   const onOff = (on: boolean) => (on ? '打开' : '关闭')
@@ -248,6 +296,7 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
       const actual = need(driver, e.control).props[e.prop]
       if (e.prop === 'Text' || e.prop === 'LedText') return `期望${prefix} ${e.control} ${desc ?? `显示"${e.value}"`}，实际是${quote(actual)}`
       if (e.prop === 'Enabled') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '可用' : '变成灰色不可用')}，实际${actual === false ? '不可用' : '可用'}`
+      if (e.prop === 'Visible') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '显示出来' : '隐藏')}，实际${driver.isVisible(need(driver, e.control)) ? '显示着' : '是隐藏的'}`
       if (e.prop === 'Checked') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '被选中' : '没有被选中')}，实际${actual ? '被选中' : '没有被选中'}`
       if (e.prop === 'IsOn') return `期望${prefix}窗体上的 ${e.control} ${desc ?? (e.value ? '亮' : '灭')}，实际是${actual ? '亮' : '灭'}的`
       if (e.prop === 'Value') return `期望${prefix} ${e.control} ${desc ?? `的值是 ${String(e.value)}`}，实际是 ${String(actual)}`
@@ -273,8 +322,21 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
     }
     case 'console':
       return `期望${prefix}控制台${desc ?? `输出"${e.text}"`}，实际输出${quote(driver.console.trim())}`
-    case 'image':
-      return `期望${prefix} ${e.control} ${desc ?? '显示图片'}，实际是空的`
+    case 'image': {
+      const what = e.prop === 'Image' ? '图片' : '背景图片'
+      const has = Boolean(imageKey(need(driver, e.control).props[e.prop]))
+      if (!e.name) return `期望${prefix} ${e.control} ${desc ?? `显示${what}`}，实际没有${what}`
+      return `期望${prefix} ${e.control} ${desc ?? `的${what}是 ${e.name}`}，实际${has ? '是别的图片' : `没有${what}`}`
+    }
+    case 'window':
+      return `期望${prefix}${desc ?? (e.open ? `打开 ${e.name} 窗体` : `关闭 ${e.name} 窗体`)}，实际${e.open ? '没有打开' : '还开着'}（现在打开的窗体：${driver.forms.map((f) => f.name).join('、') || '没有'}）`
+    case 'exited':
+      return `期望${prefix}${desc ?? '程序退出'}，实际程序还在运行（打开的窗体：${driver.forms.map((f) => f.name).join('、') || '没有'}）`
+    case 'chart': {
+      const series = chartSeries(driver.find(e.control))
+      const actual = series.length ? series.map((s) => `${s.name} ${s.points.length} 个`).join('、') : '没有数据'
+      return `期望${prefix}图表 ${e.control} ${desc ?? `每条曲线至少有 ${e.points} 个数据点`}，实际${actual}`
+    }
     case 'camera':
       return `期望${prefix}网络摄像机${desc ?? CAMERA_WORDS[e.state]}，实际${driver.board.state.camera.on ? '开着' : '没有开启'}${e.state === 'on' || e.state === 'off' ? '' : '、云台没有朝这个方向转'}`
     case 'savedImage': {
