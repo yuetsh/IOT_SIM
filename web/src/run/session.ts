@@ -109,7 +109,8 @@ export function createRunSession() {
     socket?.send(JSON.stringify(message))
   }
 
-  async function run(files: SourceFile[]) {
+  /** sampleId：当前实验（服务器据此在第一次运行时建好实验预置的数据库） */
+  async function run(files: SourceFile[], sampleId?: string) {
     await connect()
     state.diagnostics = []
     state.console = ''
@@ -121,7 +122,7 @@ export function createRunSession() {
     nodes.clear()
     for (const url of images.values()) URL.revokeObjectURL(url)
     images.clear()
-    send({ type: 'run', files })
+    send({ type: 'run', files, sampleId })
   }
 
   /** 调节实训台环境（滑块、传感器开关） */

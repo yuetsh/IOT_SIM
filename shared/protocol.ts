@@ -155,7 +155,8 @@ export type RunnerInput =
 
 /** 浏览器发给服务器的消息 */
 export type ClientMessage =
-  | { type: 'run'; files: SourceFile[] }
+  /** sampleId：当前实验，第一次运行时自动建好实验预置的数据库（学生还没有这些库时） */
+  | { type: 'run'; files: SourceFile[]; sampleId?: string }
   /** 调节实训台环境：拖动滑块、触发传感器 */
   /** clock：拨到某个时刻（time：yyyy-MM-ddTHH:mm:ss）、改倍速，或 null 恢复真实时间 */
   | { type: 'boardInput'; analog?: Partial<BoardState['analog']>; digital?: Partial<BoardState['digital']>; clock?: { time?: string; speed?: number } | null }

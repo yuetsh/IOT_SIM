@@ -7,7 +7,8 @@ import { languageService } from './language-service'
 import { config } from './config'
 import { openDatabase } from './db'
 import { createGradingQueue } from './grading/queue'
-import { userDatabaseDir } from './databases'
+import { restoreExperimentDatabases, userDatabaseDir } from './databases'
+import { listSamples } from './samples'
 import { cleanupStaleRuns, RunSession } from './run-session'
 import { sqlService } from './sql-service'
 import { checkSandbox, sandboxError } from './sandbox'
@@ -56,6 +57,11 @@ const server = Bun.serve({
       if (!session) return
       if (message.type === 'run') {
         try {
+          const { sampleId } = message
+          if (typeof sampleId === 'string' && (await listSamples()).some((s) => s.id === sampleId)) {
+            // 建库失败不影响运行（程序连不上库时会报出来）
+            await restoreExperimentDatabases(ws.data.userId!, sampleId, true).catch((error) => console.error('自动建实验数据库失败', error))
+          }
           await session.start(message.files)
         } catch (error) {
           ws.send(JSON.stringify({ type: 'serverError', message: String(error) } satisfies ServerMessage))

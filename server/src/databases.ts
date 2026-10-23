@@ -27,16 +27,19 @@ export async function runScript(dir: string, script: string) {
 
 /**
  * 把学生某个实验用到的库恢复成实验的初始数据：只替换脚本里建的库，学生的其他库不动。
+ * onlyMissing 时只建学生还没有的库（第一次运行实验时自动建库，已有的库保留学生的数据）。
  * 返回恢复了哪些库。
  */
-export async function restoreExperimentDatabases(userId: number, sampleId: string) {
+export async function restoreExperimentDatabases(userId: number, sampleId: string, onlyMissing = false) {
   const script = await experimentScript(sampleId)
   if (!script) return []
+  const target = await userDatabaseDir(userId)
+  const existing = new Set(await readdir(target))
+  if (onlyMissing && scriptDatabases(script).every((name) => existing.has(`${name}.db`))) return []
   const temp = await mkdtemp(join(config.runsDir, 'db-'))
   try {
     await runScript(temp, script)
-    const target = await userDatabaseDir(userId)
-    const files = (await readdir(temp)).filter((f) => f.endsWith('.db') && f !== 'master.db')
+    const files = (await readdir(temp)).filter((f) => f.endsWith('.db') && f !== 'master.db' && !(onlyMissing && existing.has(f)))
     for (const file of files) {
       for (const suffix of ['', '-wal', '-shm']) await rm(join(target, file + suffix), { force: true })
       await cp(join(temp, file), join(target, file))
@@ -45,6 +48,11 @@ export async function restoreExperimentDatabases(userId: number, sampleId: strin
   } finally {
     await rm(temp, { recursive: true, force: true })
   }
+}
+
+/** 脚本里 CREATE DATABASE 建的库名 */
+function scriptDatabases(script: string) {
+  return [...script.matchAll(/^\s*CREATE\s+DATABASE\s+\[?([^\s\]]+)\]?/gim)].map((m) => m[1])
 }
 
 /** 评分用：实验数据库的模板按实验缓存，每个检查项复制一份（互不影响） */

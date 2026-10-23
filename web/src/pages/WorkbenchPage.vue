@@ -409,7 +409,10 @@ function restoreOriginal() {
 
 function run() {
   if (running.value) return
-  session.run(files.value.map((f) => ({ ...f })))
+  session.run(
+    files.value.map((f) => ({ ...f })),
+    props.assignmentId ? assignment.value?.sampleId : sampleId.value,
+  )
 }
 </script>
 
