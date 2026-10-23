@@ -41,11 +41,16 @@ internal static class ApiPolicy
         ["System.Runtime.InteropServices.NativeMemory"] = "调用本机代码",
     };
 
-    /// <summary>不允许的类型里单独放行的成员：教材用 AppDomain.CurrentDomain.BaseDirectory 拼出保存照片的路径</summary>
+    /// <summary>
+    /// 不允许的类型里单独放行的成员：教材用 AppDomain.CurrentDomain.BaseDirectory 拼出保存照片的路径；
+    /// 类型的名字（GetType().Name、DataColumn.DataType.Name）只是读名字，没有风险
+    /// </summary>
     private static readonly HashSet<string> AllowedMembers = new()
     {
         "System.AppDomain.CurrentDomain",
         "System.AppDomain.BaseDirectory",
+        "System.Reflection.MemberInfo.Name",
+        "System.Type.FullName",
     };
 
     public static IEnumerable<Diagnostic> Check(CSharpCompilation compilation)

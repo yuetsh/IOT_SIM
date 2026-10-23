@@ -25,8 +25,8 @@ export class ProgramDriver {
   private listeners = new Set<() => void>()
   private lastMessageAt = Date.now()
 
-  start(projectDir: string) {
-    const { cmd, env } = runCommand(projectDir, { SIM_BOARD: JSON.stringify(this.board.runnerInputs()) })
+  start(projectDir: string, dbDir?: string) {
+    const { cmd, env } = runCommand(projectDir, { SIM_BOARD: JSON.stringify(this.board.runnerInputs()) }, dbDir)
     const proc = Bun.spawn(cmd, { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', env })
     this.proc = proc
     void readLines(proc.stdout, (line) => {

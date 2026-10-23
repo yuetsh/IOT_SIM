@@ -277,7 +277,7 @@ function onKeyDown(event: KeyboardEvent) {
 }
 
 // ---------- 工具箱 ----------
-const TOOLBOX_GROUPS = ['常用控件', '容器', '组件', '物联网设备'] as const
+const TOOLBOX_GROUPS = ['常用控件', '容器', '数据', '组件', '物联网设备'] as const
 const ICONS: Record<string, string> = {
   按钮: '▭', 标签: 'A', 文本框: '▤', 下拉框: '☰', 复选框: '☑', 单选按钮: '◉', 分组框: '⬚', 面板: '▢',
   定时器: '⏱', 'LED 显示屏': '▬', 灯泡: '💡', 报警灯: '🚨',

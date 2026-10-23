@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 仿真的 System.Data.SqlClient：教材用 SQL Server，平台底层用 SQLite（每个学生一套数据库文件），
+       T-SQL 语句用 ScriptDom 解析后转写成 SQLite 语句。学生代码编译时引用本程序集。 -->
+  <PropertyGroup>
+    <AssemblyName>Sim.Data</AssemblyName>
+    <RootNamespace>System.Data.SqlClient</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS8618</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 运行器的 SQL 服务（数据库页面、准备实验数据）直接使用执行层 -->
+    <InternalsVisibleTo Include="Sim.Runner" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.140.0" />
+  </ItemGroup>
+</Project>

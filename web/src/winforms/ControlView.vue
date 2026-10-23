@@ -5,6 +5,8 @@ import { computed, inject, ref, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
 import { boxCss, displayText } from './format'
 import { RUN_IMAGES, type ImageValue } from './images'
+import DataGridViewControl from './DataGridViewControl.vue'
+import DateTimePickerControl from './DateTimePickerControl.vue'
 import LedControl from './LedControl.vue'
 
 const props = defineProps<{
@@ -161,6 +163,10 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   >
     <img v-if="imageUrl" :src="imageUrl" :style="imageStyle" alt="" draggable="false" />
   </div>
+
+  <DataGridViewControl v-else-if="node.type === 'DataGridView'" :node="node" :style="style" :enabled="enabled" :act="act" />
+
+  <DateTimePickerControl v-else-if="node.type === 'DateTimePicker'" :node="node" :style="style" :enabled="enabled" :act="act" />
 
   <!-- CheckBox / RadioButton：自绘勾选框，状态完全由运行器决定（点击只上报，不在浏览器里自行切换） -->
   <div

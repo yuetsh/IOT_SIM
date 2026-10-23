@@ -11,6 +11,12 @@ export type Step =
   | { kind: 'click'; control: string }
   | { kind: 'text'; control: string; value: string }
   | { kind: 'select'; control: string; item: string }
+  /** 点数据表格的单元格；column 是列号或列标题 */
+  | { kind: 'cell'; control: string; row: number; column: number | string }
+  /** 在数据表格的单元格里输入新值 */
+  | { kind: 'edit'; control: string; row: number; column: number | string; value: string }
+  /** 在日期时间选择器里选日期（和时间）：2024-01-15 或 2024-01-15 08:30:00 */
+  | { kind: 'pick'; control: string; value: string }
   | { kind: 'board'; analog: Partial<Record<AnalogKey, number>>; digital: Partial<Record<DigitalKey, boolean>> }
   | { kind: 'wait'; ms: number }
   /** desc：给学生看的期望说明，如"显示当前时间"，不写就按期望自动生成 */
@@ -34,6 +40,8 @@ export type Expectation =
   | { kind: 'camera'; state: 'on' | 'off' | 'up' | 'down' | 'left' | 'right' }
   /** 程序用 Image.Save 保存了图片，路径包含这段文字（如 Camera/） */
   | { kind: 'savedImage'; path: string }
+  /** 数据表格里有（present）/ 没有一行同时满足这些"列标题=值" */
+  | { kind: 'row'; control: string; cells: Record<string, string>; present: boolean }
   | { kind: 'console'; text: string }
 
 /** 期望默认最多等多久（毫秒）；依赖定时器的检查在规则里写 within */
@@ -81,6 +89,17 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
     return { kind: 'matches', control, pattern: new RegExp(source), source }
   }
   if ('unchanged' in raw) return { kind: 'unchanged', control, ms: duration(raw.unchanged, where) }
+  if ('row' in raw || 'noRow' in raw) {
+    const list = raw.row ?? raw.noRow
+    if (!Array.isArray(list) || list.length === 0) throw new Error(`${where}：row 要写成 [列标题=值, ...]`)
+    const cells: Record<string, string> = {}
+    for (const item of list) {
+      const [key, ...rest] = String(item).split('=')
+      if (!key || rest.length === 0) throw new Error(`${where}：row 里的 ${item} 要写成 列标题=值`)
+      cells[key.trim()] = rest.join('=').trim()
+    }
+    return { kind: 'row', control, cells, present: 'row' in raw }
+  }
   if ('image' in raw) return { kind: 'image', control }
   for (const [key, prop] of Object.entries(PROP_KEYS)) {
     if (key in raw) return { kind: 'prop', control, prop, value: STRING_PROPS.has(prop) ? String(raw[key]) : bool(raw[key], where, key) }
@@ -121,6 +140,18 @@ function parseStep(raw: unknown, where: string): Step {
       return { kind, control: str(obj.control, where, '控件名 control'), value: String(obj.value ?? '') }
     case 'select':
       return { kind, control: str(obj.control, where, '控件名 control'), item: str(obj.item, where, '要选的项 item') }
+    case 'pick': {
+      const value = str(obj.value, where, '日期 value')
+      if (!/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/.test(value)) throw new Error(`${where}：日期要写成 2024-01-15 或 2024-01-15 08:30:00`)
+      return { kind, control: str(obj.control, where, '控件名 control'), value }
+    }
+    case 'cell':
+    case 'edit': {
+      const control = str(obj.control, where, '控件名 control')
+      if (typeof obj.row !== 'number') throw new Error(`${where}：row 要写行号（从 0 开始）`)
+      const column = typeof obj.column === 'number' ? obj.column : str(obj.column, where, '列号或列标题 column')
+      return kind === 'cell' ? { kind, control, row: obj.row, column } : { kind, control, row: obj.row, column, value: String(obj.value ?? '') }
+    }
     case 'board':
       return parseBoard(obj, where)
     case 'wait':

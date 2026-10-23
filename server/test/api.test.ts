@@ -1,5 +1,6 @@
 // HTTP 接口测试：内存数据库，直接调用 app.fetch。
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+import { rm } from 'node:fs/promises'
 import { createAiQueue, normalizeAiResult } from '../src/ai-review'
 import { createApp } from '../src/app'
 import { ensureTeacher } from '../src/auth'
@@ -7,6 +8,7 @@ import { config } from '../src/config'
 import { openDatabase } from '../src/db'
 import { createGradingQueue, type GradingQueue } from '../src/grading/queue'
 import { languageService } from '../src/language-service'
+import { sqlService } from '../src/sql-service'
 import { loadSample } from '../src/samples'
 
 let app: ReturnType<typeof createApp>
@@ -431,6 +433,55 @@ describe('语言服务', () => {
     const files = [{ path: 'Program.cs', content: 'using System.Threading;\nstatic class P\n{\n    static void Main()\n    {\n        var t = new Thread(() => Thread.Sleep(10));\n        t.Start();\n        t.Suspend();\n        t.Resume();\n        t.Abort();\n    }\n}\n' }]
     const check = await t.post('/api/language', { type: 'diagnostics', session: 'tab2', files })
     expect(check.body.diagnostics).toEqual([])
+  }, 60000)
+})
+
+describe('数据库页面', () => {
+  const saved = config.dataDir
+  // 测试的用户编号会和本机开发环境重复，数据库放到单独的目录
+  beforeAll(async () => {
+    config.dataDir = `${config.runsDir}/test-api-data`
+    await rm(config.dataDir, { recursive: true, force: true })
+  })
+  afterAll(() => {
+    config.dataDir = saved
+    sqlService.stop()
+  })
+
+  test('建库建表、查询；SQL 报错和 SSMS 一样返回编号和信息；每个人只看到自己的库', async () => {
+    const t = await teacher()
+    await classWithStudents(t, [{ username: 's1', name: '甲', password: 'p1' }])
+    const student = new Browser()
+    await student.login('s1', 'p1')
+
+    expect((await t.post('/api/db/query', { database: 'master', sql: 'CREATE DATABASE 测试库' })).body).toMatchObject({ type: 'result', affected: -1 })
+    const created = await t.post('/api/db/query', {
+      database: '测试库',
+      sql: "CREATE TABLE T (ID int IDENTITY(1,1) PRIMARY KEY, name nvarchar(20)); INSERT INTO T (name) VALUES (N'张三'), (N'李四'); SELECT * FROM T WHERE name LIKE N'张%'",
+    })
+    expect(created.body).toMatchObject({ type: 'result', database: '测试库', affected: 2, results: [{ columns: [{ name: 'ID', type: 'int' }, { name: 'name', type: 'nvarchar(20)' }], rows: [[1, '张三']], total: 1 }] })
+
+    const error = await t.post('/api/db/query', { database: '测试库', sql: 'SELECT * FROM 不存在的表' })
+    expect(error.body).toEqual({ type: 'error', number: 208, message: "对象名 '不存在的表' 无效。", line: 1 })
+
+    const explorer = (await t.get('/api/db')).body
+    expect(explorer.databases).toEqual([{ name: '测试库', tables: [{ name: 'T', columns: [
+      { name: 'ID', type: 'int', nullable: false, identity: true, primaryKey: true },
+      { name: 'name', type: 'nvarchar(20)', nullable: true, identity: false, primaryKey: false },
+    ] }] }])
+    expect((await student.get('/api/db')).body.databases).toEqual([])
+    expect((await new Browser().get('/api/db')).status).toBe(401)
+  }, 60000)
+
+  test('恢复实验初始数据：只替换实验用到的库', async () => {
+    const t = await teacher()
+    await t.post('/api/db/query', { database: 'master', sql: 'CREATE DATABASE 我的库' })
+    expect((await t.get('/api/db/experiments')).body.map((e: { id: string }) => e.id)).toContain('p6-t2-存储环境数据')
+    expect((await t.post('/api/db/restore', { sampleId: 'p6-t2-存储环境数据' })).body).toEqual({ databases: ['环境数据表'] })
+    const rows = await t.post('/api/db/query', { database: '环境数据表', sql: 'SELECT COUNT(*) FROM CampusEnvironment' })
+    expect(rows.body.results[0].rows).toEqual([[3]])
+    expect((await t.get('/api/db')).body.databases.map((d: { name: string }) => d.name)).toEqual(['我的库', '测试库', '环境数据表'])
+    expect((await t.post('/api/db/restore', { sampleId: '../etc' })).status).toBe(400)
   }, 60000)
 })
 

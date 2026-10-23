@@ -114,6 +114,12 @@ export type UserAction =
   | { action: 'dropDown' }
   | { action: 'select'; index: number }
   | { action: 'doubleClick' }
+  /** DataGridView：点、双击、修改单元格；column 为 -1 表示行标题 */
+  | { action: 'cellClick'; row: number; column: number }
+  | { action: 'cellDoubleClick'; row: number; column: number }
+  | { action: 'cellEdit'; row: number; column: number; value: string }
+  /** DateTimePicker 选了日期或时间：value 是本地时间 yyyy-MM-ddTHH:mm:ss */
+  | { action: 'pick'; value: string }
   | { action: 'mouseDown'; button: 'left' | 'right'; x: number; y: number }
   | { action: 'mouseUp'; button: 'left' | 'right'; x: number; y: number }
   | { action: 'close' }

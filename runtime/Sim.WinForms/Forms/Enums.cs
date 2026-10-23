@@ -98,3 +98,4 @@ public interface IButtonControl
     void NotifyDefault(bool value);
     void PerformClick();
 }
+public enum LeftRightAlignment { Left, Right }

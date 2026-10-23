@@ -69,6 +69,8 @@ export function previewTree(doc: DesignerDocument): ControlNode {
     })
     // 设计器里不需要滚动：LED 只显示黑底
     if (type === 'WinFormsDeviceControlLibrary.LED') props.LedText = ''
+    // 和 VS 一样显示今天的日期
+    if (type === 'System.Windows.Forms.DateTimePicker') props.Text = previewDate(String(props.Format ?? 'Long'))
     return { id: name, type: clientType(type), name, props, children: childrenOf(doc, name).filter((c) => types.has(c)).map(build) }
   }
   const formProps = propsOf(doc, '')
@@ -79,6 +81,13 @@ export function previewTree(doc: DesignerDocument): ControlNode {
     props: { ClientSize: { width: 300, height: 300 }, ...formProps, Visible: true },
     children: childrenOf(doc, '').filter((c) => types.has(c)).map(build),
   }
+}
+
+function previewDate(format: string) {
+  const now = new Date()
+  const [y, m, d] = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+  const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+  return format === 'Short' ? `${y}/${m}/${d}` : format === 'Time' ? time : `${y}年${m}月${d}日`
 }
 
 /** 非可视组件（Timer 等），显示在窗体下方的组件栏 */

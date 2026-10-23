@@ -37,7 +37,7 @@ export interface ControlDef {
   type: string
   /** 工具箱和属性窗口里显示的中文名（英文类名在鼠标悬停时显示） */
   label: string
-  group: '常用控件' | '容器' | '组件' | '物联网设备'
+  group: '常用控件' | '容器' | '数据' | '组件' | '物联网设备'
   /** 新控件的名字前缀：button → button1 */
   namePrefix: string
   /** 非可视组件（如 Timer）：不在窗体上，显示在窗体下方的组件栏 */
@@ -200,6 +200,59 @@ export const CONTROLS: ControlDef[] = [
     ],
     events: COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
     initial: () => [['Size', size(100, 50)], ['TabStop', bool(false)]],
+  },
+  {
+    type: `${FORMS}.DataGridView`,
+    label: '数据表格',
+    group: '数据',
+    namePrefix: 'dataGridView',
+    defaultEvent: 'CellContentClick',
+    props: [
+      ...COMMON_PROPS.filter((p) => p.name !== 'Text' && p.name !== 'ForeColor'),
+      { name: 'ReadOnly', label: '只读', description: '只读：不能在表格里修改数据', type: 'bool', default: bool(false), category: '行为' },
+      { name: 'AllowUserToAddRows', label: '允许添加行', description: '最下面显示一行空行，可以在里面输入新数据', type: 'bool', default: bool(true), category: '行为' },
+      { name: 'AllowUserToDeleteRows', label: '允许删除行', description: '允许删除行', type: 'bool', default: bool(true), category: '行为' },
+      { name: 'RowHeadersVisible', label: '显示行标题', description: '显示最左边的行标题列', type: 'bool', default: bool(true), category: '外观' },
+      {
+        name: 'SelectionMode', label: '选择方式', description: '点单元格时选中什么', type: 'enum', enumType: `${FORMS}.DataGridViewSelectionMode`,
+        options: ['CellSelect', 'FullRowSelect', 'FullColumnSelect', 'RowHeaderSelect', 'ColumnHeaderSelect'],
+        optionLabels: { CellSelect: '单元格', FullRowSelect: '整行', FullColumnSelect: '整列', RowHeaderSelect: '单元格（点行标题选整行）', ColumnHeaderSelect: '单元格（点列标题选整列）' },
+        default: enumValue(`${FORMS}.DataGridViewSelectionMode`, 'RowHeaderSelect'), category: '行为',
+      },
+      {
+        name: 'AutoSizeColumnsMode', label: '列宽', description: '列宽怎样自动调整', type: 'enum', enumType: `${FORMS}.DataGridViewAutoSizeColumnsMode`,
+        options: ['None', 'Fill'], optionLabels: { None: '固定宽度', Fill: '填满表格宽度' },
+        default: enumValue(`${FORMS}.DataGridViewAutoSizeColumnsMode`, 'None'), category: '布局',
+      },
+    ],
+    events: [
+      ...COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'),
+      { name: 'CellClick', label: '单击单元格', delegate: `${FORMS}.DataGridViewCellEventHandler`, args: 'DataGridViewCellEventArgs' },
+      { name: 'CellContentClick', label: '单击单元格内容', delegate: `${FORMS}.DataGridViewCellEventHandler`, args: 'DataGridViewCellEventArgs' },
+      { name: 'CellDoubleClick', label: '双击单元格', delegate: `${FORMS}.DataGridViewCellEventHandler`, args: 'DataGridViewCellEventArgs' },
+      { name: 'CellValueChanged', label: '单元格的值改变', delegate: `${FORMS}.DataGridViewCellEventHandler`, args: 'DataGridViewCellEventArgs' },
+      { name: 'SelectionChanged', label: '选中改变', ...EVENT },
+    ],
+    initial: () => [['ColumnHeadersHeightSizeMode', enumValue(`${FORMS}.DataGridViewColumnHeadersHeightSizeMode`, 'AutoSize')], ['Size', size(240, 150)]],
+  },
+  {
+    type: `${FORMS}.DateTimePicker`,
+    label: '日期时间选择器',
+    group: '常用控件',
+    namePrefix: 'dateTimePicker',
+    defaultEvent: 'ValueChanged',
+    props: [
+      ...COMMON_PROPS.filter((p) => p.name !== 'Text'),
+      {
+        name: 'Format', label: '格式', description: '日期和时间的显示格式', type: 'enum', enumType: `${FORMS}.DateTimePickerFormat`,
+        options: ['Long', 'Short', 'Time', 'Custom'], optionLabels: { Long: '长日期（2024年1月16日）', Short: '短日期（2024/1/16）', Time: '时间（9:05:03）', Custom: '自定义' },
+        default: enumValue(`${FORMS}.DateTimePickerFormat`, 'Long'), category: '外观',
+      },
+      { name: 'CustomFormat', label: '自定义格式', description: '格式为"自定义"时使用，如 yyyy-MM-dd HH:mm', type: 'string', category: '外观' },
+      { name: 'ShowUpDown', label: '上下箭头', description: '用上下箭头调整，代替下拉日历', type: 'bool', default: bool(false), category: '外观' },
+    ],
+    events: [...COMMON_EVENTS.filter((e) => e.name !== 'TextChanged'), { name: 'ValueChanged', label: '值改变', ...EVENT }],
+    initial: () => [['Size', size(200, 21)]],
   },
   {
     type: `${FORMS}.CheckBox`,

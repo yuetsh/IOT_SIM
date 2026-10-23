@@ -13,6 +13,8 @@ public static class PropValue
     public static JsonNode? From(object? value) => value switch
     {
         null => null,
+        // 控件自己组织好的结构（如 DataGridView 的列和行）原样发送
+        JsonNode node => node.Parent == null ? node : node.DeepClone(),
         string s => JsonValueOf(s),
         bool b => JsonValueOf(b),
         char c => JsonValueOf(c == '\0' ? "" : c.ToString()),

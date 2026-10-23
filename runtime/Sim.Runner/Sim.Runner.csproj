@@ -17,5 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="../Sim.WinForms/Sim.WinForms.csproj" />
     <ProjectReference Include="../Sim.Devices/Sim.Devices.csproj" />
+    <ProjectReference Include="../Sim.Data/Sim.Data.csproj" />
   </ItemGroup>
 </Project>

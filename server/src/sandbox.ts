@@ -8,6 +8,7 @@ import { config } from './config'
 
 const RUNNER_DIR = '/sim/runner'
 const APP_DIR = '/sim/app'
+const DB_DIR = '/sim/db'
 
 /** 学生程序的全部环境变量（不继承服务器的） */
 function runnerEnv(extra: Record<string, string>) {
@@ -62,18 +63,23 @@ export async function checkSandbox() {
     'Ubuntu 23.10 及以上的宿主机还要执行 sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0（见 deploy/README.md）'
 }
 
-/** 启动一次学生程序运行的命令行和环境变量 */
-export function runCommand(projectDir: string, extraEnv: Record<string, string>) {
-  const env = runnerEnv(extraEnv)
+/**
+ * 启动一次学生程序运行的命令行和环境变量。
+ * dbDir：这次运行使用的数据库目录（学生自己的，或评分时的临时目录），学生程序可以读写；不给时程序连不上数据库。
+ */
+export function runCommand(projectDir: string, extraEnv: Record<string, string>, dbDir?: string) {
   if (config.sandbox === 'none') {
+    const env = runnerEnv({ ...extraEnv, ...(dbDir ? { SIM_DB_DIR: dbDir } : {}) })
     return { cmd: ['dotnet', config.runnerDll, 'run', projectDir], env }
   }
+  const env = runnerEnv({ ...extraEnv, ...(dbDir ? { SIM_DB_DIR: DB_DIR } : {}) })
   const cmd = [
     // 学生程序写出死循环时，降低它的优先级，网页服务和编译服务仍然流畅
     'nice', '-n', '10',
     // CPU 时间用完先收到 SIGXCPU 结束，过几秒还在就强制结束
     'prlimit', `--cpu=${config.cpuLimitSeconds}:${config.cpuLimitSeconds + 5}`,
     ...bwrapArgs(projectDir),
+    ...(dbDir ? ['--bind', dbDir, DB_DIR] : []),
     'dotnet', `${RUNNER_DIR}/${config.runnerDll.split('/').pop()}`, 'run', APP_DIR,
   ]
   return { cmd, env }

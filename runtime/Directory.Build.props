@@ -8,5 +8,7 @@
     <!-- 需要 zh-CN 区域设置：日期格式要和中文 Windows 一致 -->
     <InvariantGlobalization>false</InvariantGlobalization>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- 异常堆栈里的源文件路径不暴露服务器上的目录（StudentStackTrace 按 /runtime/Sim. 识别平台自己的代码） -->
+    <PathMap>$(MSBuildThisFileDirectory)=/runtime/</PathMap>
   </PropertyGroup>
 </Project>

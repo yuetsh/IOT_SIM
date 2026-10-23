@@ -3,11 +3,15 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { cp, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { compileService } from '../src/compile-service'
+import { sqlService } from '../src/sql-service'
 import { ROOT } from '../src/config'
 import { parseChecks } from '../src/grading/checks'
 import { grade } from '../src/grading/grader'
 
-afterAll(() => compileService.stop())
+afterAll(() => {
+  compileService.stop()
+  sqlService.stop()
+})
 
 const SAMPLES = resolve(ROOT, 'samples')
 
@@ -31,10 +35,10 @@ async function prepare(id: string, name: string, edit?: { file: string; from: st
 
 describe('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
-  test('每个示例都有评分规则', () => expect(ids.length).toBe(13))
+  test('每个示例都有评分规则', () => expect(ids.length).toBe(15))
   for (const id of ids) {
     test(id, async () => {
-      const result = await grade(await prepare(id, id), await checksOf(id))
+      const result = await grade(await prepare(id, id), await checksOf(id), id)
       expect(result.compiled).toBe(true)
       expect(result.results.filter((r) => !r.passed)).toEqual([])
     }, 60000)
@@ -45,7 +49,7 @@ describe('改坏的代码', () => {
   test('编译不通过时所有项都不通过', async () => {
     const id = 'p2-t1-LED显示屏'
     const dir = await prepare(id, 'compile-error', { file: 'Form1.cs', from: 'led.setLedText(res);', to: 'led.setLedText(res)' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     expect(result.compiled).toBe(false)
     expect(result.results.every((r) => !r.passed && r.message === '编译没有通过，先改正编译错误')).toBe(true)
   }, 60000)
@@ -56,14 +60,14 @@ describe('改坏的代码', () => {
     // 同时把 Designer.cs 里的控件改名，模拟学生没按书上命名
     const designer = resolve(dir, 'Form1.Designer.cs')
     await Bun.write(designer, (await Bun.file(designer).text()).replaceAll('txt_SendText', 'textBox1'))
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     expect(result.results[0]).toMatchObject({ passed: false, message: '找不到名为 txt_SendText 的控件（书上规定的控件名，注意大小写）' })
   }, 60000)
 
   test('判断写反：入侵时显示"正常"', async () => {
     const id = 'p4-t1-红外对射'
     const dir = await prepare(id, 'reversed', { file: 'Form1.cs', from: 'if (DeviceCtrlHelper.adam4150Helper.SetData().infraredValue)', to: 'if (!DeviceCtrlHelper.adam4150Helper.SetData().infraredValue)' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     const realtime = result.results.find((r) => r.title === '能实时显示入侵数据')!
     expect(realtime.passed).toBe(false)
     expect(realtime.message).toBe('期望6 秒内 txt_even 的文字包含"发现入侵"，实际是"正常"')
@@ -74,7 +78,7 @@ describe('改坏的代码', () => {
   test('关闭时忘了停定时器', async () => {
     const id = 'p4-t1-红外对射'
     const dir = await prepare(id, 'timer', { file: 'Form1.cs', from: 'timer1.Stop();', to: '' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     const stop = result.results.find((r) => r.title === '再点按钮能关闭串口、停止定时器')!
     expect(stop.passed).toBe(false)
     expect(stop.message).toStartWith('期望 txt_time 不再更新时间（定时器应已停止），实际从')
@@ -83,15 +87,33 @@ describe('改坏的代码', () => {
   test('摄像机：忘了绑定画面事件', async () => {
     const id = 'p4-t2-网络摄像机'
     const dir = await prepare(id, 'camera', { file: 'Form1.cs', from: 'DeviceCtrlHelper.ipCameraHelper.ImageRead += ipCameraHelper_ImageRead;', to: '' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     expect(result.results.map((r) => r.passed)).toEqual([true, false, true, false])
     expect(result.results[1].message).toBe('期望3 秒内 pictureBox1 显示摄像机拍到的图像，实际是空的')
+  }, 60000)
+
+  test('数据库：照书上 INSERT 不写列名，温度和光照存反了', async () => {
+    const id = 'p6-t2-存储环境数据'
+    const dir = await prepare(id, 'insert-order', { file: 'Form1.cs', from: 'insert into CampusEnvironment (temperature, humidity, light, addtime) values', to: 'insert into CampusEnvironment  values' })
+    const result = await grade(dir, await checksOf(id), id)
+    const save = result.results.find((r) => r.title === '能把数据保存到数据库，并显示在表格中')!
+    expect(save.passed).toBe(false)
+    expect(save.message).toContain('期望数据表格 dataGridView1 表格里有刚保存的一行，温度、湿度、光照度各在对应的列，实际表格里是：')
+    expect(save.message).toContain('4 | 733 | 42 | 31')
+  }, 60000)
+
+  test('数据库：照书上漏写 ds = new DataSet()，查询时程序出错', async () => {
+    const id = 'p6-t3-按时间查询'
+    const dir = await prepare(id, 'no-dataset', { file: 'Form1.cs', from: '            ds = new DataSet();\n', to: '' })
+    const result = await grade(dir, await checksOf(id), id)
+    expect(result.results[0].passed).toBe(false)
+    expect(result.results[0].message).toStartWith('程序出错：System.ArgumentNullException')
   }, 60000)
 
   test('关闭时忘了挂起线程', async () => {
     const id = 'p5-t2-烟雾'
     const dir = await prepare(id, 'thread', { file: 'Form1.cs', from: 'thd.Suspend();//挂起线程', to: '' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     const stop = result.results.find((r) => r.title === '再点按钮能关闭串口、挂起线程，再次打开时线程继续')!
     expect(stop.passed).toBe(false)
     expect(stop.message).toStartWith('期望 txt_time 不再更新时间（线程应已挂起），实际从')
@@ -100,14 +122,14 @@ describe('改坏的代码', () => {
   test('历史灾情窗体没有把数组里的记录加入列表框', async () => {
     const id = 'p5-t3-推送灾情'
     const dir = await prepare(id, 'listbox', { file: 'Form2.cs', from: 'lstbRecored.Items.Add(', to: 'Console.WriteLine(' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     expect(result.results[2]).toMatchObject({ passed: false, message: '期望 lstbRecored 列表里有"发现火情"的记录，实际列表是空的' })
   }, 60000)
 
   test('报警灯接错了 DO 口', async () => {
     const id = 'p4-t3-报警灯'
     const dir = await prepare(id, 'relay', { file: 'Form1.cs', from: 'DeviceCtrlHelper.adam4150Helper.OnOff(0, IsOpen);', to: 'DeviceCtrlHelper.adam4150Helper.OnOff(1, IsOpen);' })
-    const result = await grade(dir, await checksOf(id))
+    const result = await grade(dir, await checksOf(id), id)
     expect(result.results[0]).toMatchObject({ passed: false, message: '期望实训台的报警灯（ADAM-4150 DO0）打开，实际是关闭的' })
   }, 60000)
 })

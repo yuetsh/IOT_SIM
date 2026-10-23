@@ -27,8 +27,12 @@ internal static class StudentProgramHost
         Console.SetOut(console);
         Console.SetIn(TextReader.Null); // 标准输入用于协议，学生的 Console.ReadLine 读不到内容
 
-        // 和中文 Windows 一致：DateTime.ToString() 等按 zh-CN 格式输出
-        var zhCN = CultureInfo.GetCultureInfo("zh-CN");
+        // 和中文 Windows 一致：DateTime.ToString() 等按 zh-CN 格式输出。
+        // Linux 上的区域数据把时间写成 09:05:03，中文 Windows 是 9:05:03（书上的截图也是），这里改成 Windows 的写法
+        var zhCN = (CultureInfo)CultureInfo.GetCultureInfo("zh-CN").Clone();
+        zhCN.DateTimeFormat.LongTimePattern = "H:mm:ss";
+        zhCN.DateTimeFormat.ShortTimePattern = "H:mm";
+        zhCN = CultureInfo.ReadOnly(zhCN);
         CultureInfo.DefaultThreadCurrentCulture = zhCN;
         CultureInfo.DefaultThreadCurrentUICulture = zhCN;
         CultureInfo.CurrentCulture = zhCN;

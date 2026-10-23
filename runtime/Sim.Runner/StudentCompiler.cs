@@ -27,7 +27,7 @@ internal static class StudentCompiler
         "System.Drawing.dll",
     };
 
-    private static readonly string[] SimAssemblies = { "Sim.WinForms.dll", "Sim.Devices.dll" };
+    private static readonly string[] SimAssemblies = { "Sim.WinForms.dll", "Sim.Devices.dll", "Sim.Data.dll" };
 
     public sealed record Result(bool Success, byte[] Assembly, byte[] Pdb, JsonArray Diagnostics);
 

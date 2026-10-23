@@ -13,6 +13,9 @@ public sealed class UserAction
     public string Button { get; init; } = "left";
     public int X { get; init; }
     public int Y { get; init; }
+    /// <summary>DataGridView 的单元格：行号、列号（-1 表示行标题）</summary>
+    public int Row { get; init; } = -1;
+    public int Column { get; init; } = -1;
 
     public static UserAction FromJson(JsonObject json) => new()
     {
@@ -22,5 +25,7 @@ public sealed class UserAction
         Button = (string?)json["button"] ?? "left",
         X = (int?)json["x"] ?? 0,
         Y = (int?)json["y"] ?? 0,
+        Row = (int?)json["row"] ?? -1,
+        Column = (int?)json["column"] ?? -1,
     };
 }

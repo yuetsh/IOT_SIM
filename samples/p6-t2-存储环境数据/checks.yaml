@@ -1,0 +1,44 @@
+# 评分规则：书上评价表的功能项。每项单独启动一次程序（使用 database.sql 建的初始数据库），按步骤操作，核对结果。
+# 格式说明见 server/src/grading/checks.ts
+- title: 能正确显示光照度、温度、湿度
+  steps:
+    - select: { control: com_port, item: COM2 }
+    - click: btn_Open
+    - expect: { control: btn_Open, text: 关闭, desc: 按钮文字变成"关闭" }
+    - board: { light: 733, temperature: 31, humidity: 42 }
+    - click: btn_get
+    - expect: { control: txt_light, text: '733' }
+    - expect: { control: txt_temperature, text: '31' }
+    - expect: { control: txt_humidity, text: '42' }
+
+- title: 能把数据保存到数据库，并显示在表格中
+  steps:
+    - select: { control: com_port, item: COM2 }
+    - click: btn_Open
+    - board: { light: 733, temperature: 31, humidity: 42 }
+    - click: btn_get
+    - click: btn_save
+    - expect: { messageBox: 保存成功 }
+    - expect: { control: dataGridView1, row: [温度=31, 湿度=42, 光照度=733], desc: 表格里有刚保存的一行，温度、湿度、光照度各在对应的列 }
+
+- title: 能删除选中的数据
+  steps:
+    - select: { control: com_port, item: COM2 }
+    - click: btn_Open
+    - click: btn_get
+    - click: btn_save
+    - cell: { control: dataGridView1, row: 0, column: 0 }
+    - click: btnDelete
+    - expect: { messageBox: 删除成功 }
+    - expect: { control: dataGridView1, noRow: [编号=1], desc: 第 1 行（编号为 1）已被删除 }
+
+- title: 能在表格中修改数据并保存
+  steps:
+    - select: { control: com_port, item: COM2 }
+    - click: btn_Open
+    - click: btn_get
+    - click: btn_save
+    - edit: { control: dataGridView1, row: 1, column: 温度, value: '35' }
+    - click: btnUpdate
+    - expect: { messageBox: 修改成功 }
+    - expect: { control: dataGridView1, row: [编号=2, 温度=35], desc: 编号为 2 的一行温度改成了 35 }

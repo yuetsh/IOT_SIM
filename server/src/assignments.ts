@@ -168,8 +168,12 @@ export function pendingSubmissionIds(db: Database): number[] {
 }
 
 export function submissionForGrading(db: Database, id: number) {
-  const row = db.query<{ assignment_id: number; files: string }, [number]>('SELECT assignment_id, files FROM submissions WHERE id = ?').get(id)
-  return row ? { assignmentId: row.assignment_id, files: JSON.parse(row.files) as SourceFile[] } : null
+  const row = db
+    .query<{ assignment_id: number; files: string; sample_id: string }, [number]>(
+      'SELECT s.assignment_id, s.files, a.sample_id FROM submissions s JOIN assignments a ON a.id = s.assignment_id WHERE s.id = ?',
+    )
+    .get(id)
+  return row ? { assignmentId: row.assignment_id, sampleId: row.sample_id, files: JSON.parse(row.files) as SourceFile[] } : null
 }
 
 export function saveGrade(db: Database, id: number, result: GradeResult | null) {

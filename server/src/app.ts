@@ -20,7 +20,10 @@ import { parseChecks } from './grading/checks'
 import { languageService } from './language-service'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
+import { config } from './config'
+import { restoreExperimentDatabases, userDatabaseDir } from './databases'
 import { listSamples, loadChecks, loadSample } from './samples'
+import { SqlError, sqlService } from './sql-service'
 import { serveStatic } from './static'
 import { deleteWork, getWork, saveWork, validFiles, validScreenshots } from './works'
 
@@ -108,6 +111,34 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   app.delete('/api/works/:key', (c) => {
     deleteWork(db, c.get('user').id, c.req.param('key'))
     return c.json({})
+  })
+
+  // ---- 数据库页面（代替 SSMS）：每个用户只能访问自己的数据库 ----
+  app.get('/api/db', async (c) => c.json(await sqlService.request({ type: 'explorer', dir: await userDatabaseDir(c.get('user').id) })))
+
+  /** 执行 T-SQL；SQL 报错时返回 200 和 error（和 SSMS 的消息栏一样显示，不是请求失败） */
+  app.post('/api/db/query', async (c) => {
+    const { database, sql } = await body<{ database: string; sql: string }>(c)
+    if (typeof sql !== 'string' || sql.length > 100_000 || typeof database !== 'string' || database.length > 64) return c.json({ message: '请求格式不对' }, 400)
+    try {
+      return c.json(await sqlService.request({ type: 'exec', dir: await userDatabaseDir(c.get('user').id), database, sql }))
+    } catch (error) {
+      if (error instanceof SqlError) return c.json({ type: 'error', number: error.number, message: error.message, line: error.line })
+      throw error
+    }
+  })
+
+  /** 有预置数据库的实验（数据库页面"恢复实验初始数据"的选项） */
+  app.get('/api/db/experiments', async (c) => {
+    const samples = await listSamples()
+    const withDb = await Promise.all(samples.map(async (s) => ((await Bun.file(`${config.samplesDir}/${s.id}/database.sql`).exists()) ? s : null)))
+    return c.json(withDb.filter((s) => s !== null))
+  })
+
+  app.post('/api/db/restore', async (c) => {
+    const { sampleId } = await body<{ sampleId: string }>(c)
+    if (typeof sampleId !== 'string' || !(await listSamples()).some((s) => s.id === sampleId)) return c.json({ message: '没有这个实验' }, 400)
+    return c.json({ databases: await restoreExperimentDatabases(c.get('user').id, sampleId) })
   })
 
   // ---- 作业（学生） ----

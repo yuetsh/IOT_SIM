@@ -31,7 +31,11 @@ export class RunSession {
   /** 同一会话的多次"运行"排队依次执行，避免两次启动交错 */
   private queue = Promise.resolve()
 
-  constructor(private readonly send: (message: ServerMessage) => void) {
+  /** dbDir：这个用户的数据库目录（运行时挂进沙箱，程序可以读写） */
+  constructor(
+    private readonly send: (message: ServerMessage) => void,
+    private readonly dbDir?: () => Promise<string>,
+  ) {
     this.sendBoard()
   }
 
@@ -75,7 +79,7 @@ export class RunSession {
     }
 
     // 启动时就带上传感器读数，学生程序第一次 SetData() 前不必等消息
-    const { cmd, env } = runCommand(dir, { SIM_BOARD: JSON.stringify(this.board.runnerInputs()) })
+    const { cmd, env } = runCommand(dir, { SIM_BOARD: JSON.stringify(this.board.runnerInputs()) }, await this.dbDir?.())
     const proc = Bun.spawn(cmd, { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', env })
     this.proc = proc
     liveRuns++

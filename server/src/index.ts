@@ -7,7 +7,9 @@ import { languageService } from './language-service'
 import { config } from './config'
 import { openDatabase } from './db'
 import { createGradingQueue } from './grading/queue'
+import { userDatabaseDir } from './databases'
 import { cleanupStaleRuns, RunSession } from './run-session'
+import { sqlService } from './sql-service'
 import { checkSandbox, sandboxError } from './sandbox'
 
 await cleanupStaleRuns()
@@ -20,6 +22,7 @@ const aiQueue = createAiQueue(db)
 const app = createApp(db, createGradingQueue(db, (id) => aiQueue.enqueue(id)), aiQueue)
 
 interface SocketData {
+  userId?: number
   session?: RunSession
 }
 
@@ -29,8 +32,9 @@ const server = Bun.serve({
     const url = new URL(req.url)
     if (url.pathname === '/ws') {
       // 浏览器的 WebSocket 不能带请求头，令牌放在网址参数里
-      if (!(await tokenUser(db, url.searchParams.get('token')))) return new Response('请先登录', { status: 401 })
-      if (server.upgrade(req, { data: {} })) return
+      const user = await tokenUser(db, url.searchParams.get('token'))
+      if (!user) return new Response('请先登录', { status: 401 })
+      if (server.upgrade(req, { data: { userId: user.id } })) return
       return new Response('WebSocket 升级失败', { status: 400 })
     }
     return app.fetch(req, server)
@@ -38,7 +42,8 @@ const server = Bun.serve({
   websocket: {
     data: {} as SocketData,
     open(ws) {
-      ws.data.session = new RunSession((message) => ws.send(JSON.stringify(message)))
+      const userId = ws.data.userId!
+      ws.data.session = new RunSession((message) => ws.send(JSON.stringify(message)), () => userDatabaseDir(userId))
     },
     async message(ws, raw) {
       let message: ClientMessage
@@ -72,5 +77,5 @@ const server = Bun.serve({
 })
 
 console.log(`服务器已启动：http://localhost:${server.port}`)
-await Promise.all([compileService.start(), languageService.start()])
+await Promise.all([compileService.start(), languageService.start(), sqlService.start()])
 console.log('C# 编译服务已就绪')

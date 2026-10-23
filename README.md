@@ -10,7 +10,7 @@
 | `web/` | Vue 3 前端：代码编辑、虚拟窗体渲染、虚拟实训台 |
 | `server/` | Bun 后端：示例工程接口，WebSocket 会话，为每次运行启动一个 C# 运行器 |
 | `shared/` | 浏览器、服务器、运行器之间的消息协议（`protocol.ts`） |
-| `runtime/` | .NET 10：仿真 WinForms（`Sim.WinForms`）、教材设备类库（`Sim.Devices`）、运行器（`Sim.Runner`） |
+| `runtime/` | .NET 10：仿真 WinForms（`Sim.WinForms`）、教材设备类库（`Sim.Devices`）、仿冒 SqlClient（`Sim.Data`，T-SQL 转写成 SQLite）、运行器（`Sim.Runner`） |
 | `samples/` | 示例工程（按教材任务整理） |
 | `docs/` | 设计方案（`设计方案.md`）、教材逐任务摘要（`教材摘要/`） |
 | `deploy/` | 部署：Caddyfile、部署脚本和说明（`deploy/README.md`） |
@@ -39,12 +39,13 @@ bun test/load.ts 100  # 压力测试：同时运行 100 个学生程序
 
 Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到 GitHub 的 main 后，GitHub Actions 跑完测试，SSH 到服务器执行 `deploy/update.sh`：服务器从 git.xuyue.cc 拉代码、构建镜像、重启。详见 [deploy/README.md](deploy/README.md)。
 
-## 运行器的三种模式
+## 运行器的四种模式
 
 `Sim.Runner` 通过标准输入输出与 Bun 服务器交换 JSON 消息（每行一条）：
 
 - `compile-server`：常驻编译服务，全服务器共用一个。Roslyn 只加载一次，编译结果写回工程目录。
 - `language-server`：常驻语言服务，全服务器共用一个：代码补全、悬停提示、参数提示、边写边检查。
+- `sql-server`：常驻 SQL 服务，全服务器共用一个：数据库页面的查询和对象资源管理器，评分前按实验的 `database.sql` 建库。学生的数据库在 `data/databases/<用户编号>/`，每个库一个 SQLite 文件。
 - `run <工程目录>`：运行已编译的学生程序，每次运行一个进程，不加载编译器。
 
 ## 当前进度：第 0 阶段（技术验证）已跑通
@@ -67,7 +68,7 @@ Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到
 
 - **虚拟实训台**：按教材实训台布局图排列（红外对射、警示灯、LED 屏、照明灯、人体红外、温湿度、光照、烟雾、火焰、ADAM 模块）。每个浏览器会话一台，状态由服务器统一保存：传感器读数由网页上的滑块和开关设定，经服务器推给学生程序；灯、继电器、LED 屏由学生程序控制。
 - 新控件：CheckBox、RadioButton（事件顺序与 WinForms 一致）、ListBox、PictureBox，教材控件库的 Lamp、Alarm。
-- 示例工程（按书上代码整理）：项目 1 任务 1–2、项目 2 任务 1–3、项目 3 任务 1–2、项目 4 任务 1–3、项目 5 任务 1–3，共 13 个。网址带 `?sample=示例编号` 可直接打开指定示例。
+- 示例工程（按书上代码整理）：项目 1 任务 1–2、项目 2 任务 1–3、项目 3 任务 1–2、项目 4 任务 1–3、项目 5 任务 1–3、项目 6 任务 2–3，共 15 个（项目 6 任务 1 在数据库页面上完成）。网址带 `?sample=示例编号` 可直接打开指定示例。
 - 代码编辑器（Monaco）：C# 高亮、编译错误波浪线、点错误跳到对应行、F5 运行 / Shift+F5 停止、草稿自动保存在浏览器本地。
 - 窗体设计器（仿 VS，界面中文）：工具箱、拖放与改大小、属性窗口、事件窗口、双击生成事件处理方法、撤销 / 重做；读写 VS 格式的 Designer.cs。
 - 多窗体：新建、删除窗体；运行时多个窗口可切换前后。
@@ -77,4 +78,4 @@ Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到
 
 尚未完成：
 
-- 教材项目 6–8（需要数据库、TrackBar、资源图片、图表、虚拟时钟）。
+- 教材项目 7–8（需要 TrackBar、资源图片、图表、虚拟时钟、无边框窗体等）。

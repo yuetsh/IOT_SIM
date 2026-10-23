@@ -1,7 +1,7 @@
 // 端到端测试：直接启动 C# 运行器，模拟浏览器操作，检查教材示例工程的行为。
 // 运行前先编译运行时：bun run build:runtime
 import { afterAll, afterEach, describe, expect, test } from 'bun:test'
-import { cp, rm } from 'node:fs/promises'
+import { cp, mkdir, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ControlNode, RunnerInput, RunnerMessage } from '@iot/shared'
 import { compileService } from '../src/compile-service'
@@ -15,12 +15,12 @@ class Runner {
   private waiters: { match: (m: RunnerMessage) => boolean; resolve: (m: RunnerMessage) => void }[] = []
 
   /** 与服务器相同的流程：先由编译服务编译，成功后启动运行进程 */
-  static async start(projectDir: string) {
+  static async start(projectDir: string, dbDir?: string) {
     const runner = new Runner()
     const compiled = await compileService.compile(projectDir)
     runner.receive({ type: 'compiled', ...compiled })
     if (compiled.ok) {
-      const { cmd, env } = runCommand(projectDir, {})
+      const { cmd, env } = runCommand(projectDir, {}, dbDir)
       runner.proc = Bun.spawn(cmd, { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit', env })
       runner.reading = runner.read()
     }
@@ -417,14 +417,14 @@ test('项目5 任务2：照书上直接 Abort 挂起的线程，和 .NET Framewo
 }, 30000)
 
 /** 把一段 Main 方法体写成工程并运行，收集它的控制台输出 */
-async function runMain(name: string, body: string, usings = '') {
+async function runMain(name: string, body: string, usings = '', dbDir?: string) {
   const dir = resolve(ROOT, '.runs', `test-${name}`)
   await rm(dir, { recursive: true, force: true })
   await Bun.write(
     `${dir}/Program.cs`,
     `using System;\nusing System.IO;\nusing System.Linq;\n${usings}\nstatic class Program\n{\n    static void Main()\n    {\n${body}\n    }\n}\n`,
   )
-  runner = await Runner.start(dir)
+  runner = await Runner.start(dir, dbDir)
   return { runner, dir }
 }
 
@@ -542,6 +542,92 @@ test('图片：程序所在目录可写，Image.Save / FromFile 往返，文件�
   expect(output).toContain('size=1x1,Png')
   expect(output).toContain('error=GDI+ 中发生一般性错误。')
   expect(runner.messages.filter((m) => m.type === 'imageSaved').map((m) => (m as { path: string }).path)).toEqual(['Pics/a.png'])
+}, 30000)
+
+test('数据库：照书上的写法建库建表、插入、查询、SqlCommandBuilder 修改、删除、按时间段查询；报错和 SQL Server 一样', async () => {
+  const dbDir = resolve(ROOT, '.runs', 'test-db-data')
+  await rm(dbDir, { recursive: true, force: true })
+  await mkdir(dbDir, { recursive: true })
+  const { runner } = await runMain(
+    'database',
+    `
+        var master = new SqlConnection(@"Data Source= PC-20150908SCJF\\SQLSERVER1026;User ID=sa;Password=123456");
+        master.Open();
+        new SqlCommand("CREATE DATABASE 环境数据表", master).ExecuteNonQuery();
+        master.Close();
+
+        string cs = @"Data Source=.;Initial Catalog=环境数据表;User ID=sa;Password=123456";
+        var conn = new SqlConnection(cs);
+        conn.Open();
+        new SqlCommand("CREATE TABLE CampusEnvironment (ID int IDENTITY(1,1) PRIMARY KEY, light varchar(50), humidity varchar(50), temperature varchar(50), addtime datetime)", conn).ExecuteNonQuery();
+        // 书上的写法：不写列名，值的顺序是温度、湿度、光照（和建表的列顺序不一样）
+        string temperature = "25", humidity = "60", light = "500";
+        int n = new SqlCommand("insert into CampusEnvironment  values (" + temperature + "," + humidity + "," + light + ", '" + new DateTime(2024, 1, 16, 9, 5, 3).ToString() + "')", conn).ExecuteNonQuery();
+        Console.WriteLine("inserted=" + n);
+        new SqlCommand("insert into CampusEnvironment (light, humidity, temperature, addtime) values ('300', '55', '18', '2024/1/20 14:42:00')", conn).ExecuteNonQuery();
+        new SqlCommand("insert into CampusEnvironment (light, humidity, temperature, addtime) values ('100', '50', '20', '2024-01-25 08:00:00')", conn).ExecuteNonQuery();
+
+        var adapter = new SqlDataAdapter(new SqlCommand("select ID as '编号',temperature as '温度',humidity as '湿度',light as '光照度', addtime as '时间' from CampusEnvironment", conn));
+        var ds = new DataSet();
+        adapter.Fill(ds);
+        var t = ds.Tables[0];
+        Console.WriteLine("columns=" + string.Join(",", t.Columns.Cast<DataColumn>().Select(c => c.ColumnName + ":" + c.DataType.Name)));
+        Console.WriteLine("row0=" + string.Join("|", t.Rows[0].ItemArray));
+
+        // 修改：改 DataTable 里的一格，SqlCommandBuilder 生成 UPDATE
+        var builder = new SqlCommandBuilder(adapter);
+        adapter.UpdateCommand = builder.GetUpdateCommand();
+        t.Rows[0]["温度"] = "26";
+        Console.WriteLine("updated=" + adapter.Update(t));
+        Console.WriteLine("check=" + new SqlCommand("select temperature from CampusEnvironment where ID=1", conn).ExecuteScalar());
+
+        Console.WriteLine("deleted=" + new SqlCommand("delete from CampusEnvironment where id=" + t.Rows[2][0].ToString(), conn).ExecuteNonQuery());
+
+        // 任务 3：BETWEEN 拼接 DateTime.ToString()（中文格式）
+        var ds2 = new DataSet();
+        new SqlDataAdapter(new SqlCommand("select * from CampusEnvironment where addtime BETWEEN '" + new DateTime(2024, 1, 16).ToString() + "' AND '" + new DateTime(2024, 1, 18).ToString() + "'", conn)).Fill(ds2);
+        Console.WriteLine("between=" + ds2.Tables[0].Rows.Count);
+        var reader = new SqlCommand("select count(*), max(addtime), CONVERT(varchar(10), addtime, 120) as d from CampusEnvironment group by CONVERT(varchar(10), addtime, 120) order by d", conn).ExecuteReader();
+        while (reader.Read()) Console.WriteLine("group=" + reader.GetInt32(0) + "," + reader.GetDateTime(1).ToString("HH:mm") + "," + reader["d"]);
+        reader.Close();
+
+        foreach (var sql in new[] { "select * from NoSuchTable", "selec * from CampusEnvironment", "insert into CampusEnvironment values (1, 2)", "insert into CampusEnvironment (ID, light) values (5, '1')", "select nosuch from CampusEnvironment", "insert into CampusEnvironment (addtime) values ('abc')" })
+        {
+            try { new SqlCommand(sql, conn).ExecuteNonQuery(); }
+            catch (SqlException ex) { Console.WriteLine("error=" + ex.Number + " " + ex.Message); }
+        }
+        try { new SqlConnection("Data Source=.;Initial Catalog=NoDb").Open(); }
+        catch (SqlException ex) { Console.WriteLine("error=" + ex.Number + " " + ex.Message); }`,
+    'using System.Data;\nusing System.Data.SqlClient;',
+    dbDir,
+  )
+  const compiled = await runner.waitFor('compiled')
+  expect(compiled.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  const errors = runner.messages.filter((m) => m.type === 'exception')
+  expect(errors).toEqual([])
+  for (const line of [
+    'inserted=1',
+    'columns=编号:Int32,温度:String,湿度:String,光照度:String,时间:DateTime',
+    // 书上的列顺序错位：光照存了温度的值
+    'row0=1|500|60|25|2024/1/16 9:05:03',
+    'updated=1',
+    'check=26',
+    'deleted=1',
+    'between=1',
+    'group=1,09:05,2024-01-16',
+    'group=1,14:42,2024-01-20',
+    "error=208 对象名 'NoSuchTable' 无效。",
+    "error=102 'selec' 附近有语法错误。",
+    'error=213 列名或所提供值的数目与表定义不匹配。',
+    "error=544 当 IDENTITY_INSERT 设置为 OFF 时，不能为表 'CampusEnvironment' 中的标识列插入显式值。",
+    "error=207 列名 'nosuch' 无效。",
+    'error=241 从字符串转换日期和/或时间时，转换失败。',
+    'error=4060 无法打开登录所请求的数据库 "NoDb"。登录失败。',
+  ]) {
+    expect(output).toContain(line)
+  }
 }, 30000)
 
 test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读', async () => {

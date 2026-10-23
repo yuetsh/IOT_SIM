@@ -27,7 +27,7 @@ export function createGradingQueue(db: Database, onGraded: (submissionId: number
         await mkdir(dirname(target), { recursive: true })
         await Bun.write(target, file.content)
       }
-      saveGrade(db, id, await grade(dir, checks))
+      saveGrade(db, id, await grade(dir, checks, submission.sampleId))
       onGraded(id)
     } catch (error) {
       console.error(`评分出错（提交 ${id}）：`, error)

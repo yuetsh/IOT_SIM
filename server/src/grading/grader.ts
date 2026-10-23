@@ -1,7 +1,9 @@
 // 自动评分：编译一次学生工程，每个检查项各启动一次程序，按步骤操作并核对结果。
 // 检查大部分时间在等定时器，CPU 主要花在编译和启动程序上；2 核的服务器全站同时跑 GRADE_CONCURRENCY 个检查，其余排队。
 import type { CheckResult, ControlNode, GradeResult } from '@iot/shared'
+import { rm } from 'node:fs/promises'
 import { compileService } from '../compile-service'
+import { gradingDatabaseDir } from '../databases'
 import type { Check, Expectation, Step } from './checks'
 import { ProgramDriver } from './driver'
 
@@ -30,8 +32,8 @@ async function withSlot<T>(task: () => Promise<T>): Promise<T> {
   }
 }
 
-/** 给学生工程评分；dir 是已写好源文件的工程目录 */
-export async function grade(dir: string, checks: Check[]): Promise<GradeResult> {
+/** 给学生工程评分；dir 是已写好源文件的工程目录，sampleId 决定用哪个实验的预置数据库（每个检查项一份） */
+export async function grade(dir: string, checks: Check[], sampleId?: string): Promise<GradeResult> {
   const start = Date.now()
   const compiled = await compileService.compile(dir)
   if (!compiled.ok) {
@@ -41,16 +43,17 @@ export async function grade(dir: string, checks: Check[]): Promise<GradeResult> 
       ms: Date.now() - start,
     }
   }
-  const results = await Promise.all(checks.map((check) => withSlot(() => runCheck(dir, check))))
+  const results = await Promise.all(checks.map((check) => withSlot(() => runCheck(dir, check, sampleId))))
   return { compiled: true, results, ms: Date.now() - start }
 }
 
 class Failure extends Error {}
 
-async function runCheck(dir: string, check: Check): Promise<CheckResult> {
+async function runCheck(dir: string, check: Check, sampleId?: string): Promise<CheckResult> {
   const driver = new ProgramDriver()
+  const dbDir = sampleId ? await gradingDatabaseDir(sampleId) : undefined
   try {
-    driver.start(dir)
+    driver.start(dir, dbDir)
     if (!(await driver.waitFor(() => driver.forms.length > 0 || driver.exited, START_TIMEOUT)) || driver.forms.length === 0) {
       throw new Failure(driver.exceptions[0] ? `程序出错：${driver.exceptions[0]}` : '程序启动后没有显示窗体')
     }
@@ -64,6 +67,7 @@ async function runCheck(dir: string, check: Check): Promise<CheckResult> {
     throw error
   } finally {
     driver.stop()
+    if (dbDir) await rm(dbDir, { recursive: true, force: true })
   }
 }
 
@@ -103,6 +107,28 @@ async function runStep(driver: ProgramDriver, step: Step) {
       await driver.settle()
       break
     }
+    case 'cell':
+    case 'edit': {
+      const node = need(driver, step.control)
+      if (node.type !== 'DataGridView') throw new Failure(`${step.control} 不是数据表格`)
+      const rows = gridRows(node)
+      if (step.row >= rows.length) throw new Failure(`数据表格 ${step.control} 里没有第 ${step.row + 1} 行（现在有 ${rows.length} 行数据）`)
+      const column = typeof step.column === 'number' ? step.column : gridColumns(node).findIndex((c) => c.header === step.column || c.name === step.column)
+      if (column < 0) throw new Failure(`数据表格 ${step.control} 里没有"${step.column}"列（现在的列：${gridColumns(node).map((c) => c.header).join('、') || '没有'}）`)
+      driver.act(node, { action: 'cellClick', row: step.row, column })
+      if (step.kind === 'edit') driver.act(node, { action: 'cellEdit', row: step.row, column, value: step.value })
+      await driver.settle()
+      break
+    }
+    case 'pick': {
+      const node = need(driver, step.control)
+      if (node.type !== 'DateTimePicker') throw new Failure(`${step.control} 不是日期时间选择器`)
+      // 只给日期时：时间取中午，查询"某天到某天"时不受时分影响
+      const [date, time = '12:00:00'] = step.value.split(' ')
+      driver.act(node, { action: 'pick', value: `${date}T${time.length === 5 ? `${time}:00` : time}` })
+      await driver.settle()
+      break
+    }
     case 'board':
       driver.setBoard(step)
       await driver.settle()
@@ -114,6 +140,28 @@ async function runStep(driver: ProgramDriver, step: Step) {
       await expectStep(driver, step)
       break
   }
+}
+
+interface GridColumn {
+  name: string
+  header: string
+}
+
+function gridColumns(node: ControlNode): GridColumn[] {
+  return (node.props.Columns as GridColumn[] | undefined) ?? []
+}
+
+/** 数据表格的数据行（不含最下面供新增的空行），每行按列序号排列的显示文字 */
+function gridRows(node: ControlNode): string[][] {
+  const rows = (node.props.Rows as { items: { cells: unknown[]; isNew: boolean }[] } | undefined)?.items ?? []
+  return rows.filter((r) => !r.isNew).map((r) => r.cells.map((c) => (c === true ? 'True' : c === false ? 'False' : String(c ?? ''))))
+}
+
+function rowMatches(node: ControlNode, cells: Record<string, string>) {
+  const columns = gridColumns(node)
+  const index = Object.keys(cells).map((key) => columns.findIndex((c) => c.header === key || c.name === key))
+  if (index.some((i) => i < 0)) return false
+  return gridRows(node).some((row) => Object.values(cells).every((value, i) => row[index[i]] === value))
 }
 
 const seconds = (ms: number) => `${Math.round(ms / 100) / 10} 秒`
@@ -171,6 +219,10 @@ function satisfied(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'uncha
     }
     case 'savedImage':
       return driver.savedImages.some((path) => path.includes(e.path))
+    case 'row': {
+      const node = driver.find(e.control)
+      return node !== undefined && rowMatches(node, e.cells) === e.present
+    }
   }
 }
 
@@ -213,6 +265,16 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
     case 'savedImage': {
       const saved = driver.savedImages.map((p) => `"${p}"`).join('、')
       return `期望${prefix}${desc ?? `保存图片到"${e.path}"`}，${saved ? `实际保存的是 ${saved}` : '实际没有保存图片'}`
+    }
+    case 'row': {
+      const node = need(driver, e.control)
+      const wanted = Object.entries(e.cells).map(([k, v]) => `${k}=${v}`).join('，')
+      const columns = gridColumns(node)
+      const missing = Object.keys(e.cells).filter((key) => !columns.some((c) => c.header === key || c.name === key))
+      if (missing.length) return `期望${prefix}数据表格 ${e.control} 里有"${missing.join('、')}"列，实际的列是 ${columns.map((c) => c.header).join('、') || '（没有数据）'}`
+      const rows = gridRows(node)
+      const shown = rows.slice(0, 5).map((r) => r.join(' | ')).join('；')
+      return `期望${prefix}数据表格 ${e.control} ${desc ?? (e.present ? `有一行 ${wanted}` : `没有 ${wanted} 的行`)}，实际表格里${rows.length ? `是：${shown}${rows.length > 5 ? ' ……' : ''}` : '没有数据'}`
     }
   }
 }
