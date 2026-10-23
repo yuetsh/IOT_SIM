@@ -626,8 +626,10 @@ public class DataGridView : Control, ISupportInitialize
     public event DataGridViewCellEventHandler? CellContentDoubleClick;
     public event DataGridViewCellEventHandler? CellValueChanged;
     public event DataGridViewCellEventHandler? CellEndEdit;
+#pragma warning disable CS0067 // 只读表格没有当前单元格的概念，这两个事件不触发
     public event DataGridViewCellEventHandler? CellEnter;
     public event DataGridViewCellEventHandler? RowEnter;
+#pragma warning restore CS0067
     public event DataGridViewDataErrorEventHandler? DataError;
     public event EventHandler? SelectionChanged;
     public event EventHandler? CurrentCellChanged;

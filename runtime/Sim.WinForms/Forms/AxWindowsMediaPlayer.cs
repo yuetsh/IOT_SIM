@@ -69,7 +69,7 @@ namespace AxWMPLib
 
         public AxWindowsMediaPlayer() : base("6bf52a52-394a-11d3-b153-00c04f79faa6")
         {
-            Ctlcontrols = new Controls(this);
+            Ctlcontrols = new PlayerControls(this);
             settings = new Settings();
         }
 
@@ -143,7 +143,7 @@ namespace AxWMPLib
             props["URL"] = _url;
         }
 
-        private sealed class Controls(AxWindowsMediaPlayer owner) : IWMPControls
+        private sealed class PlayerControls(AxWindowsMediaPlayer owner) : IWMPControls
         {
             public void play()
             {
