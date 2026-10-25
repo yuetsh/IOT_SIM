@@ -9,6 +9,7 @@ import { NButton, NEmpty, NInput, NInputNumber, NSpin, NTab, NTabs, NTag, useDia
 import type { AiReview, Assignment, Review, Screenshot, SourceFile, Submission } from '@iot/shared'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
+import { RESOURCES_FILE } from '../designer/resources'
 import CodeEditor from '../editor/CodeEditor.vue'
 import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
@@ -84,7 +85,8 @@ const saving = ref(false)
 
 const autoTotal = computed(() => assignment.value?.scoring.auto.reduce((a, b) => a + b, 0) ?? 0)
 const manualTotal = computed(() => assignment.value?.scoring.manual.reduce((a, m) => a + m.points, 0) ?? 0)
-const codeFiles = computed(() => detail.value?.files?.filter((f) => f.path.endsWith('.cs')) ?? [])
+// 项目资源类是平台生成的，和实验页一样不显示
+const codeFiles = computed(() => detail.value?.files?.filter((f) => f.path.endsWith('.cs') && f.path !== RESOURCES_FILE) ?? [])
 const hints = computed(() => (detail.value?.files ? conventionHints(detail.value.files) : []))
 /** 正在打的老师评分之和（未保存） */
 const draftManual = computed(() => scores.value.reduce<number>((a, s) => a + (s ?? 0), 0))

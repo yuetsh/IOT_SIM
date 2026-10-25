@@ -507,7 +507,7 @@ function run() {
       </NPopconfirm>
       <span v-if="!viewing" class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
       <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
-      <span v-if="!assignmentId && !viewing" class="metrics">
+      <span v-if="!assignmentId && !viewing && currentUser?.role === 'teacher'" class="metrics">
         编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
         {{ state.metrics.lastRoundTripMs }} ms
       </span>
@@ -649,7 +649,7 @@ function run() {
   font-size: 12px;
 }
 
-/* 编译、往返时间是给开发看的，屏幕窄时（机房常见 1366 宽）不显示，免得工具栏挤成两行 */
+/* 编译、往返时间只给老师看，屏幕窄时（机房常见 1366 宽）也不显示，免得工具栏挤成两行 */
 @media (max-width: 1599px) {
   .metrics {
     display: none;
