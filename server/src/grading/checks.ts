@@ -22,7 +22,8 @@ export type Step =
   | { kind: 'board'; analog: Partial<Record<AnalogKey, number>>; digital: Partial<Record<DigitalKey, boolean>> }
   | { kind: 'wait'; ms: number }
   /** desc：给学生看的期望说明，如"显示当前时间"，不写就按期望自动生成 */
-  | { kind: 'expect'; expect: Expectation; within: number; desc?: string }
+  /** timed：规则里写了 within（不通过时说明"几秒内"） */
+  | { kind: 'expect'; expect: Expectation; within: number; timed: boolean; desc?: string }
 
 export type Expectation =
   /** 控件属性等于某个值：text → Text，ledText → LedText（LED 控件），enabled → Enabled，checked → Checked，visible → Visible（连同所在的容器都可见），on → IsOn（灯泡、报警灯），value → Value（滑动条） */
@@ -54,8 +55,11 @@ export type Expectation =
   | { kind: 'row'; control: string; cells: Record<string, string>; present: boolean }
   | { kind: 'console'; text: string }
 
-/** 期望默认最多等多久（毫秒）；依赖定时器的检查在规则里写 within */
-const DEFAULT_WITHIN = 2000
+/**
+ * 期望默认最多等多久（毫秒）；依赖定时器的检查在规则里写 within。条件一满足就往下走，放宽只让不通过的检查多等一会儿；
+ * 全班同时评分时机器忙，点按钮后查数据库、画图表可能超过 2 秒（test/classroom.ts 实测），所以不能太紧
+ */
+const DEFAULT_WITHIN = 5000
 
 const PROP_KEYS: Record<string, string> = { text: 'Text', ledText: 'LedText', enabled: 'Enabled', checked: 'Checked', visible: 'Visible', on: 'IsOn', value: 'Value' }
 const STRING_PROPS = new Set(['Text', 'LedText'])
@@ -158,6 +162,7 @@ function parseStep(raw: unknown, where: string): Step {
       kind: 'expect',
       expect: parseExpectation(expectation, where),
       within: within === undefined ? DEFAULT_WITHIN : duration(within, where),
+      timed: within !== undefined,
       ...(desc === undefined ? {} : { desc: String(desc) }),
     }
   }

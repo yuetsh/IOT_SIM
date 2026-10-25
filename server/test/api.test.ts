@@ -499,6 +499,22 @@ describe('数据库页面', () => {
     expect((await new Browser().get('/api/db')).status).toBe(401)
   }, 60000)
 
+  test('删除学生时删除他的库：编号重新用给新学生时看不到前一个人的库', async () => {
+    const t = await teacher()
+    const classId = await classWithStudents(t, [{ username: 's1', name: '甲', password: 'p1' }])
+    const s1 = new Browser()
+    await s1.login('s1', 'p1')
+    await s1.post('/api/db/query', { database: 'master', sql: 'CREATE DATABASE 甲的库' })
+    const [{ id }] = (await t.get(`/api/teacher/classes/${classId}/students`)).body
+    await t.delete(`/api/teacher/students/${id}`)
+
+    await t.post(`/api/teacher/classes/${classId}/import`, { rows: [{ username: 's2', name: '乙', password: 'p2' }] })
+    expect((await t.get(`/api/teacher/classes/${classId}/students`)).body[0].id).toBe(id)
+    const s2 = new Browser()
+    await s2.login('s2', 'p2')
+    expect((await s2.get('/api/db')).body.databases).toEqual([])
+  }, 60000)
+
   test('恢复实验初始数据：只替换实验用到的库', async () => {
     const t = await teacher()
     await t.post('/api/db/query', { database: 'master', sql: 'CREATE DATABASE 我的库' })

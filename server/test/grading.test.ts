@@ -89,7 +89,7 @@ describe('改坏的代码', () => {
     const dir = await prepare(id, 'camera', { file: 'Form1.cs', from: 'DeviceCtrlHelper.ipCameraHelper.ImageRead += ipCameraHelper_ImageRead;', to: '' })
     const result = await grade(dir, await checksOf(id), id)
     expect(result.results.map((r) => r.passed)).toEqual([true, false, true, false])
-    expect(result.results[1].message).toBe('期望3 秒内 pictureBox1 显示摄像机拍到的图像，实际没有图片')
+    expect(result.results[1].message).toBe('期望 pictureBox1 显示摄像机拍到的图像，实际没有图片')
   }, 60000)
 
   test('数据库：照书上 INSERT 不写列名，温度和光照存反了', async () => {

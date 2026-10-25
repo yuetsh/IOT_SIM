@@ -13,6 +13,14 @@ export async function userDatabaseDir(userId: number) {
   return dir
 }
 
+/**
+ * 删除用户的全部数据库（删除学生时）。用户编号在删掉最大的编号后会被下一个新用户重新使用，
+ * 不删的话新学生会看到前一个人的库
+ */
+export async function deleteUserDatabases(userId: number) {
+  await rm(resolve(config.dataDir, 'databases', String(userId)), { recursive: true, force: true })
+}
+
 /** 实验预置的数据库脚本（samples/<实验>/database.sql），没有时返回 undefined */
 export async function experimentScript(sampleId: string): Promise<string | undefined> {
   const file = Bun.file(join(config.samplesDir, sampleId, 'database.sql'))

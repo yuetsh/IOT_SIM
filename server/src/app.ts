@@ -24,7 +24,7 @@ import { languageService } from './language-service'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
 import { config } from './config'
-import { restoreExperimentDatabases, userDatabaseDir } from './databases'
+import { deleteUserDatabases, restoreExperimentDatabases, userDatabaseDir } from './databases'
 import { listSamples, loadChecks, loadSample } from './samples'
 import { SqlError, sqlService } from './sql-service'
 import { serveStatic } from './static'
@@ -280,8 +280,8 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     return password ? c.json({ password }) : c.json({ message: '学生不存在' }, 404)
   })
 
-  app.delete('/api/teacher/students/:id', (c) => {
-    deleteStudent(db, id(c))
+  app.delete('/api/teacher/students/:id', async (c) => {
+    if (deleteStudent(db, id(c))) await deleteUserDatabases(id(c))
     return c.json({})
   })
 

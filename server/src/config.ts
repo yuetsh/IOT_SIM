@@ -26,6 +26,12 @@ export const config = {
   cpuLimitSeconds: Number(env.SIM_CPU_LIMIT_SECONDS ?? 120),
   /** 全站同时运行的学生程序最多多少个（两个班约 100 人） */
   maxRuns: Number(env.SIM_MAX_RUNS ?? 150),
+  /**
+   * 全站同时跑多少个评分检查项（提交评分和自测共用）。检查大部分时间在等学生程序的定时器，并发太低时全班排队：
+   * 2 核实测 45 人同时自测项目 8 任务 3，6 个时最后一人等 4 分钟（CPU 才 28%），16 个时 1.5 分钟（CPU 58%）；
+   * 24 个时 CPU 接近 80%，定时器来不及触发，参考答案被误判不通过（test/classroom.ts）
+   */
+  gradeConcurrency: Number(env.SIM_GRADE_CONCURRENCY ?? 16),
   /** 一次运行最长多少分钟，到时自动结束 */
   maxRunMinutes: Number(env.SIM_MAX_RUN_MINUTES ?? 60),
   /** SQLite 数据库所在目录（账号、班级、学生作品）；部署时放在数据卷里 */

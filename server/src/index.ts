@@ -1,6 +1,7 @@
 import type { ClientMessage, ServerMessage } from '@iot/shared'
 import { createAiQueue } from './ai-review'
 import { createApp } from './app'
+import { backupTo } from './backup'
 import { ensureTeacher, tokenUser } from './auth'
 import { compileService } from './compile-service'
 import { languageService } from './language-service'
@@ -12,6 +13,15 @@ import { listSamples } from './samples'
 import { cleanupStaleRuns, RunSession } from './run-session'
 import { sqlService } from './sql-service'
 import { checkSandbox, sandboxError } from './sandbox'
+
+// 手动备份：bun server.js backup <目录>（deploy/backup.sh 调用），导出数据库后退出，不启动服务器
+if (process.argv[2] === 'backup') {
+  const target = process.argv[3]
+  if (!target) throw new Error('用法：backup <目录>')
+  await backupTo(target)
+  console.log(`已备份到 ${target}`)
+  process.exit(0)
+}
 
 await cleanupStaleRuns()
 await checkSandbox()

@@ -33,6 +33,7 @@ cd server
 bun test              # 端到端测试：编译并运行示例，模拟浏览器操作
 cd ../web && bun test src   # 窗体设计器：Designer.cs 读写、编辑操作、插入事件处理方法
 bun test/load.ts 100  # 压力测试：同时运行 100 个学生程序
+BASE=http://localhost:3000 bun test/classroom.ts 45  # 全班模拟：45 个学生登录、运行、自测、提交，统计每个环节等多久
 ```
 
 ## 部署

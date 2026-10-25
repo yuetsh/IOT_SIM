@@ -136,6 +136,7 @@ export function resetPassword(db: Database, studentId: number): string | null {
 }
 
 /** 删除学生，连同他的作品 */
+/** 删除学生，返回是否删掉了 */
 export function deleteStudent(db: Database, studentId: number) {
-  db.query(`DELETE FROM users WHERE id = ? AND role = 'student'`).run(studentId)
+  return db.query(`DELETE FROM users WHERE id = ? AND role = 'student'`).run(studentId).changes > 0
 }

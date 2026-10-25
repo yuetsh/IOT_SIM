@@ -5,7 +5,7 @@
   steps:
     - clock: '09:00:00'
     - click: pic_security
-    - expect: { control: pic_video, image: true, within: 3s }
+    - expect: { control: pic_video, image: true }
     - click: btn_camera
     - click: btn_history
     - expect: { window: SecurityCameraData, desc: 点"查看历史图像"打开历史报警记录窗体 }
@@ -17,7 +17,7 @@
   steps:
     - clock: '09:00:00'
     - click: pic_security
-    - expect: { control: pic_video, image: true, within: 3s }
+    - expect: { control: pic_video, image: true }
     - click: btn_camera
     - clock: '10:30:00'
     - click: btn_camera
@@ -34,7 +34,7 @@
   steps:
     - clock: '09:00:00'
     - click: pic_security
-    - expect: { control: pic_video, image: true, within: 3s }
+    - expect: { control: pic_video, image: true }
     - click: btn_camera
     - click: btn_history
     - pick: { control: dateTimePicker1, value: '2024-01-01' }

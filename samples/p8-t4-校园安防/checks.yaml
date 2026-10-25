@@ -5,15 +5,15 @@
     - click: pic_security
     - expect: { window: Security, desc: 点"校园安防"打开 Security 窗体 }
     - expect: { camera: on }
-    - expect: { control: pic_video, image: true, within: 3s, desc: 显示摄像机拍到的图像 }
+    - expect: { control: pic_video, image: true, desc: 显示摄像机拍到的图像 }
 
 - title: 人体入侵有文字提示
   steps:
     - click: pic_security
     - board: { infrared: true }
-    - expect: { control: lb_infrared, text: 发现入侵, within: 3s, desc: 红外对射被遮挡时显示"发现入侵" }
+    - expect: { control: lb_infrared, text: 发现入侵, desc: 红外对射被遮挡时显示"发现入侵" }
     - board: { infrared: false }
-    - expect: { control: lb_infrared, text: 正常, within: 3s }
+    - expect: { control: lb_infrared, text: 正常 }
 
 - title: 摄像机可以调整方向
   steps:
@@ -33,7 +33,7 @@
 - title: 摄像机能拍照并保存图片
   steps:
     - click: pic_security
-    - expect: { control: pic_video, image: true, within: 3s }
+    - expect: { control: pic_video, image: true }
     - click: btn_camera
     - expect: { savedImage: Camera/, desc: 把照片保存到 Camera 文件夹 }
 

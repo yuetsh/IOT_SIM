@@ -1,5 +1,5 @@
 // 自动评分：编译一次学生工程，每个检查项各启动一次程序，按步骤操作并核对结果。
-// 检查大部分时间在等定时器，CPU 主要花在编译和启动程序上；2 核的服务器全站同时跑 GRADE_CONCURRENCY 个检查，其余排队。
+// 检查大部分时间在等定时器，CPU 主要花在编译和启动程序上；全站同时跑 config.gradeConcurrency 个检查，其余排队。
 import type { CheckResult, ControlNode, GradeResult } from '@iot/shared'
 import { rm } from 'node:fs/promises'
 import { dirname } from 'node:path'
@@ -9,7 +9,6 @@ import { gradingDatabaseDir } from '../databases'
 import type { Check, Expectation, Step } from './checks'
 import { ProgramDriver } from './driver'
 
-const GRADE_CONCURRENCY = 6
 /** 点数据表格的单元格前，最多等多久让那一行出现（程序可能还在查询数据库、刷新表格） */
 const GRID_WAIT = 5000
 /** 操作控件前最多等多久让它出现 */
@@ -28,7 +27,7 @@ let running = 0
 const waiting: (() => void)[] = []
 
 async function withSlot<T>(task: () => Promise<T>): Promise<T> {
-  if (running >= GRADE_CONCURRENCY) await new Promise<void>((resolve) => waiting.push(resolve))
+  if (running >= config.gradeConcurrency) await new Promise<void>((resolve) => waiting.push(resolve))
   running++
   try {
     return await task()
@@ -211,7 +210,7 @@ const quote = (value: unknown) => (value === undefined || value === null || valu
 
 async function expectStep(driver: ProgramDriver, step: Extract<Step, { kind: 'expect' }>) {
   const { expect: e, within } = step
-  const wait = within > 2000 ? `${seconds(within)}内` : ''
+  const wait = step.timed ? `${seconds(within)}内` : ''
 
   if (e.kind === 'unchanged') {
     const node = need(driver, e.control)

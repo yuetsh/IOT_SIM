@@ -22,3 +22,6 @@ obj/
 
 # 本机开发的数据库
 /data/
+
+# 服务器上 deploy/backup.sh 做的备份
+/backups/

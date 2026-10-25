@@ -14,7 +14,7 @@
   steps:
     - text: { control: txt_ip, value: 192.168.2.50 }
     - click: btn_open
-    - expect: { control: pictureBox1, image: true, within: 3s, desc: 显示摄像机拍到的图像 }
+    - expect: { control: pictureBox1, image: true, desc: 显示摄像机拍到的图像 }
 
 - title: 能控制摄像机上下左右旋转
   steps:
@@ -35,6 +35,6 @@
   steps:
     - text: { control: txt_ip, value: 192.168.2.50 }
     - click: btn_open
-    - expect: { control: pictureBox1, image: true, within: 3s, desc: 显示摄像机拍到的图像 }
+    - expect: { control: pictureBox1, image: true, desc: 显示摄像机拍到的图像 }
     - click: btn_camera
     - expect: { savedImage: Camera/, desc: 把照片保存到 Camera 文件夹 }

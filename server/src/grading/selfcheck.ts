@@ -1,6 +1,6 @@
 // 自测：学生提交前自己跑一遍评分，告诉他哪几项不通过、为什么；不计分、不留记录。
 // 每人同时只能有一次，结果放在内存里，保留到下一次自测（服务器重启后就没有了）。
-// 检查项和提交评分一样受全站并发上限（grader.ts 的 GRADE_CONCURRENCY）约束，机器忙时排队。
+// 检查项和提交评分一样受全站并发上限（config.gradeConcurrency）约束，机器忙时排队。
 import type { SelfCheck, SourceFile } from '@iot/shared'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
