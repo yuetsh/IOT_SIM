@@ -511,7 +511,7 @@ function run() {
         编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
         {{ state.metrics.lastRoundTripMs }} ms
       </span>
-      <span v-else class="spacer" />
+      <span class="spacer" />
       <RouterLink v-if="!assignmentId && currentUser?.role === 'student'" to="/assignments" class="nav-link">我的作业</RouterLink>
       <RouterLink v-if="!viewing" to="/database" target="_blank" class="nav-link" title="在新标签页打开数据库（代替 SSMS）">数据库</RouterLink>
       <span class="user">
@@ -645,9 +645,15 @@ function run() {
 }
 
 .metrics {
-  margin-left: auto;
   color: #6b7280;
   font-size: 12px;
+}
+
+/* 编译、往返时间是给开发看的，屏幕窄时（机房常见 1366 宽）不显示，免得工具栏挤成两行 */
+@media (max-width: 1599px) {
+  .metrics {
+    display: none;
+  }
 }
 
 .spacer {
@@ -671,6 +677,11 @@ function run() {
 .save-state {
   color: #6b7280;
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.toolbar > strong {
+  white-space: nowrap;
 }
 
 .save-state.error {
@@ -685,6 +696,7 @@ function run() {
 .nav-link {
   color: #2563eb;
   font-size: 13px;
+  white-space: nowrap;
   text-decoration: none;
   white-space: nowrap;
 }
