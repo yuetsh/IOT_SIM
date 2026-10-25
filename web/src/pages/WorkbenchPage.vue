@@ -427,8 +427,28 @@ function restoreOriginal() {
   else if (sampleId.value) void loadSample(sampleId.value, true)
 }
 
+// ---------- 收起运行区（设计大窗体、写代码时左栏占满宽度；运行程序时自动展开） ----------
+const RUN_COLLAPSED_KEY = 'iot-sim:run-collapsed'
+const runCollapsed = ref(readFlag(RUN_COLLAPSED_KEY))
+function readFlag(key: string) {
+  try {
+    return localStorage.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+function toggleRunArea(collapsed = !runCollapsed.value) {
+  runCollapsed.value = collapsed
+  try {
+    localStorage.setItem(RUN_COLLAPSED_KEY, collapsed ? '1' : '0')
+  } catch {
+    // 浏览器不让存时只在这次有效
+  }
+}
+
 function run() {
   if (running.value) return
+  toggleRunArea(false)
   session.run(
     files.value.map((f) => ({ ...f })),
     props.assignmentId ? assignment.value?.sampleId : sampleId.value,
@@ -522,7 +542,7 @@ function run() {
       :before-start="flushSave"
     />
 
-    <main class="workspace" :class="{ designing: activeForm }">
+    <main class="workspace" :class="{ designing: activeForm, 'run-collapsed': runCollapsed }">
       <section class="editor">
         <div class="tab-row">
           <NTabs v-model:value="activeTab" type="card" size="small" class="file-tabs">
@@ -593,7 +613,14 @@ function run() {
         />
       </section>
 
-      <RunArea :session="session" @diagnostic="showDiagnostic" />
+      <button
+        class="run-toggle"
+        :title="runCollapsed ? '展开运行区' : '收起运行区（左边的代码和设计器占满宽度，运行时自动展开）'"
+        @click="toggleRunArea()"
+      >
+        {{ runCollapsed ? '◂' : '▸' }}
+      </button>
+      <RunArea v-show="!runCollapsed" :session="session" @diagnostic="showDiagnostic" />
     </main>
   </div>
 </template>
@@ -665,13 +692,33 @@ function run() {
 .workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(360px, 2fr) 3fr;
+  grid-template-columns: minmax(360px, 2fr) 14px 3fr;
   min-height: 0;
 }
 
 /* 设计器需要工具箱、窗体和属性窗口，左栏放宽 */
 .workspace.designing {
-  grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
+  grid-template-columns: minmax(0, 3fr) 14px minmax(360px, 2fr);
+}
+
+.workspace.run-collapsed {
+  grid-template-columns: minmax(0, 1fr) 14px;
+}
+
+/* 编辑区和运行区之间的竖条：点一下收起、展开运行区 */
+.run-toggle {
+  padding: 0;
+  border: none;
+  border-right: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.run-toggle:hover {
+  background: #e5e7eb;
+  color: #111827;
 }
 
 .editor {

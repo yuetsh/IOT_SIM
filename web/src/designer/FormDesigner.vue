@@ -2,7 +2,7 @@
 // 窗体设计器（仿 VS）：左边工具箱，中间窗体，下方组件栏，右边属性 / 事件窗口。
 // 窗体用运行时同一套 ControlView 渲染；上面盖一层透明的操作层，负责选中、拖动、改大小、放置新控件。
 // 每次改动都重新生成 Designer.cs，通过 update 事件交给页面保存。
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import ControlView from '../winforms/ControlView.vue'
 import { displayText, fontCss, type FontValue } from '../winforms/format'
 import { CONTROLS, type ControlDef, FORM_DEF, controlDef, isContainerType } from './catalog'
@@ -164,6 +164,41 @@ const selectedAutoSize = computed(() => doc.value && selected.value && getPropTe
 
 // ---------- 指针操作：选中、移动、改大小 ----------
 const surface = ref<HTMLElement>()
+
+// ---------- 缩放：教材项目 8 的窗体有 1043×791，"适应"时按画布宽度缩小（不放大） ----------
+type ZoomChoice = 'fit' | '1' | '0.75' | '0.5'
+const ZOOM_KEY = 'iot-sim:designer-zoom'
+const ZOOM_OPTIONS: [ZoomChoice, string][] = [['fit', '适应宽度'], ['1', '100%'], ['0.75', '75%'], ['0.5', '50%']]
+const zoomChoice = ref<ZoomChoice>(readZoom())
+function readZoom(): ZoomChoice {
+  try {
+    const saved = localStorage.getItem(ZOOM_KEY)
+    return ZOOM_OPTIONS.some(([v]) => v === saved) ? (saved as ZoomChoice) : 'fit'
+  } catch {
+    return 'fit'
+  }
+}
+function setZoom(value: ZoomChoice) {
+  zoomChoice.value = value
+  try {
+    localStorage.setItem(ZOOM_KEY, value)
+  } catch {
+    // 浏览器不让存时只在这次有效
+  }
+}
+const canvas = ref<HTMLElement>()
+const canvasWidth = ref(0)
+const canvasObserver = new ResizeObserver(([entry]) => {
+  canvasWidth.value = entry.contentRect.width
+})
+onMounted(() => canvas.value && canvasObserver.observe(canvas.value))
+onBeforeUnmount(() => canvasObserver.disconnect())
+/** 窗体的缩放比例；鼠标位置除以它换算回窗体坐标 */
+const zoom = computed(() => {
+  if (zoomChoice.value !== 'fit') return Number(zoomChoice.value)
+  const width = clientSize.value.width + 2 + 8
+  return canvasWidth.value > 0 ? Math.max(0.3, Math.min(1, canvasWidth.value / width)) : 1
+})
 type Handle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 
@@ -173,9 +208,9 @@ let drag:
   | { mode: 'form'; startX: number; startY: number; origin: { width: number; height: number } }
   | undefined
 
-function pointer(event: PointerEvent | DragEvent) {
+function pointer(event: PointerEvent | DragEvent | MouseEvent) {
   const box = surface.value!.getBoundingClientRect()
-  return { x: event.clientX - box.left, y: event.clientY - box.top }
+  return { x: (event.clientX - box.left) / zoom.value, y: (event.clientY - box.top) / zoom.value }
 }
 
 function onPointerDown(event: PointerEvent) {
@@ -286,8 +321,9 @@ function onKeyDown(event: KeyboardEvent) {
 // ---------- 工具箱 ----------
 const TOOLBOX_GROUPS = ['常用控件', '容器', '数据', '组件', '物联网设备'] as const
 const ICONS: Record<string, string> = {
-  按钮: '▭', 标签: 'A', 文本框: '▤', 下拉框: '☰', 复选框: '☑', 单选按钮: '◉', 分组框: '⬚', 面板: '▢',
-  定时器: '⏱', 'LED 显示屏': '▬', 灯泡: '💡', 报警灯: '🚨',
+  按钮: '▭', 标签: 'A', 文本框: '▤', 下拉框: '☰', 列表框: '≣', 图片框: '🖼', 日期时间选择器: '📅', 滑动条: '⊶',
+  复选框: '☑', 单选按钮: '◉', 分组框: '⬚', 面板: '▢', 数据表格: '▦', 图表: '📈',
+  定时器: '⏱', 媒体播放器: '🔊', 'LED 显示屏': '▬', 灯泡: '💡', 报警灯: '🚨',
 }
 const DRAG_TYPE = 'application/x-winforms-control'
 
@@ -391,8 +427,8 @@ function clearEvent(target: string, eventName: string) {
 function onDoubleClick(event: MouseEvent) {
   const d = parsed.value.doc
   if (!d) return
-  const box = surface.value!.getBoundingClientRect()
-  const hit = hitTest(d, event.clientX - box.left, event.clientY - box.top) ?? ''
+  const { x, y } = pointer(event)
+  const hit = hitTest(d, x, y) ?? ''
   const def = hit ? controlDef(typeOf(d, hit) ?? '') : FORM_DEF
   openEvent(hit, def.defaultEvent)
 }
@@ -440,16 +476,26 @@ const noop = () => {}
       </template>
     </aside>
 
-    <section class="canvas">
+    <section ref="canvas" class="canvas">
       <div class="actions">
         <button :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</button>
         <button :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</button>
         <span class="tips">拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span>
+        <select
+          class="zoom"
+          title="窗体显示的大小（不影响窗体的实际大小）"
+          :value="zoomChoice"
+          @change="setZoom(($event.target as HTMLSelectElement).value as ZoomChoice)"
+        >
+          <option v-for="[value, label] in ZOOM_OPTIONS" :key="value" :value="value">
+            {{ value === 'fit' ? `${label}（${Math.round(zoom * 100)}%）` : label }}
+          </option>
+        </select>
         <button class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">
           查看生成的代码
         </button>
       </div>
-      <div class="window" :class="{ selected: selected === '' }">
+      <div class="window" :class="{ selected: selected === '' }" :style="zoom !== 1 ? { zoom } : undefined">
         <div class="titlebar" @pointerdown="selected = ''">
           <span class="title">{{ displayText(formTitle) }}</span>
           <span class="buttons">─ ☐ ✕</span>
@@ -601,8 +647,17 @@ const noop = () => {}
   cursor: default;
 }
 
-.view-code {
+.zoom {
   margin-left: auto;
+  padding: 1px 4px;
+  border: 1px solid #c5ccd5;
+  border-radius: 3px;
+  background: #fff;
+  font: inherit;
+}
+
+.view-code {
+  flex: none;
 }
 
 .tips {
