@@ -12,6 +12,8 @@ import { ProgramDriver } from './driver'
 const GRADE_CONCURRENCY = 6
 /** 点数据表格的单元格前，最多等多久让那一行出现（程序可能还在查询数据库、刷新表格） */
 const GRID_WAIT = 5000
+/** 操作控件前最多等多久让它出现 */
+const CONTROL_WAIT = 3000
 /** 程序启动后多久内应该显示出窗体 */
 const START_TIMEOUT = 10_000
 
@@ -100,10 +102,16 @@ function need(driver: ProgramDriver, name: string): ControlNode {
   return node
 }
 
+/** 操作控件前先等它出现：上一步可能刚打开窗体（ShowDialog 前要在 Load 里查数据库，机器忙时会晚一点） */
+async function needSoon(driver: ProgramDriver, name: string): Promise<ControlNode> {
+  await driver.waitFor(() => driver.find(name) !== undefined, CONTROL_WAIT)
+  return need(driver, name)
+}
+
 async function runStep(driver: ProgramDriver, step: Step) {
   switch (step.kind) {
     case 'click': {
-      const node = need(driver, step.control)
+      const node = await needSoon(driver, step.control)
       if (node.props.Enabled === false) throw new Failure(`${step.control} 是灰色的（Enabled 为 false），点不了`)
       // 和浏览器一样：图片框先收到鼠标按下、松开，再收到单击（教材项目 8 的方向键在按下、松开时转动摄像机）
       if (node.type === 'PictureBox') {
@@ -115,11 +123,11 @@ async function runStep(driver: ProgramDriver, step: Step) {
       break
     }
     case 'text':
-      driver.act(need(driver, step.control), { action: 'text', value: step.value })
+      driver.act(await needSoon(driver, step.control), { action: 'text', value: step.value })
       await driver.settle()
       break
     case 'select': {
-      const node = need(driver, step.control)
+      const node = await needSoon(driver, step.control)
       if (node.type !== 'ComboBox') throw new Failure(`${step.control} 不是下拉框`)
       // 和浏览器一样先展开（教材在下拉框的 Click 里填充串口列表），再选
       driver.act(node, { action: 'dropDown' })
@@ -137,7 +145,7 @@ async function runStep(driver: ProgramDriver, step: Step) {
     }
     case 'cell':
     case 'edit': {
-      const node = need(driver, step.control)
+      const node = await needSoon(driver, step.control)
       if (node.type !== 'DataGridView') throw new Failure(`${step.control} 不是数据表格`)
       // 上一步（如保存后重新查询）可能还在刷新表格：等这一行出现
       await driver.waitFor(() => gridRows(need(driver, step.control)).length > step.row, GRID_WAIT)
@@ -151,7 +159,7 @@ async function runStep(driver: ProgramDriver, step: Step) {
       break
     }
     case 'pick': {
-      const node = need(driver, step.control)
+      const node = await needSoon(driver, step.control)
       if (node.type !== 'DateTimePicker') throw new Failure(`${step.control} 不是日期时间选择器`)
       // 只给日期时：时间取中午，查询"某天到某天"时不受时分影响
       const [date, time = '12:00:00'] = step.value.split(' ')
