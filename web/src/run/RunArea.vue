@@ -2,6 +2,7 @@
 // 运行区：学生程序的窗体（在一块"桌面"上）、提示框、虚拟实训台，以及编译错误和控制台输出。
 // 实验页和老师的评阅页共用。
 import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
+import { loadGallery } from '../designer/resources'
 import TrainingBoard from '../scene/TrainingBoard.vue'
 import type { SizeValue } from '../winforms/format'
 import FormWindow, { WINDOW_MARGIN, WINDOW_STEP } from '../winforms/FormWindow.vue'
@@ -14,6 +15,8 @@ const emit = defineEmits<{ diagnostic: [file: string, line: number, column: numb
 
 const state = props.session.state
 provide(RUN_IMAGES, props.session.images)
+// 素材库清单：认出素材图片，在高分辨率屏幕上换成两倍图
+void loadGallery()
 
 /** 照片列表里点开看大图 */
 const viewing = ref<{ path: string; url: string } | null>(null)

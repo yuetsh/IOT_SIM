@@ -80,7 +80,8 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     if (!/^[\w.-]+$/.test(name)) return c.notFound()
     const file = Bun.file(`${dirname(config.runnerDll)}/Resources/gallery/${name}`)
     if (!(await file.exists())) return c.notFound()
-    return new Response(file, { headers: { 'Cache-Control': 'public, max-age=3600' } })
+    // 清单随部署更新（新素材、图片编号），每次都向服务器确认；图片缓存一小时
+    return new Response(file, { headers: { 'Cache-Control': name === 'index.json' ? 'no-cache' : 'public, max-age=3600' } })
   })
 
   // 其余接口都要先登录（请求头 Authorization: Bearer <令牌>）

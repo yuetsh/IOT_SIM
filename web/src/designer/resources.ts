@@ -11,6 +11,10 @@ export interface GalleryItem {
   /** 中文说明 */
   label: string
   kind: 'image' | 'audio'
+  /** 图片的编号（原尺寸 PNG 的 SHA-1，和运行器给图片的编号相同） */
+  key?: string
+  /** 两倍尺寸的图片文件，高分辨率屏幕上显示用 */
+  hidpi?: string
 }
 
 export const RESOURCES_FILE = 'Properties/Resources.Designer.cs'

@@ -45,13 +45,20 @@ function save() {
   <NModal :show="show" preset="card" title="项目资源" style="width: 560px; max-width: calc(100vw - 32px)" @update:show="emit('update:show', $event)">
     <p class="note">勾选要加入项目的图片和声音（平台素材库，名字和教材一致）。代码里写 <code>Properties.Resources.名字</code>，图片框的"图片"属性也可以直接选。</p>
     <div class="items">
-      <label v-for="item in gallery" :key="item.name" class="item" :class="{ on: chosen.has(item.name) }">
-        <NCheckbox :checked="chosen.has(item.name)" @update:checked="toggle(item.name, $event)" />
-        <img v-if="item.kind === 'image'" :src="`/resources/${item.file}`" alt="" class="thumb" />
-        <NButton v-else size="tiny" class="audio" @click.prevent="listen(item.file)">▶ 试听</NButton>
+      <!-- 点整行都能勾选；复选框和"试听"自己处理点击，不再传给这一行 -->
+      <div v-for="item in gallery" :key="item.name" class="item" :class="{ on: chosen.has(item.name) }" @click="toggle(item.name, !chosen.has(item.name))">
+        <NCheckbox :checked="chosen.has(item.name)" @click.stop @update:checked="toggle(item.name, $event)" />
+        <img
+          v-if="item.kind === 'image'"
+          :src="`/resources/${item.file}`"
+          :srcset="item.hidpi ? `/resources/${item.file} 1x, /resources/${item.hidpi} 2x` : undefined"
+          alt=""
+          class="thumb"
+        />
+        <NButton v-else size="tiny" class="audio" @click.stop="listen(item.file)">▶ 试听</NButton>
         <span class="name">{{ item.name }}</span>
         <span class="label">{{ item.label }}</span>
-      </label>
+      </div>
       <div v-if="gallery.length === 0" class="note">正在加载素材库…</div>
     </div>
     <template #footer>
@@ -104,6 +111,11 @@ function save() {
   grid-row: span 2;
   max-width: 64px;
   max-height: 40px;
+}
+
+/* 灰色棋盘格底：透明背景上的白色图片（如 ico_title 的白字）也看得见 */
+.thumb {
+  background: repeating-conic-gradient(#9ca3af 0 25%, #c4c9d0 0 50%) 0 0 / 10px 10px;
 }
 
 .audio {

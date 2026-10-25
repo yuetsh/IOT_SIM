@@ -4,7 +4,7 @@
 import { computed, inject, provide, ref, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
 import { AMBIENT_BACK_COLOR, AMBIENT_BACK_TYPES, boxCss, DEFAULT_BACK_COLOR, displayText } from './format'
-import { backgroundCss, RUN_IMAGES, type ImageValue } from './images'
+import { backgroundCss, imageSources, RUN_IMAGES, srcset, type ImageValue } from './images'
 import ChartControl from './ChartControl.vue'
 import DataGridViewControl from './DataGridViewControl.vue'
 import DateTimePickerControl from './DateTimePickerControl.vue'
@@ -72,7 +72,7 @@ function selectItem(index: number) {
 
 // PictureBox：按 SizeMode 摆放图片
 const image = computed(() => p.value.Image as ImageValue | null | undefined)
-const imageUrl = computed(() => (image.value ? image.value.url ?? runImages.get(image.value.key) : undefined))
+const imageSrc = computed(() => imageSources(image.value, runImages))
 // 设计器预览里不知道素材的尺寸，原样大小显示时让浏览器按图片本身的大小
 const naturalSize = computed(() => (image.value?.width ? { width: `${image.value.width}px`, height: `${image.value.height}px` } : {}))
 const imageStyle = computed((): CSSProperties => {
@@ -182,7 +182,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
     @pointerdown="mouse('mouseDown', $event)"
     @pointerup="mouse('mouseUp', $event)"
   >
-    <img v-if="imageUrl" :src="imageUrl" :style="imageStyle" alt="" draggable="false" />
+    <img v-if="imageSrc" :src="imageSrc.src" :srcset="srcset(imageSrc)" :style="imageStyle" alt="" draggable="false" />
     <ControlView v-for="child in childrenTopLast" :key="child.id" :node="child" :act="props.act" />
   </div>
 
