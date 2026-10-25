@@ -63,7 +63,7 @@ async function chooseSample(id: string) {
   sampleId.value = id
   title.value = samples.value.find((s) => s.value === id)?.label ?? ''
   try {
-    checkTitles.value = await api<string[]>('GET', `/api/teacher/samples/${encodeURIComponent(id)}/checks`)
+    checkTitles.value = await api<string[]>('GET', `/api/samples/${encodeURIComponent(id)}/checks`)
     auto.value = checkTitles.value.map(() => 10)
   } catch (e) {
     checkTitles.value = []

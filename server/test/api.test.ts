@@ -279,7 +279,7 @@ describe('作业', () => {
     })
     expect(result.status).toBe(400)
     expect(result.body.message).toBe('自动评分项应有 2 项')
-    expect((await t.get(`/api/teacher/samples/${encodeURIComponent(SAMPLE)}/checks`)).body).toEqual(['能正确打开报警灯', '能正确关闭报警灯'])
+    expect((await t.get(`/api/samples/${encodeURIComponent(SAMPLE)}/checks`)).body).toEqual(['能正确打开报警灯', '能正确关闭报警灯'])
   })
 
   test('学生能看到自己班的作业和起点工程，别的班看不到', async () => {
@@ -330,6 +330,32 @@ describe('作业', () => {
 
     await t.patch(`/api/teacher/assignments/${assignmentId}`, { title: '控制报警灯', deadline: null, scoring: { ...scoring, auto: [30, 20] } })
     expect((await student.get(`/api/assignments/${assignmentId}/submission`)).body.autoScore).toBe(30)
+  }, 60000)
+
+  test('自测：提交前自己检查，告诉哪项不通过；不计分、不留记录，同时只能一次', async () => {
+    const { student, assignmentId, files } = await setup()
+    const finished = async () => {
+      for (let i = 0; i < 300; i++) {
+        const { body } = await student.get('/api/selfcheck')
+        if (body.status !== 'running') return body
+        await Bun.sleep(200)
+      }
+    }
+    const broken = files.map((f) => (f.path === 'Form1.cs' ? { ...f, content: f.content.replace('AlarmOnOff("Alarm", false);', '') } : f))
+    const started = await student.post(`/api/assignments/${assignmentId}/selfcheck`, { files: broken })
+    expect(started.body).toMatchObject({ status: 'running', target: `assignment:${assignmentId}` })
+    expect((await student.post(`/api/assignments/${assignmentId}/selfcheck`, { files })).status).toBe(409)
+    const result = await finished()
+    expect(result.result.results.map((r: any) => r.passed)).toEqual([true, false])
+    expect(result.result.results[1].message).toBeString()
+    // 自测不算提交
+    expect((await student.get(`/api/assignments/${assignmentId}/submission`)).body).toBeNull()
+
+    // 自由练习：按实验的评分规则检查
+    const sample = await student.post(`/api/samples/${encodeURIComponent(SAMPLE)}/selfcheck`, { files })
+    expect(sample.body.target).toBe(`sample:${SAMPLE}`)
+    expect((await finished()).result.results.map((r: any) => r.passed)).toEqual([true, true])
+    expect((await student.post('/api/samples/no-such/selfcheck', { files })).status).toBe(404)
   }, 60000)
 
   test('过了截止时间不能提交', async () => {

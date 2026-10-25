@@ -18,6 +18,7 @@ import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
+import SelfCheckPanel from '../grading/SelfCheckPanel.vue'
 import { captureForms } from '../grading/screenshots'
 
 const props = defineProps<{ assignmentId?: string; submissionId?: string }>()
@@ -134,8 +135,27 @@ async function openProject(key: string, original: () => Promise<SourceFile[]>, d
 async function loadSample(id: string, discardWork = false) {
   sampleId.value = id
   void router.replace({ query: { sample: id } })
+  sampleChecks.value = []
+  void api<string[]>('GET', `/api/samples/${encodeURIComponent(id)}/checks`)
+    .then((titles) => {
+      if (sampleId.value === id) sampleChecks.value = titles
+    })
+    .catch(() => {})
   await openProject(sampleWorkKey(id), () => api<SourceFile[]>('GET', `/api/samples/${encodeURIComponent(id)}`), discardWork)
 }
+
+// ---------- 评价项和自测 ----------
+const sampleChecks = ref<string[]>([])
+const selfCheckOpen = ref(false)
+/** 作业用布置时的评分规则，自由练习用实验的评分规则 */
+const selfCheck = computed(() => {
+  if (props.assignmentId) {
+    const a = assignment.value
+    return a ? { titles: a.checkTitles, target: `assignment:${a.id}`, url: `/api/assignments/${a.id}/selfcheck`, points: a.scoring.auto } : null
+  }
+  const id = sampleId.value
+  return id && sampleChecks.value.length ? { titles: sampleChecks.value, target: `sample:${id}`, url: `/api/samples/${encodeURIComponent(id)}/selfcheck` } : null
+})
 
 // ---------- 作业 ----------
 const assignment = ref<Assignment | null>(null)
@@ -456,6 +476,9 @@ function run() {
           {{ scoreText }}
         </NButton>
       </template>
+      <NButton v-if="selfCheck && !viewing" size="small" title="这个任务自动检查哪些功能；可以自己先检查一遍（不计分）" @click="selfCheckOpen = true">
+        评价项
+      </NButton>
       <NPopconfirm v-if="modified && !viewing" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
         <template #trigger>
           <NButton quaternary size="small">{{ assignmentId ? '恢复到作业起点' : '恢复原始代码' }}</NButton>
@@ -487,6 +510,17 @@ function run() {
     >
       <GradeResultView :assignment="assignment" :submission="submission" :review="review" />
     </NModal>
+
+    <SelfCheckPanel
+      v-if="selfCheck"
+      v-model:show="selfCheckOpen"
+      :titles="selfCheck.titles"
+      :target="selfCheck.target"
+      :url="selfCheck.url"
+      :points="selfCheck.points"
+      :files="files"
+      :before-start="flushSave"
+    />
 
     <main class="workspace" :class="{ designing: activeForm }">
       <section class="editor">

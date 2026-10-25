@@ -142,6 +142,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   border-radius: 4px;
   /* 窗体被拖到桌面外面时可以滚动查看 */
   overflow: auto;
+  /* 窗体、提示框的层级只在桌面里比较，不会盖住网页的抽屉和对话框 */
+  isolation: isolate;
 }
 
 .desktop-canvas {

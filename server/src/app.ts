@@ -6,6 +6,7 @@ import { bearerToken, login, logout, refresh, tokenUser, tooManyFailures, type T
 import { createClass, deleteClass, deleteStudent, importStudents, listClasses, listStudents, renameClass, resetPassword, type ImportRow } from './classes'
 import type { Scoring, StartMode } from '@iot/shared'
 import {
+  assignmentChecks,
   assignmentTemplate,
   classSubmissions,
   createAssignment,
@@ -18,6 +19,7 @@ import {
 } from './assignments'
 import { aiEnabled, getAiReview, type AiQueue } from './ai-review'
 import { parseChecks } from './grading/checks'
+import { createSelfCheck } from './grading/selfcheck'
 import { languageService } from './language-service'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
@@ -97,6 +99,30 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     const files = await loadSample(c.req.param('id'))
     return files ? c.json(files) : c.notFound()
   })
+
+  // ---- 自测：提交前自己跑一遍评分，不计分、不留记录 ----
+  const selfCheck = createSelfCheck()
+
+  /** 实验的评价项（自动检查的功能项名称）：实验页的评价项面板、老师布置作业时用 */
+  app.get('/api/samples/:id/checks', async (c) => {
+    const checks = await loadChecks(c.req.param('id'))
+    if (!checks) return c.json({ message: '这个实验还没有评分规则' }, 404)
+    return c.json(parseChecks(checks).map((check) => check.title))
+  })
+
+  app.post('/api/samples/:id/selfcheck', async (c) => {
+    const sampleId = c.req.param('id')
+    const yaml = (await listSamples()).some((s) => s.id === sampleId) ? await loadChecks(sampleId) : null
+    if (!yaml) return c.json({ message: '这个实验没有评价项' }, 404)
+    const { files } = await body<{ files: unknown }>(c)
+    if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
+    if (!selfCheck.start(c.get('user').id, `sample:${sampleId}`, files, parseChecks(yaml), sampleId)) {
+      return c.json({ message: '上一次检查还没完成' }, 409)
+    }
+    return c.json(selfCheck.get(c.get('user').id))
+  })
+
+  app.get('/api/selfcheck', (c) => c.json(selfCheck.get(c.get('user').id)))
 
   // 代码编辑器的语言服务：补全、悬停提示、参数提示、边写边检查
   const LANGUAGE_REQUESTS = new Set(['complete', 'completionDetail', 'hover', 'signature', 'diagnostics'])
@@ -197,6 +223,18 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     return c.json(latestSubmission(db, assignment.id, user.id))
   })
 
+  app.post('/api/assignments/:id/selfcheck', async (c) => {
+    const assignment = visibleAssignment(c)
+    const checks = assignment && assignmentChecks(db, assignment.id)
+    if (!assignment || !checks) return c.json({ message: '作业不存在' }, 404)
+    const { files } = await body<{ files: unknown }>(c)
+    if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
+    if (!selfCheck.start(c.get('user').id, `assignment:${assignment.id}`, files, checks, assignment.sampleId)) {
+      return c.json({ message: '上一次检查还没完成' }, 409)
+    }
+    return c.json(selfCheck.get(c.get('user').id))
+  })
+
   app.get('/api/assignments/:id/submission', (c) => {
     const assignment = visibleAssignment(c)
     if (!assignment) return c.json({ message: '作业不存在' }, 404)
@@ -247,12 +285,6 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   })
 
   // 示例的自动评分项名称（布置作业时设置分值用）
-  app.get('/api/teacher/samples/:id/checks', async (c) => {
-    const checks = await loadChecks(c.req.param('id'))
-    if (!checks) return c.json({ message: '这个实验还没有评分规则' }, 404)
-    return c.json(parseChecks(checks).map((check) => check.title))
-  })
-
   // 班级的作业，带上提交人数
   app.get('/api/teacher/classes/:id/assignments', (c) =>
     c.json(
