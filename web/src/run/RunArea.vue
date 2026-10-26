@@ -79,7 +79,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         :box="box"
         @reply="session.replyMessageBox(box.requestId, $event)"
       />
-      <div v-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
+      <div v-if="state.connection === 'lost'" class="desktop-hint lost">与服务器的连接断开了，正在重新连接…</div>
+      <div v-else-if="state.connection === 'restored' && state.forms.length === 0" class="desktop-hint lost">
+        连接已恢复。刚才的程序随连接断开已经结束，请重新运行
+      </div>
+      <div v-else-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
       <div class="desktop-tools">
         <span v-if="scale < 1" class="desktop-scale" title="窗体比运行区大，按比例缩小显示；点&quot;放大&quot;可以看得更清楚">
           缩放 {{ Math.round(scale * 100) }}%
@@ -218,6 +222,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   align-items: center;
   justify-content: center;
   color: rgb(255 255 255 / 0.7);
+}
+.desktop-hint.lost {
+  color: #ffd591;
+  font-weight: 600;
 }
 
 .photos {

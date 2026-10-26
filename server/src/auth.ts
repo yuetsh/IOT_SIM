@@ -12,8 +12,10 @@ import { config } from './config'
 
 const ACCESS_SECONDS = 15 * 60
 const REFRESH_DAYS = 30
-// 全班通常共用学校的一个出口 IP，上限不能太小，否则几个同学输错就把全班挡在外面
-const MAX_FAILURES = 30
+// 防暴力猜密码：同一个账号输错太多次只锁这个账号（学生密码是 6 位数字，不能让人一直猜）；
+// 全班通常共用学校的一个出口 IP，按 IP 的上限要大，否则几个同学输错就把全班挡在外面
+const MAX_FAILURES_PER_ACCOUNT = 10
+const MAX_FAILURES_PER_IP = 300
 const FAILURE_WINDOW_MS = 10 * 60_000
 
 export interface User {
@@ -55,17 +57,27 @@ function secret(db: Database): string {
 const randomString = () => Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url')
 const hash = (token: string) => new Bun.CryptoHasher('sha256').update(token).digest('hex')
 
-/** 每个 IP 一段时间内的失败次数，防止暴力猜密码 */
+/** 一段时间内的失败次数，键是 "ip:地址" 或 "user:账号" */
 const failures = new Map<string, { count: number; since: number }>()
 
-export function tooManyFailures(ip: string) {
-  const entry = failures.get(ip)
-  if (!entry) return false
-  if (Date.now() - entry.since > FAILURE_WINDOW_MS) {
-    failures.delete(ip)
-    return false
-  }
-  return entry.count >= MAX_FAILURES
+function failureCount(key: string) {
+  const entry = failures.get(key)
+  if (entry && Date.now() - entry.since > FAILURE_WINDOW_MS) failures.delete(key)
+  return failures.get(key)?.count ?? 0
+}
+
+function addFailure(key: string) {
+  failureCount(key) // 先清掉过期的
+  const entry = failures.get(key) ?? { count: 0, since: Date.now() }
+  entry.count++
+  failures.set(key, entry)
+}
+
+/** 输错太多次时返回提示，否则返回 null */
+export function tooManyFailures(ip: string, username: string): string | null {
+  if (failureCount(`user:${username.trim()}`) >= MAX_FAILURES_PER_ACCOUNT) return '这个账号的密码输错太多次，请 10 分钟后再试，或请老师查看密码'
+  if (failureCount(`ip:${ip}`) >= MAX_FAILURES_PER_IP) return '输错次数太多，请 10 分钟后再试'
+  return null
 }
 
 async function issueTokens(db: Database, userId: number, tokenVersion: number): Promise<Tokens> {
@@ -86,12 +98,12 @@ export async function login(db: Database, username: string, password: string, ip
     .query<{ id: number; password: string; token_version: number }, [string]>('SELECT id, password, token_version FROM users WHERE username = ?')
     .get(username.trim())
   if (!row || row.password !== password) {
-    const entry = failures.get(ip) ?? { count: 0, since: Date.now() }
-    entry.count++
-    failures.set(ip, entry)
+    addFailure(`ip:${ip}`)
+    addFailure(`user:${username.trim()}`)
     return null
   }
-  failures.delete(ip)
+  // 只清这个账号的；按 IP 的不清，否则用自己的账号登录一次就能接着猜别人的密码
+  failures.delete(`user:${username.trim()}`)
   return issueTokens(db, row.id, row.token_version)
 }
 

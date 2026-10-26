@@ -50,8 +50,9 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
 
   app.post('/api/login', async (c) => {
     const ip = clientIp(c)
-    if (tooManyFailures(ip)) return c.json({ message: '输错次数太多，请 10 分钟后再试' }, 429)
     const { username, password } = await body<{ username: string; password: string }>(c)
+    const blocked = tooManyFailures(ip, String(username ?? ''))
+    if (blocked) return c.json({ message: blocked }, 429)
     const tokens = await login(db, String(username ?? ''), String(password ?? ''), ip)
     if (!tokens) return c.json({ message: '账号或密码不对' }, 401)
     return c.json(await withUser(tokens))

@@ -52,6 +52,10 @@ const server = Bun.serve({
   },
   websocket: {
     data: {} as SocketData,
+    // 30 秒没收到数据就发一次 ping（浏览器自动回 pong）。线上前面有 Nginx Proxy Manager，
+    // nginx 默认 60 秒没数据就断开 WebSocket，学生的窗体开着不操作一分钟程序就会被结束
+    idleTimeout: 30,
+    sendPings: true,
     open(ws) {
       const userId = ws.data.userId!
       ws.data.session = new RunSession((message) => ws.send(JSON.stringify(message)), () => userDatabaseDir(userId))

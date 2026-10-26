@@ -8,5 +8,35 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <!--
+      浏览器太旧时（机房的旧版 Chrome、360 浏览器的兼容模式），网页程序运行不起来，页面一片空白。
+      这段用最老的写法，旧浏览器也能执行：网页程序出了语法错误时说明原因；15 秒后还没显示出来（网络慢），
+      先告诉学生在加载。网页程序启动后会替换掉这些文字。
+    -->
+    <script>
+      ;(function () {
+        var tooOld = false
+        function show(title, text) {
+          var app = document.getElementById('app')
+          // Vue 启动后会在容器上加 data-v-app，那时不再显示
+          if (!app || app.hasAttribute('data-v-app')) return
+          app.innerHTML =
+            '<div style="max-width:560px;margin:80px auto;padding:0 16px;font:16px/1.8 sans-serif;color:#333">' +
+            '<h2 style="margin:0 0 12px">' + title + '</h2><p>' + text + '</p>' +
+            '<p>用 360 浏览器、QQ 浏览器时，请点地址栏右边的闪电图标，切换到<b>极速模式</b>；或者换用新版的 <b>Chrome</b>、<b>Edge</b>。' +
+            '还是打不开的话，请把下面这行文字告诉老师：</p>' +
+            '<p style="font-size:13px;color:#888;word-break:break-all">' + navigator.userAgent.replace(/</g, '&lt;') + '</p></div>'
+        }
+        window.addEventListener('error', function (event) {
+          if (event && event.error instanceof SyntaxError) {
+            tooOld = true
+            show('网页没能打开', '浏览器版本太旧，运行不了本网站。')
+          }
+        })
+        setTimeout(function () {
+          if (!tooOld) show('网页正在加载…', '第一次打开要下载约 1.5 MB，全班同时打开时会慢一些，请稍等。如果一直停在这里，可能是浏览器版本太旧。')
+        }, 15000)
+      })()
+    </script>
   </body>
 </html>

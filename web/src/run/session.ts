@@ -45,6 +45,11 @@ export function createRunSession() {
     /** 正在播放的声音（媒体播放器控件，实训台上的广播喇叭随之亮起） */
     playing: null as { name: string } | null,
     metrics: { compileMs: 0, startMs: 0, lastRoundTripMs: 0 },
+    /**
+     * 和服务器的连接：lost 表示意外断开（网络不稳、服务器在更新），正在自动重连；
+     * restored 表示断开后又连上了（提示学生刚才的程序已经结束），下次运行时变回 open
+     */
+    connection: 'connecting' as 'connecting' | 'open' | 'lost' | 'restored',
   })
   /** id → 控件节点，patch 按 id 修改节点属性 */
   const nodes = shallowReactive(new Map<string, ControlNode>())
@@ -54,6 +59,12 @@ export function createRunSession() {
   /** 正在建立或已建立的连接；同时多处调用 connect() 时共用同一个 */
   let connecting: Promise<void> | undefined
   let actionSentAt = 0
+  /** 离开页面时主动断开，不再重连 */
+  let closed = false
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+  /** 连续重连失败的次数，等待时间随之加长（最长 RECONNECT_MAX_MS） */
+  let reconnectFailures = 0
+  const RECONNECT_MAX_MS = 10_000
   /** 每个媒体播放器控件一个 <audio> */
   const players = new Map<string, HTMLAudioElement>()
 
@@ -92,12 +103,27 @@ export function createRunSession() {
           const ws = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token ?? '')}`)
           socket = ws
           ws.onmessage = (event) => handle(JSON.parse(event.data) as ServerMessage)
-          ws.onopen = () => resolve()
+          ws.onopen = () => {
+            state.connection = state.connection === 'lost' ? 'restored' : 'open'
+            reconnectFailures = 0
+            resolve()
+          }
           ws.onclose = () => {
+            // 服务器那边的程序随连接一起结束了；窗体留在页面上只会"点了没反应"
+            if (!closed && (state.forms.length > 0 || state.status === 'compiling' || state.status === 'running')) {
+              state.errors.push('与服务器的连接断开了（网络不稳或服务器正在更新），程序已经结束。连上之后请重新运行。')
+            }
+            stopAudio()
+            state.forms = []
+            state.messageBoxes = []
             state.status = 'stopped'
             state.board = null
             socket = undefined
             connecting = undefined
+            if (!closed) {
+              state.connection = 'lost'
+              reconnectTimer = setTimeout(() => void connect(), Math.min(1000 * 2 ** reconnectFailures++, RECONNECT_MAX_MS))
+            }
             resolve()
           }
         }),
@@ -112,6 +138,11 @@ export function createRunSession() {
   /** sampleId：当前实验（服务器据此在第一次运行时建好实验预置的数据库） */
   async function run(files: SourceFile[], sampleId?: string) {
     await connect()
+    if (socket?.readyState !== WebSocket.OPEN) {
+      state.errors = ['连不上服务器，请检查网络，稍后再点"运行"。']
+      return
+    }
+    state.connection = 'open'
     state.diagnostics = []
     state.console = ''
     state.errors = []
@@ -251,6 +282,8 @@ export function createRunSession() {
 
   /** 离开页面时断开连接：服务器随即结束正在运行的程序 */
   function close() {
+    closed = true
+    clearTimeout(reconnectTimer)
     socket?.close()
   }
 

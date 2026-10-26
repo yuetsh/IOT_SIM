@@ -90,11 +90,33 @@ test('账号或密码不对时登录失败，老师登录后能看到自己的�
   expect(me.body.user).toMatchObject({ username: config.teacherUsername, role: 'teacher' })
 })
 
-test('同一个 IP 输错 30 次后暂停登录，别的 IP 不受影响', async () => {
-  const attacker = new Browser('10.0.0.66')
-  for (let i = 0; i < 30; i++) await attacker.login('admin', `guess${i}`)
-  expect((await attacker.login('admin', 'whatever')).status).toBe(429)
-  expect((await new Browser('10.0.0.67').login('admin', 'whatever')).status).toBe(401)
+test('同一个账号输错 10 次后暂停这个账号的登录，同一 IP 的其他同学不受影响', async () => {
+  const t = await teacher()
+  await classWithStudents(t, [
+    { username: 'guessed', name: '甲', password: '123456' },
+    { username: 'other', name: '乙', password: '654321' },
+  ])
+  const classmate = new Browser('10.0.0.66')
+  for (let i = 0; i < 9; i++) await classmate.login('guessed', `00000${i}`)
+  // 用自己的账号登录成功，不会清掉别人账号的失败次数
+  expect((await classmate.login('other', '654321')).status).toBe(200)
+  await classmate.login('guessed', '000009')
+  const blocked = await new Browser('10.0.0.67').login('guessed', '123456')
+  expect(blocked.status).toBe(429)
+  expect(blocked.body.message).toContain('这个账号')
+  expect((await new Browser('10.0.0.66').login('other', '654321')).status).toBe(200)
+})
+
+test('同一个 IP 输错 300 次后暂停登录，登录成功也不清零，别的 IP 不受影响', async () => {
+  const t = await teacher()
+  await classWithStudents(t, [{ username: 'mine', name: '甲', password: '111111' }])
+  const attacker = new Browser('10.0.0.68')
+  for (let i = 0; i < 300; i++) {
+    await attacker.login(`nobody${i % 50}`, 'guess')
+    if (i === 150) expect((await attacker.login('mine', '111111')).status).toBe(200)
+  }
+  expect((await attacker.login('mine', '111111')).status).toBe(429)
+  expect((await new Browser('10.0.0.69').login('mine', '111111')).status).toBe(200)
 })
 
 describe('班级和名单', () => {
