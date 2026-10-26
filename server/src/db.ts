@@ -101,6 +101,10 @@ const MIGRATIONS = [
   ALTER TABLE submissions ADD COLUMN screenshots TEXT;
   ALTER TABLE submissions ADD COLUMN ai_review TEXT;
   `,
+  // 作业的任务说明（Markdown）；以前布置的作业为 NULL，用实验现在的说明
+  `
+  ALTER TABLE assignments ADD COLUMN task TEXT;
+  `,
 ]
 
 /** 打开数据库并执行未执行过的迁移。path 为 ":memory:" 时用内存数据库（测试用） */

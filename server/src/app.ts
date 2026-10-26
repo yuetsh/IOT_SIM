@@ -25,7 +25,7 @@ import { getReview, gradebook, manualScore, saveReview, studentDetail, submissio
 import type { GradingQueue } from './grading/queue'
 import { config } from './config'
 import { deleteUserDatabases, restoreExperimentDatabases, userDatabaseDir } from './databases'
-import { listSamples, loadChecks, loadSample } from './samples'
+import { listSamples, loadChecks, loadSample, loadTask } from './samples'
 import { SqlError, sqlService } from './sql-service'
 import { serveStatic } from './static'
 import { deleteWork, getWork, saveWork, validFiles, validScreenshots } from './works'
@@ -111,6 +111,9 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     if (!checks) return c.json({ message: '这个实验还没有评分规则' }, 404)
     return c.json(parseChecks(checks).map((check) => check.title))
   })
+
+  /** 实验的任务说明（Markdown）；没有时 task 为 null */
+  app.get('/api/samples/:id/task', async (c) => c.json({ task: await loadTask(c.req.param('id')) }))
 
   app.post('/api/samples/:id/selfcheck', async (c) => {
     const sampleId = c.req.param('id')
@@ -202,11 +205,18 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     )
   })
 
-  app.get('/api/assignments/:id', (c) => {
+  app.get('/api/assignments/:id', async (c) => {
     const assignment = visibleAssignment(c)
     if (!assignment) return c.json({ message: '作业不存在' }, 404)
     const userId = c.get('user').id
-    return c.json({ assignment, template: assignmentTemplate(db, assignment.id), latest: latestSubmission(db, assignment.id, userId), review: getReview(db, assignment.id, userId) })
+    // 以前布置的作业没有保存任务说明，用实验现在的说明
+    const task = assignment.task ?? (await loadTask(assignment.sampleId))
+    return c.json({
+      assignment: { ...assignment, task },
+      template: assignmentTemplate(db, assignment.id),
+      latest: latestSubmission(db, assignment.id, userId),
+      review: getReview(db, assignment.id, userId),
+    })
   })
 
   app.post('/api/assignments/:id/submit', async (c) => {
@@ -298,7 +308,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   )
 
   app.post('/api/teacher/assignments', async (c) => {
-    const a = await body<{ classId: number; sampleId: string; title: string; startMode: StartMode; template: unknown; scoring: Scoring; deadline: number | null }>(c)
+    const a = await body<{ classId: number; sampleId: string; title: string; startMode: StartMode; template: unknown; scoring: Scoring; deadline: number | null; task: string | null }>(c)
     if (!listClasses(db).some((cls) => cls.id === a.classId)) return c.json({ message: '班级不存在' }, 404)
     const checks = typeof a.sampleId === 'string' ? await loadChecks(a.sampleId) : null
     if (!checks) return c.json({ message: '这个实验还没有评分规则' }, 400)
@@ -313,13 +323,22 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
       checks,
       scoring: a.scoring as Scoring,
       deadline: typeof a.deadline === 'number' ? a.deadline : null,
+      task: typeof a.task === 'string' ? a.task : null,
     })
     return 'error' in result ? c.json({ message: result.error }, 400) : c.json(result)
   })
 
   app.patch('/api/teacher/assignments/:id', async (c) => {
-    const a = await body<{ title: string; deadline: number | null; scoring: Scoring }>(c)
-    return reply(c, updateAssignment(db, id(c), { title: String(a.title ?? ''), deadline: typeof a.deadline === 'number' ? a.deadline : null, scoring: a.scoring as Scoring }))
+    const a = await body<{ title: string; deadline: number | null; scoring: Scoring; task: string | null }>(c)
+    return reply(
+      c,
+      updateAssignment(db, id(c), {
+        title: String(a.title ?? ''),
+        deadline: typeof a.deadline === 'number' ? a.deadline : null,
+        scoring: a.scoring as Scoring,
+        task: typeof a.task === 'string' ? a.task : null,
+      }),
+    )
   })
 
   app.delete('/api/teacher/assignments/:id', (c) => {

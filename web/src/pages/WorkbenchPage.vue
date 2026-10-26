@@ -2,7 +2,7 @@
 // 实验页：编辑代码 → 运行 → 在网页里操作学生的窗体和虚拟实训台。
 // 三种用法：自由练习（选择示例工程）；做作业（/assignments/:id，从作业起点开始，可以提交评分）；
 // 老师运行学生提交的程序（/teacher/submissions/:id/run，改动只用于试运行，不保存）。
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage } from 'naive-ui'
 import type { Assignment, Review, SourceFile, Submission } from '@iot/shared'
@@ -18,7 +18,7 @@ import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
-import SelfCheckPanel from '../grading/SelfCheckPanel.vue'
+import TaskPanel from '../grading/TaskPanel.vue'
 import { captureForms } from '../grading/screenshots'
 
 const props = defineProps<{ assignmentId?: string; submissionId?: string }>()
@@ -136,26 +136,35 @@ async function loadSample(id: string, discardWork = false) {
   sampleId.value = id
   void router.replace({ query: { sample: id } })
   sampleChecks.value = []
+  sampleTask.value = null
   void api<string[]>('GET', `/api/samples/${encodeURIComponent(id)}/checks`)
     .then((titles) => {
       if (sampleId.value === id) sampleChecks.value = titles
     })
     .catch(() => {})
+  void api<{ task: string | null }>('GET', `/api/samples/${encodeURIComponent(id)}/task`)
+    .then(({ task }) => {
+      if (sampleId.value === id) sampleTask.value = task
+    })
+    .catch(() => {})
   await openProject(sampleWorkKey(id), () => api<SourceFile[]>('GET', `/api/samples/${encodeURIComponent(id)}`), discardWork)
 }
 
-// ---------- 评价项和自测 ----------
+// ---------- 任务说明、评价项和自测 ----------
 const sampleChecks = ref<string[]>([])
-const selfCheckOpen = ref(false)
-/** 作业用布置时的评分规则，自由练习用实验的评分规则 */
-const selfCheck = computed(() => {
+const sampleTask = ref<string | null>(null)
+const taskOpen = ref(false)
+/** 作业用布置时的任务说明和评分规则，自由练习用实验的 */
+const taskPanel = computed(() => {
   if (props.assignmentId) {
     const a = assignment.value
-    return a ? { titles: a.checkTitles, target: `assignment:${a.id}`, url: `/api/assignments/${a.id}/selfcheck`, points: a.scoring.auto } : null
+    return a ? { task: a.task, titles: a.checkTitles, target: `assignment:${a.id}`, url: `/api/assignments/${a.id}/selfcheck`, points: a.scoring.auto } : null
   }
   const id = sampleId.value
-  return id && sampleChecks.value.length ? { titles: sampleChecks.value, target: `sample:${id}`, url: `/api/samples/${encodeURIComponent(id)}/selfcheck` } : null
+  if (!id || (!sampleTask.value && !sampleChecks.value.length)) return null
+  return { task: sampleTask.value, titles: sampleChecks.value, target: `sample:${id}`, url: `/api/samples/${encodeURIComponent(id)}/selfcheck` }
 })
+
 
 // ---------- 作业 ----------
 const assignment = ref<Assignment | null>(null)
@@ -196,6 +205,23 @@ async function loadAssignment(discardWork = false) {
 
 // ---------- 老师运行学生提交的程序 ----------
 const viewing = ref<{ studentName: string; username: string; assignmentTitle: string } | null>(null)
+
+// 第一次打开一个实验（或作业）时自动打开任务面板；记在浏览器里，之后不再自动打开
+const TASK_SEEN_KEY = 'iot-sim:task-seen'
+watch(
+  () => (taskPanel.value?.task && !viewing.value ? taskPanel.value.target : null),
+  (target: string | null) => {
+    if (!target) return
+    try {
+      const seen: string[] = JSON.parse(localStorage.getItem(TASK_SEEN_KEY) ?? '[]')
+      if (seen.includes(target)) return
+      localStorage.setItem(TASK_SEEN_KEY, JSON.stringify([...seen, target].slice(-200)))
+    } catch {
+      return
+    }
+    taskOpen.value = true
+  },
+)
 
 async function loadSubmission() {
   try {
@@ -496,8 +522,8 @@ function run() {
           {{ scoreText }}
         </NButton>
       </template>
-      <NButton v-if="selfCheck && !viewing" size="small" title="这个任务自动检查哪些功能；可以自己先检查一遍（不计分）" @click="selfCheckOpen = true">
-        评价项
+      <NButton v-if="taskPanel && !viewing" size="small" title="任务说明、自动检查哪些功能；可以自己先检查一遍（不计分）" @click="taskOpen = !taskOpen">
+        任务
       </NButton>
       <NPopconfirm v-if="modified && !viewing" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
         <template #trigger>
@@ -532,13 +558,14 @@ function run() {
       <GradeResultView :assignment="assignment" :submission="submission" :review="review" />
     </NModal>
 
-    <SelfCheckPanel
-      v-if="selfCheck"
-      v-model:show="selfCheckOpen"
-      :titles="selfCheck.titles"
-      :target="selfCheck.target"
-      :url="selfCheck.url"
-      :points="selfCheck.points"
+    <TaskPanel
+      v-if="taskPanel"
+      v-model:show="taskOpen"
+      :task="taskPanel.task"
+      :titles="taskPanel.titles"
+      :target="taskPanel.target"
+      :url="taskPanel.url"
+      :points="taskPanel.points"
       :files="files"
       :before-start="flushSave"
     />

@@ -9,7 +9,7 @@ import { openDatabase } from '../src/db'
 import { createGradingQueue, type GradingQueue } from '../src/grading/queue'
 import { languageService } from '../src/language-service'
 import { sqlService } from '../src/sql-service'
-import { loadSample } from '../src/samples'
+import { loadSample, loadTask } from '../src/samples'
 
 let app: ReturnType<typeof createApp>
 let queue: GradingQueue
@@ -286,6 +286,28 @@ describe('作业', () => {
     await student.login('s1', 'p1')
     return { t, student, classId, assignmentId: created.body.id as number, files: template }
   }
+
+  test('任务说明：布置时保存，老师可以改；没有保存的作业用实验现在的说明', async () => {
+    const { t, student, classId, assignmentId } = await setup()
+    // setup 没传任务说明（像加这个功能之前布置的作业）
+    expect((await student.get(`/api/assignments/${assignmentId}`)).body.assignment.task).toBe(await loadTask(SAMPLE))
+
+    await t.patch(`/api/teacher/assignments/${assignmentId}`, { title: '控制报警灯', deadline: null, scoring, task: '## 老师要求\n只做前 3 步' })
+    expect((await student.get(`/api/assignments/${assignmentId}`)).body.assignment.task).toBe('## 老师要求\n只做前 3 步')
+
+    const tooLong = await t.post('/api/teacher/assignments', {
+      classId,
+      sampleId: SAMPLE,
+      title: '太长',
+      startMode: 'ui',
+      template: [],
+      scoring,
+      deadline: null,
+      task: 'x'.repeat(20_001),
+    })
+    expect(tooLong.status).toBe(400)
+    expect(tooLong.body.message).toContain('任务说明')
+  })
 
   test('分值项数要和评分规则一致', async () => {
     const t = await teacher()

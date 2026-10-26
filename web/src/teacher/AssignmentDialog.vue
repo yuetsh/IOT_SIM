@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 布置作业 / 修改作业。布置时选实验、起点和截止时间，给每个评分项设分值；
 // 起点工程由浏览器用设计器引擎从参考答案生成（界面已做好：去掉事件和代码；空白工程：只有空的 Form1）。
-// 修改时只能改名称、截止时间和分值。
+// 任务说明从实验的 task.md 预填，老师可以改写（比如在前面加一段要求）；修改时只能改名称、截止时间、分值和任务说明。
 import { computed, ref, watch } from 'vue'
 import { NButton, NDatePicker, NInput, NInputNumber, NModal, NRadio, NRadioGroup, NSelect, useMessage } from 'naive-ui'
 import type { Assignment, Scoring, SourceFile, StartMode } from '@iot/shared'
@@ -26,7 +26,14 @@ const deadline = ref<number | null>(null)
 const checkTitles = ref<string[]>([])
 const auto = ref<number[]>([])
 const manual = ref<Scoring['manual']>([])
+const task = ref('')
+/** 实验原来的任务说明，"恢复成实验的说明"用 */
+const sampleTask = ref('')
 const saving = ref(false)
+
+async function loadSampleTask(id: string) {
+  sampleTask.value = (await api<{ task: string | null }>('GET', `/api/samples/${encodeURIComponent(id)}/task`).catch(() => ({ task: null }))).task ?? ''
+}
 
 const total = computed(() => [...auto.value, ...manual.value.map((m) => m.points)].reduce((a, b) => a + (b || 0), 0))
 
@@ -34,6 +41,10 @@ watch(
   () => props.show,
   async (show) => {
     if (!show) return
+    if (samples.value.length === 0) {
+      const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
+      samples.value = list.map((s) => ({ label: s.title, value: s.id }))
+    }
     const e = props.editing
     if (e) {
       sampleId.value = e.sampleId
@@ -43,6 +54,10 @@ watch(
       checkTitles.value = e.checkTitles
       auto.value = [...e.scoring.auto]
       manual.value = e.scoring.manual.map((m) => ({ ...m }))
+      task.value = e.task ?? ''
+      await loadSampleTask(e.sampleId)
+      // 加这个功能之前布置的作业没有保存说明，学生看到的是实验的说明
+      if (e.task === null) task.value = sampleTask.value
       return
     }
     sampleId.value = null
@@ -52,16 +67,17 @@ watch(
     checkTitles.value = []
     auto.value = []
     manual.value = DEFAULT_MANUAL.map((m) => ({ ...m }))
-    if (samples.value.length === 0) {
-      const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
-      samples.value = list.map((s) => ({ label: s.title, value: s.id }))
-    }
+    task.value = ''
+    sampleTask.value = ''
   },
 )
 
 async function chooseSample(id: string) {
   sampleId.value = id
   title.value = samples.value.find((s) => s.value === id)?.label ?? ''
+  void loadSampleTask(id).then(() => {
+    if (sampleId.value === id) task.value = sampleTask.value
+  })
   try {
     checkTitles.value = await api<string[]>('GET', `/api/samples/${encodeURIComponent(id)}/checks`)
     auto.value = checkTitles.value.map(() => 10)
@@ -78,7 +94,7 @@ async function save() {
   const scoring: Scoring = { auto: auto.value.map((p) => p || 0), manual: manual.value.map((m) => ({ title: m.title.trim(), points: m.points || 0 })) }
   try {
     if (props.editing) {
-      await api('PATCH', `/api/teacher/assignments/${props.editing.id}`, { title: title.value, deadline: deadline.value, scoring })
+      await api('PATCH', `/api/teacher/assignments/${props.editing.id}`, { title: title.value, deadline: deadline.value, scoring, task: task.value })
     } else {
       const files = await api<SourceFile[]>('GET', `/api/samples/${encodeURIComponent(sampleId.value)}`)
       await api('POST', '/api/teacher/assignments', {
@@ -89,6 +105,7 @@ async function save() {
         template: assignmentTemplate(files, startMode.value),
         scoring,
         deadline: deadline.value,
+        task: task.value,
       })
     }
     emit('saved')
@@ -136,6 +153,15 @@ async function save() {
         </div>
       </template>
 
+      <label>任务说明</label>
+      <div class="task">
+        <NInput v-model:value="task" type="textarea" :autosize="{ minRows: 3, maxRows: 10 }" placeholder="这个实验还没有任务说明" />
+        <div class="hint">
+          学生在实验页的"任务"面板里看到。可以在最前面加一段要求；格式：<code>## 标题</code>、<code>- 列表</code>、<code>**加粗**</code>
+          <NButton v-if="sampleTask && task !== sampleTask" size="tiny" quaternary @click="task = sampleTask">恢复成实验的说明</NButton>
+        </div>
+      </div>
+
       <label>老师评分</label>
       <div class="points">
         <div v-for="(m, i) in manual" :key="i" class="point-row">
@@ -172,6 +198,22 @@ async function save() {
   font-size: 13px;
   align-self: start;
   padding-top: 6px;
+}
+
+.task {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hint {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.hint code {
+  padding: 0 3px;
+  background: #f3f4f6;
 }
 
 .points {

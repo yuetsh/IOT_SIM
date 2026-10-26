@@ -49,6 +49,11 @@ export interface Assignment {
   /** 自动评分项的名称，和 scoring.auto 一一对应 */
   checkTitles: string[]
   scoring: Scoring
+  /**
+   * 任务说明（Markdown，见 web/src/grading/markdown.ts）：布置时从实验的 task.md 复制，老师可以改写。
+   * null 是加这个功能之前布置的作业，学生看到的是实验现在的说明
+   */
+  task: string | null
 }
 
 export interface Submission {

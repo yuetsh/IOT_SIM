@@ -15,10 +15,11 @@ interface AssignmentRow {
   scoring: string
   deadline: number | null
   created_at: number
+  task: string | null
 }
 
 const SELECT_ASSIGNMENT = `
-  SELECT a.id, a.class_id, c.name AS class_name, a.sample_id, a.title, a.start_mode, a.checks, a.scoring, a.deadline, a.created_at
+  SELECT a.id, a.class_id, c.name AS class_name, a.sample_id, a.title, a.start_mode, a.checks, a.scoring, a.deadline, a.created_at, a.task
   FROM assignments a JOIN classes c ON c.id = a.class_id`
 
 function toAssignment(row: AssignmentRow): Assignment {
@@ -33,6 +34,7 @@ function toAssignment(row: AssignmentRow): Assignment {
     createdAt: row.created_at,
     checkTitles: parseChecks(row.checks).map((c) => c.title),
     scoring: JSON.parse(row.scoring) as Scoring,
+    task: row.task,
   }
 }
 
@@ -76,32 +78,46 @@ export interface NewAssignment {
   checks: string
   scoring: Scoring
   deadline: number | null
+  /** 任务说明（Markdown），null 表示用实验的说明 */
+  task: string | null
 }
+
+/** 任务说明最长多少字 */
+export const MAX_TASK_LENGTH = 20_000
 
 export function createAssignment(db: Database, a: NewAssignment): { id: number } | { error: string } {
   if (!a.title.trim()) return { error: '作业名称不能为空' }
-  const error = scoringError(a.scoring, parseChecks(a.checks).length)
+  const error = scoringError(a.scoring, parseChecks(a.checks).length) ?? taskError(a.task)
   if (error) return { error }
   const result = db
     .query(
-      `INSERT INTO assignments (class_id, sample_id, title, start_mode, template, checks, scoring, deadline, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO assignments (class_id, sample_id, title, start_mode, template, checks, scoring, deadline, created_at, task)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(a.classId, a.sampleId, a.title.trim(), a.startMode, JSON.stringify(a.template), a.checks, JSON.stringify(a.scoring), a.deadline, Date.now())
+    .run(a.classId, a.sampleId, a.title.trim(), a.startMode, JSON.stringify(a.template), a.checks, JSON.stringify(a.scoring), a.deadline, Date.now(), a.task)
   return { id: Number(result.lastInsertRowid) }
 }
 
-/** 修改名称、截止时间、分值（起点工程和评分规则布置后不能改） */
-export function updateAssignment(db: Database, id: number, changes: { title: string; deadline: number | null; scoring: Scoring }): { error?: string } {
+function taskError(task: string | null) {
+  return task !== null && task.length > MAX_TASK_LENGTH ? `任务说明不能超过 ${MAX_TASK_LENGTH} 字` : null
+}
+
+/** 修改名称、截止时间、分值、任务说明（起点工程和评分规则布置后不能改） */
+export function updateAssignment(
+  db: Database,
+  id: number,
+  changes: { title: string; deadline: number | null; scoring: Scoring; task: string | null },
+): { error?: string } {
   const checks = assignmentChecks(db, id)
   if (!checks) return { error: '作业不存在' }
   if (!changes.title.trim()) return { error: '作业名称不能为空' }
-  const error = scoringError(changes.scoring, checks.length)
+  const error = scoringError(changes.scoring, checks.length) ?? taskError(changes.task)
   if (error) return { error }
-  db.query('UPDATE assignments SET title = ?, deadline = ?, scoring = ? WHERE id = ?').run(
+  db.query('UPDATE assignments SET title = ?, deadline = ?, scoring = ?, task = ? WHERE id = ?').run(
     changes.title.trim(),
     changes.deadline,
     JSON.stringify(changes.scoring),
+    changes.task,
     id,
   )
   // 分值变了，已评分的提交重新算分

@@ -33,6 +33,14 @@ export async function loadSample(id: string): Promise<SourceFile[] | null> {
   return files.length > 0 ? files.sort((a, b) => a.path.localeCompare(b.path)) : null
 }
 
+/** 示例的任务说明（task.md 原文，Markdown）；没有说明返回 null */
+export async function loadTask(id: string): Promise<string | null> {
+  const path = resolve(SAMPLES_DIR, id, 'task.md')
+  if (!path.startsWith(`${SAMPLES_DIR}/`)) return null
+  const file = Bun.file(path)
+  return (await file.exists()) ? file.text() : null
+}
+
 /** 示例的评分规则（checks.yaml 原文）；没有规则返回 null */
 export async function loadChecks(id: string): Promise<string | null> {
   const path = resolve(SAMPLES_DIR, id, 'checks.yaml')
