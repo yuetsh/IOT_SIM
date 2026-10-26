@@ -1,6 +1,8 @@
 // 读取老师上传的学生名单（CSV）。名单通常由 Excel 导出：
 // 中文 Windows 上"CSV（逗号分隔）"是 GBK 编码，"CSV UTF-8"带 BOM，两种都要支持；
-// 第一行可能是表头（学号、姓名、密码），没有表头时按"账号、姓名、密码"的顺序读。
+// 名单只有"用户名、密码"两列，平台里的姓名就用用户名；第一行可能是表头，没有表头时按"用户名、密码"的顺序读。
+// 以前的名单有"姓名"列的，照样读进来。学校别的平台的用户名在姓名前带着班级代号（ks241张三），
+// 这里有班级，代号去掉，学生只用姓名登录。
 
 export interface RosterRow {
   username: string
@@ -65,27 +67,37 @@ const HEADERS = {
   password: ['密码', 'password'],
 }
 
+/** 去掉姓名前面的班级代号（字母加数字）：ks241张三 → 张三；不是"代号 + 汉字"的用户名不变 */
+export function stripClassCode(username: string) {
+  return username.replace(/^[A-Za-z]+\d+(?=\p{Script=Han})/u, '')
+}
+
 /** 表格转成名单：识别表头，检查每行的问题 */
 export function toRoster(table: string[][]): RosterRow[] {
   if (table.length === 0) return []
   const header = table[0].map((cell) => cell.trim().toLowerCase())
   const column = (aliases: string[]) => header.findIndex((cell) => aliases.includes(cell))
-  const hasHeader = column(HEADERS.username) >= 0 && column(HEADERS.name) >= 0
+  const hasHeader = column(HEADERS.username) >= 0
   const index = hasHeader
     ? { username: column(HEADERS.username), name: column(HEADERS.name), password: column(HEADERS.password) }
-    : { username: 0, name: 1, password: 2 }
+    : { username: 0, name: -1, password: 1 }
 
+  const seen = new Set<string>()
   return table.slice(hasHeader ? 1 : 0).map((cells) => {
     const cell = (i: number) => (i >= 0 ? (cells[i] ?? '').trim() : '')
-    const row: RosterRow = { username: cell(index.username), name: cell(index.name), password: cell(index.password) }
+    const username = stripClassCode(cell(index.username))
+    const row: RosterRow = { username, name: index.name >= 0 ? cell(index.name) : username, password: cell(index.password) }
     // Excel 会把长数字（如 12 位学号）显示成科学计数法，导出 CSV 时也照样写出去
     if (/^\d+(\.\d+)?e\+\d+$/i.test(row.username)) {
-      row.problem = '账号变成了科学计数法：在 Excel 里把这一列设为"文本"格式、重新输入后再导出'
+      row.problem = '用户名变成了科学计数法：在 Excel 里把这一列设为"文本"格式、重新输入后再导出'
     } else if (!row.username) {
-      row.problem = '账号为空'
+      row.problem = '用户名为空'
     } else if (!row.name) {
       row.problem = '姓名为空'
+    } else if (seen.has(row.username)) {
+      row.problem = '名单里有同名的，在用户名后面加数字区分，如"张三2"'
     }
+    seen.add(row.username)
     return row
   })
 }

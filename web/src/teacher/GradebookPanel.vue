@@ -51,8 +51,7 @@ function cell(row: Row, assignmentId: number) {
 }
 
 const columns = computed<DataTableColumns<Row>>(() => [
-  { title: '学号', key: 'username', fixed: 'left', width: 110, sorter: 'default' },
-  { title: '姓名', key: 'name', fixed: 'left', width: 80 },
+  { title: '用户名', key: 'username', fixed: 'left', width: 130, sorter: 'default' },
   ...book.value.assignments.map((a) => ({
     title: `${a.title}（${a.total}）`,
     key: `a${a.id}`,
@@ -64,10 +63,9 @@ const columns = computed<DataTableColumns<Row>>(() => [
 
 function exportCsv() {
   downloadCsv(`${props.className}-成绩表.csv`, [
-    ['学号', '姓名', ...book.value.assignments.map((a) => `${a.title}（${a.total}）`), `合计（${fullMarks.value}）`],
+    ['用户名', ...book.value.assignments.map((a) => `${a.title}（${a.total}）`), `合计（${fullMarks.value}）`],
     ...book.value.students.map((s) => [
       `\t${s.username}`,
-      s.name,
       ...book.value.assignments.map((a) => (s.scores[a.id]?.submitted ? s.scores[a.id].total : '未交')),
       sum(s),
     ]),

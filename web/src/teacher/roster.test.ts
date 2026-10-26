@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { describe, expect, test } from 'bun:test'
-import { decodeCsv, parseCsv, toRoster } from './roster'
+import { decodeCsv, parseCsv, stripClassCode, toRoster } from './roster'
 
 describe('decodeCsv', () => {
   test('UTF-8（带 BOM，Excel 的"CSV UTF-8"）', () => {
@@ -32,12 +32,35 @@ describe('toRoster', () => {
     ])
   })
 
-  test('没有表头时按"账号、姓名、密码"的顺序', () => {
-    expect(toRoster(parseCsv('2024001,张三\n'))).toEqual([{ username: '2024001', name: '张三', password: '' }])
+  test('表头只有用户名和密码时，姓名用用户名；去掉姓名前的班级代号', () => {
+    expect(toRoster(parseCsv('用户名,密码\nks241张三,525517\n'))).toEqual([{ username: '张三', name: '张三', password: '525517' }])
+  })
+
+  test('没有表头时按"用户名、密码"的顺序', () => {
+    expect(toRoster(parseCsv('ks241张三,525517\nks241李四\n'))).toEqual([
+      { username: '张三', name: '张三', password: '525517' },
+      { username: '李四', name: '李四', password: '' },
+    ])
+  })
+
+  test('只去掉"字母 + 数字 + 汉字"开头的代号', () => {
+    expect(['ks241张三', 'KS2401王超', '2024001', 'zhang3', 'abc张三', '张三'].map(stripClassCode)).toEqual([
+      '张三',
+      '王超',
+      '2024001',
+      'zhang3',
+      'abc张三',
+      '张三',
+    ])
+  })
+
+  test('去掉代号后重名的标出问题', () => {
+    const rows = toRoster(parseCsv('用户名,密码\nks241王超,1\nks242王超,2\n'))
+    expect(rows.map((r) => r.problem)).toEqual([undefined, expect.stringContaining('同名')])
   })
 
   test('科学计数法的学号、空账号、空姓名标出问题', () => {
     const rows = toRoster(parseCsv('学号,姓名\n2.02401E+11,张三\n,李四\n2024003,\n'))
-    expect(rows.map((r) => r.problem)).toEqual([expect.stringContaining('科学计数法'), '账号为空', '姓名为空'])
+    expect(rows.map((r) => r.problem)).toEqual([expect.stringContaining('科学计数法'), '用户名为空', '姓名为空'])
   })
 })

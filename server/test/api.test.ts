@@ -77,11 +77,11 @@ test('没登录时接口返回 401', async () => {
   expect((await browser.get('/api/works/sample:x')).status).toBe(401)
 })
 
-test('账号或密码不对时登录失败，老师登录后能看到自己的信息', async () => {
+test('用户名或密码不对时登录失败，老师登录后能看到自己的信息', async () => {
   const browser = new Browser()
   const wrong = await browser.login('admin', 'wrong')
   expect(wrong.status).toBe(401)
-  expect(wrong.body.message).toBe('账号或密码不对')
+  expect(wrong.body.message).toBe('用户名或密码不对')
 
   const t = await teacher()
   const me = await t.get('/api/me')
@@ -144,9 +144,9 @@ describe('班级和名单', () => {
       created: 2,
       updated: 0,
       errors: [
-        { row: 3, message: '账号"2024001"在名单里重复' },
-        { row: 4, message: '账号"2024003"的姓名为空' },
-        { row: 5, message: '账号"2024 004"里有空格' },
+        { row: 3, message: '用户名"2024001"在名单里重复' },
+        { row: 4, message: '用户名"2024003"的姓名为空' },
+        { row: 5, message: '用户名"2024 004"里有空格' },
         { row: 6, message: '"admin"是老师账号' },
       ],
     })
@@ -165,6 +165,15 @@ describe('班级和名单', () => {
     const result = await t.post(`/api/teacher/classes/${classId}/import`, { rows: [{ username: '2024001', name: '张叁' }] })
     expect(result.body).toMatchObject({ created: 0, updated: 1 })
     expect((await t.get(`/api/teacher/classes/${classId}/students`)).body[0]).toMatchObject({ name: '张叁', password: 'abc123' })
+  })
+
+  test('用户名已是别的班的学生时报错，不转到本班', async () => {
+    const t = await teacher()
+    const first = await classWithStudents(t, [{ username: '王超', name: '王超', password: 'abc123' }])
+    const { body: other } = await t.post('/api/teacher/classes', { name: '物联网 2402' })
+    const result = await t.post(`/api/teacher/classes/${other.id}/import`, { rows: [{ username: '王超', name: '王超', password: '999999' }] })
+    expect(result.body).toEqual({ created: 0, updated: 0, errors: [{ row: 1, message: expect.stringContaining('已经是物联网 2401的学生') }] })
+    expect((await t.get(`/api/teacher/classes/${first}/students`)).body[0]).toMatchObject({ username: '王超', password: 'abc123' })
   })
 
   test('学生用老师发的密码登录，不能使用老师接口', async () => {

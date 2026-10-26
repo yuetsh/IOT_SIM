@@ -72,15 +72,18 @@ export function listStudents(db: Database, classId: number): Student[] {
 }
 
 /**
- * 导入名单到一个班：账号不存在就新建，已存在就更新姓名、班级（以及填了的密码）。
+ * 导入名单到一个班：用户名不存在就新建，已是本班学生就更新姓名（以及填了的密码）。
+ * 用户名全站唯一（学生只用姓名登录），已是别的班的学生时报错，不把他转到本班。
  * 密码留空时：新学生生成 6 位数字密码，老学生保持原密码。
  */
 export function importStudents(db: Database, classId: number, rows: ImportRow[]): ImportResult {
   const result: ImportResult = { created: 0, updated: 0, errors: [] }
   const seen = new Set<string>()
-  const find = db.query<{ id: number; role: string }, [string]>('SELECT id, role FROM users WHERE username = ?')
+  const find = db.query<{ id: number; role: string; classId: number | null; className: string | null }, [string]>(
+    'SELECT u.id, u.role, u.class_id AS classId, c.name AS className FROM users u LEFT JOIN classes c ON c.id = u.class_id WHERE u.username = ?',
+  )
   const insert = db.query(`INSERT INTO users (username, name, password, role, class_id, created_at) VALUES (?, ?, ?, 'student', ?, ?)`)
-  const update = db.query('UPDATE users SET name = ?, class_id = ?, password = COALESCE(?, password) WHERE id = ?')
+  const update = db.query('UPDATE users SET name = ?, password = COALESCE(?, password) WHERE id = ?')
 
   db.transaction(() => {
     for (const [index, row] of rows.entries()) {
@@ -89,19 +92,19 @@ export function importStudents(db: Database, classId: number, rows: ImportRow[])
       const name = row.name.trim()
       const password = row.password?.trim() || undefined
       if (!username) {
-        fail('账号为空')
+        fail('用户名为空')
         continue
       }
       if (/\s/.test(username)) {
-        fail(`账号"${username}"里有空格`)
+        fail(`用户名"${username}"里有空格`)
         continue
       }
       if (!name) {
-        fail(`账号"${username}"的姓名为空`)
+        fail(`用户名"${username}"的姓名为空`)
         continue
       }
       if (seen.has(username)) {
-        fail(`账号"${username}"在名单里重复`)
+        fail(`用户名"${username}"在名单里重复`)
         continue
       }
       seen.add(username)
@@ -111,8 +114,12 @@ export function importStudents(db: Database, classId: number, rows: ImportRow[])
         fail(`"${username}"是老师账号`)
         continue
       }
+      if (existing && existing.classId !== classId) {
+        fail(`"${username}"已经是${existing.className ?? '别的班'}的学生：同名时在用户名后面加数字区分，如"${username}2"`)
+        continue
+      }
       if (existing) {
-        update.run(name, classId, password ?? null, existing.id)
+        update.run(name, password ?? null, existing.id)
         if (password) revokeTokens(db, existing.id)
         result.updated++
       } else {

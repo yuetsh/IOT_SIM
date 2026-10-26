@@ -122,8 +122,7 @@ function deleteStudent(student: Student) {
 }
 
 const columns: DataTableColumns<Student> = [
-  { title: '账号', key: 'username', sorter: 'default' },
-  { title: '姓名', key: 'name' },
+  { title: '用户名', key: 'username', sorter: 'default' },
   { title: '密码', key: 'password', render: (s) => h('code', s.password) },
   {
     title: '操作',
@@ -178,13 +177,13 @@ async function confirmImport() {
 
 function exportRoster() {
   if (!selected.value) return
-  downloadCsv(`${selected.value.name}-名单.csv`, [['学号', '姓名', '密码'], ...students.value.map((s) => [`\t${s.username}`, s.name, `\t${s.password}`])])
+  downloadCsv(`${selected.value.name}-名单.csv`, [['用户名', '密码'], ...students.value.map((s) => [`\t${s.username}`, `\t${s.password}`])])
 }
 
 function downloadTemplate() {
   downloadCsv('学生名单模板.csv', [
-    ['学号', '姓名', '密码'],
-    ['\t2024001', '张三', ''],
+    ['用户名', '密码'],
+    ['张三', ''],
   ])
 }
 
@@ -255,8 +254,8 @@ async function signOut() {
               <input ref="fileInput" type="file" accept=".csv,text/csv" hidden @change="onFileChosen" />
             </div>
             <p class="tip">
-              名单是 Excel 另存的 CSV，列为"学号、姓名、密码"。密码可以留空，平台会生成 6
-              位数字密码；导入后点"导出名单"发给学生。学号已存在时更新姓名和班级，密码留空则不变。
+              名单是 Excel 另存的 CSV，两列："用户名、密码"。用户名就是学生姓名，前面带的班级代号（如 ks241张三 的 ks241）会自动去掉；
+              全校重名时在后面加数字区分（张三2）。密码可以留空，平台会生成 6 位数字密码；导入后点"导出名单"发给学生。再次导入同一个班时，密码留空则不变。
             </p>
             <NDataTable :columns="columns" :data="students" :row-key="(s: Student) => s.id" size="small" :bordered="false" />
           </NTabPane>
@@ -289,8 +288,7 @@ async function signOut() {
         <table>
           <thead>
             <tr>
-              <th>学号</th>
-              <th>姓名</th>
+              <th>用户名</th>
               <th>密码</th>
               <th />
             </tr>
@@ -298,7 +296,6 @@ async function signOut() {
           <tbody>
             <tr v-for="(r, i) in preview" :key="i" :class="{ bad: r.problem }">
               <td>{{ r.username }}</td>
-              <td>{{ r.name }}</td>
               <td>{{ r.password || '（自动生成）' }}</td>
               <td class="problem">{{ r.problem }}</td>
             </tr>

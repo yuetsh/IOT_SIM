@@ -32,8 +32,8 @@ async function submit() {
   <div class="gate">
     <form class="card" @submit.prevent="submit">
       <h1>物联网编程仿真平台</h1>
-      <p>用老师发给你的账号和密码登录</p>
-      <NInput v-model:value="username" placeholder="账号" autofocus :input-props="{ autocomplete: 'username' }" />
+      <p>用老师发给你的用户名和密码登录</p>
+      <NInput v-model:value="username" placeholder="用户名" autofocus :input-props="{ autocomplete: 'username' }" />
       <NInput v-model:value="password" type="password" show-password-on="click" placeholder="密码" :input-props="{ autocomplete: 'current-password' }" />
       <div v-if="error" class="error">{{ error }}</div>
       <NButton type="primary" attr-type="submit" block :loading="busy" :disabled="!username || !password">登录</NButton>

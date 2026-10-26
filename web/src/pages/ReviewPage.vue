@@ -262,8 +262,7 @@ function exportCsv() {
   if (!a) return
   downloadCsv(`${a.title}-成绩.csv`, [
     [
-      '学号',
-      '姓名',
+      '用户名',
       `自动评分（${autoTotal.value}）`,
       ...a.scoring.manual.map((m) => `${m.title}（${m.points}）`),
       `总分（${autoTotal.value + manualTotal.value}）`,
@@ -272,7 +271,6 @@ function exportCsv() {
     ],
     ...rows.value.map((r) => [
       `\t${r.username}`,
-      r.name,
       r.status ? (r.autoScore ?? '') : '未提交',
       ...a.scoring.manual.map((_, i) => r.review?.scores[i] ?? ''),
       r.status ? (r.autoScore ?? 0) + (r.manualScore ?? 0) : '',

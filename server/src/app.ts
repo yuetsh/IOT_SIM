@@ -54,7 +54,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     const blocked = tooManyFailures(ip, String(username ?? ''))
     if (blocked) return c.json({ message: blocked }, 429)
     const tokens = await login(db, String(username ?? ''), String(password ?? ''), ip)
-    if (!tokens) return c.json({ message: '账号或密码不对' }, 401)
+    if (!tokens) return c.json({ message: '用户名或密码不对' }, 401)
     return c.json(await withUser(tokens))
   })
 
