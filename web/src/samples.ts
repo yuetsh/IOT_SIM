@@ -14,7 +14,7 @@ const PROJECTS: Record<string, string> = {
   8: '智慧校园管理平台',
 }
 
-/** 实验标题形如"项目3 任务2 实现人体红外传感器和路灯联动"，按项目分组；不是这种格式的放进"其他" */
+/** 实验标题形如"项目3 任务2 人来灯亮"，按项目分组；不是这种格式的放进"其他" */
 export function sampleOptions(list: { id: string; title: string }[]): SelectGroupOption[] {
   const groups = new Map<string, SelectGroupOption & { children: SelectOption[] }>()
   for (const s of list) {
