@@ -4,7 +4,7 @@
 // 老师运行学生提交的程序（/teacher/submissions/:id/run，改动只用于试运行，不保存）。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage } from 'naive-ui'
+import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage, type SelectGroupOption } from 'naive-ui'
 import type { Assignment, Review, SourceFile, Submission } from '@iot/shared'
 import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
@@ -30,13 +30,14 @@ import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
 import TaskPanel from '../grading/TaskPanel.vue'
 import { captureForms } from '../grading/screenshots'
+import { renderSampleTag, sampleOptions } from '../samples'
 
 const props = defineProps<{ assignmentId?: string; submissionId?: string }>()
 
 const session = createRunSession()
 const { state } = session
 
-const samples = ref<{ label: string; value: string }[]>([])
+const samples = ref<SelectGroupOption[]>([])
 const sampleId = ref<string>()
 const files = ref<SourceFile[]>([])
 /** 当前标签页：文件路径，或 "设计:X.Designer.cs" 表示窗体 X 的设计器 */
@@ -126,7 +127,7 @@ onMounted(async () => {
     return
   }
   const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
-  samples.value = list.map((s) => ({ label: s.title, value: s.id }))
+  samples.value = sampleOptions(list)
   // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生）
   const initial = list.find((s) => s.id === route.query.sample) ?? list[0]
   if (initial) await loadSample(initial.id)
@@ -522,7 +523,15 @@ function run() {
       </template>
       <template v-else>
         <strong>物联网编程仿真平台</strong>
-        <NSelect class="sample-select" :value="sampleId" :options="samples" placeholder="选择示例工程" @update:value="loadSample" />
+        <NSelect
+          class="sample-select"
+          :value="sampleId"
+          :options="samples"
+          :render-tag="renderSampleTag"
+          :consistent-menu-width="false"
+          placeholder="选择示例工程"
+          @update:value="loadSample"
+        />
       </template>
       <NButton type="primary" :disabled="running" title="F5" @click="run">▶ 运行</NButton>
       <NButton :disabled="!running" title="Shift+F5" @click="session.stop">■ 停止</NButton>

@@ -7,6 +7,7 @@ import { NButton, NDatePicker, NInput, NInputNumber, NModal, NRadio, NRadioGroup
 import type { Assignment, Scoring, SourceFile, StartMode } from '@iot/shared'
 import { api } from '../api'
 import { assignmentTemplate } from '../designer/templates'
+import { renderSampleTag, sampleOptions } from '../samples'
 
 const props = defineProps<{ show: boolean; classId: number; editing: Assignment | null }>()
 const emit = defineEmits<{ 'update:show': [show: boolean]; saved: [] }>()
@@ -18,7 +19,8 @@ const DEFAULT_MANUAL = [
   { title: '变量与控件命名规范', points: 10 },
 ]
 
-const samples = ref<{ label: string; value: string }[]>([])
+const samples = ref<{ id: string; title: string }[]>([])
+const sampleGroups = computed(() => sampleOptions(samples.value))
 const sampleId = ref<string | null>(null)
 const title = ref('')
 const startMode = ref<StartMode>('ui')
@@ -42,8 +44,7 @@ watch(
   async (show) => {
     if (!show) return
     if (samples.value.length === 0) {
-      const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
-      samples.value = list.map((s) => ({ label: s.title, value: s.id }))
+      samples.value = await api<{ id: string; title: string }[]>('GET', '/api/samples')
     }
     const e = props.editing
     if (e) {
@@ -74,7 +75,7 @@ watch(
 
 async function chooseSample(id: string) {
   sampleId.value = id
-  title.value = samples.value.find((s) => s.value === id)?.label ?? ''
+  title.value = samples.value.find((s) => s.id === id)?.title ?? ''
   void loadSampleTask(id).then(() => {
     if (sampleId.value === id) task.value = sampleTask.value
   })
@@ -128,7 +129,15 @@ async function save() {
   >
     <div class="form">
       <label>实验</label>
-      <NSelect :value="sampleId" :options="samples" :disabled="!!editing" placeholder="选择实验" @update:value="chooseSample" />
+      <NSelect
+        :value="sampleId"
+        :options="sampleGroups"
+        :render-tag="renderSampleTag"
+        :consistent-menu-width="false"
+        :disabled="!!editing"
+        placeholder="选择实验"
+        @update:value="chooseSample"
+      />
 
       <label>作业名称</label>
       <NInput v-model:value="title" placeholder="学生看到的作业名称" />

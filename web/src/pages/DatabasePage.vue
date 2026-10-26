@@ -10,6 +10,7 @@ import EditTab from '../database/EditTab.vue'
 import ObjectExplorer, { type ExplorerAction } from '../database/ObjectExplorer.vue'
 import QueryTab from '../database/QueryTab.vue'
 import { execute, loadExplorer, quoteName, type ExplorerDatabase, type ExplorerTable } from '../database/sql'
+import { renderSampleTag, sampleOptions } from '../samples'
 
 type Tab =
   | { key: string; kind: 'query'; title: string; database: string; sql?: string; run?: boolean }
@@ -217,7 +218,7 @@ onMounted(refresh)
     </NModal>
 
     <NModal :show="restoring !== null" preset="card" title="恢复实验初始数据" style="width: 460px" @update:show="restoring = null">
-      <NSelect v-model:value="restoring" :options="experiments.map((e) => ({ label: e.title, value: e.id }))" />
+      <NSelect v-model:value="restoring" :options="sampleOptions(experiments)" :render-tag="renderSampleTag" />
       <p class="warning">会用实验的初始数据替换实验用到的数据库（如"环境数据表"），你在这些库里做的改动会丢失；其他数据库不受影响。</p>
       <template #footer>
         <div class="dialog-buttons">
