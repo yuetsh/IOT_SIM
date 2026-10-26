@@ -1,0 +1,5 @@
+# bun fmt 的格式：和项目原来的写法一致（不写分号、单引号、一行最长 160）
+[fmt]
+printWidth = 160
+semi = false
+singleQuote = true

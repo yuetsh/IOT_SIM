@@ -237,8 +237,7 @@ watch(selectedId, (_, old) => {
   if (old !== undefined && dirty.value) message.warning('上一个学生的评分还没保存')
 })
 
-const formatTime = (ms: number) =>
-  new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+const formatTime = (ms: number) => new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 function statusTag(row: Row): { type: 'default' | 'warning' | 'error' | 'success' | 'info'; text: string } {
   if (!row.status) return { type: 'default', text: '未提交' }
@@ -262,7 +261,15 @@ function exportCsv() {
   const a = assignment.value
   if (!a) return
   downloadCsv(`${a.title}-成绩.csv`, [
-    ['学号', '姓名', `自动评分（${autoTotal.value}）`, ...a.scoring.manual.map((m) => `${m.title}（${m.points}）`), `总分（${autoTotal.value + manualTotal.value}）`, '提交次数', '评语'],
+    [
+      '学号',
+      '姓名',
+      `自动评分（${autoTotal.value}）`,
+      ...a.scoring.manual.map((m) => `${m.title}（${m.points}）`),
+      `总分（${autoTotal.value + manualTotal.value}）`,
+      '提交次数',
+      '评语',
+    ],
     ...rows.value.map((r) => [
       `\t${r.username}`,
       r.name,
@@ -375,7 +382,8 @@ async function signOut() {
               <template v-else-if="detail.aiReview.status === 'done'">
                 <div v-for="(m, i) in assignment.scoring.manual" :key="i" class="ai-item">
                   <span class="score-title">{{ m.title }}</span>
-                  <b>{{ detail.aiReview.scores[i]?.score }}</b><span class="muted"> / {{ m.points }}</span>
+                  <b>{{ detail.aiReview.scores[i]?.score }}</b
+                  ><span class="muted"> / {{ m.points }}</span>
                   <div class="ai-reason">{{ detail.aiReview.scores[i]?.reason }}</div>
                 </div>
                 <div v-if="detail.aiReview.comment" class="ai-comment">评语：{{ detail.aiReview.comment }}</div>
@@ -401,9 +409,7 @@ async function signOut() {
               </div>
               <NInput v-model:value="comment" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="评语（学生能看到）" />
               <div class="save-row">
-                <span class="muted">
-                  总分 {{ (detail.submission.autoScore ?? 0) + draftManual }} / {{ autoTotal + manualTotal }}
-                </span>
+                <span class="muted"> 总分 {{ (detail.submission.autoScore ?? 0) + draftManual }} / {{ autoTotal + manualTotal }} </span>
                 <span class="spacer" />
                 <NButton size="small" :loading="saving" @click="save()">保存</NButton>
                 <NButton size="small" type="primary" :loading="saving" @click="save(true)">保存并看下一个</NButton>

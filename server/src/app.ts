@@ -259,7 +259,6 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     await next()
   })
 
-
   app.get('/api/teacher/classes', (c) => c.json(listClasses(db)))
 
   app.post('/api/teacher/classes', async (c) => {
@@ -308,7 +307,16 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   )
 
   app.post('/api/teacher/assignments', async (c) => {
-    const a = await body<{ classId: number; sampleId: string; title: string; startMode: StartMode; template: unknown; scoring: Scoring; deadline: number | null; task: string | null }>(c)
+    const a = await body<{
+      classId: number
+      sampleId: string
+      title: string
+      startMode: StartMode
+      template: unknown
+      scoring: Scoring
+      deadline: number | null
+      task: string | null
+    }>(c)
     if (!listClasses(db).some((cls) => cls.id === a.classId)) return c.json({ message: '班级不存在' }, 404)
     const checks = typeof a.sampleId === 'string' ? await loadChecks(a.sampleId) : null
     if (!checks) return c.json({ message: '这个实验还没有评分规则' }, 400)
@@ -352,7 +360,13 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
       classSubmissions(db, id(c)).map((s) => {
         const review = getReview(db, id(c), s.userId)
         const ai = s.submissionId ? getAiReview(db, s.submissionId) : null
-        return { ...s, manualScore: manualScore(review), review, aiStatus: ai?.status ?? null, aiManual: ai?.status === 'done' ? ai.scores.reduce((a, x) => a + x.score, 0) : null }
+        return {
+          ...s,
+          manualScore: manualScore(review),
+          review,
+          aiStatus: ai?.status ?? null,
+          aiManual: ai?.status === 'done' ? ai.scores.reduce((a, x) => a + x.score, 0) : null,
+        }
       }),
     ),
   )
@@ -378,7 +392,16 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
       if (!s.submissionId || getReview(db, id(c), s.userId)) continue
       const ai = getAiReview(db, s.submissionId)
       if (ai?.status !== 'done') continue
-      if (!saveReview(db, id(c), s.userId, ai.scores.map((x) => x.score), ai.comment).error) adopted++
+      if (
+        !saveReview(
+          db,
+          id(c),
+          s.userId,
+          ai.scores.map((x) => x.score),
+          ai.comment,
+        ).error
+      )
+        adopted++
     }
     return c.json({ adopted })
   })

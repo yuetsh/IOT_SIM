@@ -30,7 +30,11 @@ if (sandboxError) console.error(sandboxError)
 const db = openDatabase()
 ensureTeacher(db)
 const aiQueue = createAiQueue(db)
-const app = createApp(db, createGradingQueue(db, (id) => aiQueue.enqueue(id)), aiQueue)
+const app = createApp(
+  db,
+  createGradingQueue(db, (id) => aiQueue.enqueue(id)),
+  aiQueue,
+)
 
 interface SocketData {
   userId?: number
@@ -58,7 +62,10 @@ const server = Bun.serve({
     sendPings: true,
     open(ws) {
       const userId = ws.data.userId!
-      ws.data.session = new RunSession((message) => ws.send(JSON.stringify(message)), () => userDatabaseDir(userId))
+      ws.data.session = new RunSession(
+        (message) => ws.send(JSON.stringify(message)),
+        () => userDatabaseDir(userId),
+      )
     },
     async message(ws, raw) {
       let message: ClientMessage

@@ -5,7 +5,7 @@
   background: #f0f0f0;
   border: 1px solid #1883d7;
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
-  font-family: "SimSun", "Songti SC", "Noto Serif CJK SC", "Noto Serif SC", serif;
+  font-family: 'SimSun', 'Songti SC', 'Noto Serif CJK SC', 'Noto Serif SC', serif;
   font-size: 12px;
   color: #000;
   user-select: none;
@@ -26,7 +26,7 @@
 .wf-title {
   flex: 1;
   padding-left: 8px;
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -373,7 +373,7 @@
   flex-direction: column;
   background: #000;
   color: #9aa4b2;
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 11px;
   overflow: hidden;
 }
@@ -456,15 +456,15 @@
   border-radius: 50%;
 }
 
-.wf-checkbox-box[data-checked="true"]::after {
-  content: "✓";
+.wf-checkbox-box[data-checked='true']::after {
+  content: '✓';
   display: block;
   font: bold 11px/11px sans-serif;
   text-align: center;
   color: #333;
 }
 
-.wf-radio-dot[data-checked="true"] {
+.wf-radio-dot[data-checked='true'] {
   background: radial-gradient(circle, #333 0 3px, #fff 3.5px);
 }
 
@@ -551,7 +551,7 @@
   align-items: center;
   padding: 24px 28px;
   background: #fff;
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
 }
 
 .wf-messagebox-icon {

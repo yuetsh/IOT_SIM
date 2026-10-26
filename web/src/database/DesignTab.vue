@@ -82,7 +82,12 @@ function problem(): string | null {
 }
 
 const sqlFor = (name: string) =>
-  props.table ? addColumns(props.table.name, newColumns.value) : createTable(name, rows.value.filter((r) => r.name.trim()).map((r) => ({ ...r, name: r.name.trim(), type: r.type.trim() })))
+  props.table
+    ? addColumns(props.table.name, newColumns.value)
+    : createTable(
+        name,
+        rows.value.filter((r) => r.name.trim()).map((r) => ({ ...r, name: r.name.trim(), type: r.type.trim() })),
+      )
 
 function save() {
   const error = problem()

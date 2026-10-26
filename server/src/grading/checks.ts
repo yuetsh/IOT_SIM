@@ -61,7 +61,15 @@ export type Expectation =
  */
 const DEFAULT_WITHIN = 5000
 
-const PROP_KEYS: Record<string, string> = { text: 'Text', ledText: 'LedText', enabled: 'Enabled', checked: 'Checked', visible: 'Visible', on: 'IsOn', value: 'Value' }
+const PROP_KEYS: Record<string, string> = {
+  text: 'Text',
+  ledText: 'LedText',
+  enabled: 'Enabled',
+  checked: 'Checked',
+  visible: 'Visible',
+  on: 'IsOn',
+  value: 'Value',
+}
 const STRING_PROPS = new Set(['Text', 'LedText'])
 const NUMBER_PROPS = new Set(['Value'])
 
@@ -96,7 +104,8 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
   if ('media' in raw) return { kind: 'media', name: str(raw.media, where, '播放的文件名') }
   if ('savedImage' in raw) return { kind: 'savedImage', path: str(raw.savedImage, where, '保存的图片路径应包含的文字') }
   if ('relay' in raw) return { kind: 'relay', index: Number(raw.relay), on: bool(raw.on, where, 'on') }
-  if ('window' in raw) return { kind: 'window', name: str(raw.window, where, '窗体名 window'), open: raw.open === undefined ? true : bool(raw.open, where, 'open') }
+  if ('window' in raw)
+    return { kind: 'window', name: str(raw.window, where, '窗体名 window'), open: raw.open === undefined ? true : bool(raw.open, where, 'open') }
   if ('exited' in raw) {
     if (raw.exited !== true) throw new Error(`${where}：exited 只能写 true`)
     return { kind: 'exited' }
@@ -122,7 +131,10 @@ function parseExpectation(raw: Record<string, unknown>, where: string): Expectat
     return { kind: 'row', control, cells, present: 'row' in raw }
   }
   // image: true 或 image: 资源名；background: 资源名
-  for (const [key, prop] of [['image', 'Image'], ['background', 'BackgroundImage']] as const) {
+  for (const [key, prop] of [
+    ['image', 'Image'],
+    ['background', 'BackgroundImage'],
+  ] as const) {
     if (!(key in raw)) continue
     const value = raw[key]
     if (value === true) return { kind: 'image', control, prop }

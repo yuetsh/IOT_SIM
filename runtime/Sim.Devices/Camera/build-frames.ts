@@ -30,7 +30,10 @@ await rm(framesDir, { recursive: true, force: true })
 await mkdir(framesDir, { recursive: true })
 await mkdir(work, { recursive: true })
 try {
-  for (const [flag, svg] of [[0, scene], [1, intruder]] as const) {
+  for (const [flag, svg] of [
+    [0, scene],
+    [1, intruder],
+  ] as const) {
     const svgPath = join(work, `scene-${flag}.svg`)
     const pngPath = join(work, `scene-${flag}.png`)
     await Bun.write(svgPath, svg)

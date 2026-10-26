@@ -95,13 +95,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
 
 <template>
   <!-- Button -->
-  <button
-    v-if="node.type === 'Button'"
-    class="wf-control wf-button"
-    :style="style"
-    :disabled="!enabled"
-    @click="act({ action: 'click' })"
-  >
+  <button v-if="node.type === 'Button'" class="wf-control wf-button" :style="style" :disabled="!enabled" @click="act({ action: 'click' })">
     {{ displayText(p.Text) }}
   </button>
 
@@ -230,11 +224,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   </div>
 
   <!-- 教材控件库：LED 显示屏 -->
-  <LedControl
-    v-else-if="node.type === 'WinFormsDeviceControlLibrary.LED'"
-    :node="node"
-    :style="style"
-  />
+  <LedControl v-else-if="node.type === 'WinFormsDeviceControlLibrary.LED'" :node="node" :style="style" />
 
   <!-- 其他容器（Panel、UserControl 等）：按普通容器渲染 -->
   <div v-else class="wf-control wf-panel" :style="style" :title="node.type">

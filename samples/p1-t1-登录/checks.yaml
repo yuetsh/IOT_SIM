@@ -4,11 +4,11 @@
   steps:
     - click: btnAdd
     - text: { control: txtNewUser1, value: zhangsan }
-    - text: { control: txtPass1, value: "123" }
-    - text: { control: txtPass2, value: "123" }
+    - text: { control: txtPass1, value: '123' }
+    - text: { control: txtPass2, value: '123' }
     - click: btnOk
     - text: { control: txtUserName, value: zhangsan }
-    - text: { control: txtPassword, value: "123" }
+    - text: { control: txtPassword, value: '123' }
     - click: btnOk
     - expect: { messageBox: 登录成功 }
 
@@ -23,7 +23,7 @@
   steps:
     - click: btnAdd
     - text: { control: txtNewUser1, value: lisi }
-    - text: { control: txtPass1, value: "123" }
-    - text: { control: txtPass2, value: "456" }
+    - text: { control: txtPass1, value: '123' }
+    - text: { control: txtPass2, value: '456' }
     - click: btnOk
     - expect: { messageBox: 用户名或密码错误 }

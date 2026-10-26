@@ -6,18 +6,18 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Form1` | C#入门基础 |
-| 分组框 | `groupBox1` | 简易计算器 |
-| 文本框 | `txtNum1` | 第一个数 |
-| 下拉框 | `cmboxType` | 运算符，Items 填 `+`、`-`、`*`、`/` 四项 |
-| 文本框 | `txtNum2` | 第二个数 |
-| 按钮 | `btnCalculate` | = |
-| 文本框 | `txtResult` | 计算结果，ReadOnly 设为 True |
-| 分组框 | `groupBox2` | 类的多态性 |
-| 文本框 | `txtDispaly` | 输出说话内容，Multiline 设为 True |
-| 按钮 | `btnDisplay` | 显示 |
+| 控件   | 名称（Name）   | 文字（Text）和用途                       |
+| ------ | -------------- | ---------------------------------------- |
+| 窗体   | `Form1`        | C#入门基础                               |
+| 分组框 | `groupBox1`    | 简易计算器                               |
+| 文本框 | `txtNum1`      | 第一个数                                 |
+| 下拉框 | `cmboxType`    | 运算符，Items 填 `+`、`-`、`*`、`/` 四项 |
+| 文本框 | `txtNum2`      | 第二个数                                 |
+| 按钮   | `btnCalculate` | =                                        |
+| 文本框 | `txtResult`    | 计算结果，ReadOnly 设为 True             |
+| 分组框 | `groupBox2`    | 类的多态性                               |
+| 文本框 | `txtDispaly`   | 输出说话内容，Multiline 设为 True        |
+| 按钮   | `btnDisplay`   | 显示                                     |
 
 > `txtDispaly` 是书上的拼法（不是 Display），代码和自动评分都用这个名字，照着写。书上的表格没写下拉框的 Items 和文本框的 Multiline，要自己在属性里设置。
 

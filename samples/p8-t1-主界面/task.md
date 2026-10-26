@@ -6,15 +6,15 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Main` | 主界面；FormBorderStyle 设为 None，StartPosition 设为 CenterScreen |
-| 面板 | `panel1` | 顶部标题栏：停靠 Top，背景色 53, 147, 237 |
-| 图片框 | `pictureBox1` | 放在 panel1 上，图片 `ico_title`（"智慧校园"标题），SizeMode 设为 StretchImage |
-| 面板 | `panel2` | 停靠 Fill，背景图片 `bg_home`（校园），背景排列 Stretch |
-| 图片框 | `pic_environment` | "校园环境"入口，图片 `icon_02` |
-| 图片框 | `pic_security` | "校园安防"入口，图片 `icon_03` |
-| 图片框 | `pic_exit` | "退出"，图片 `icon_04` |
+| 控件   | 名称（Name）      | 文字（Text）和用途                                                             |
+| ------ | ----------------- | ------------------------------------------------------------------------------ |
+| 窗体   | `Main`            | 主界面；FormBorderStyle 设为 None，StartPosition 设为 CenterScreen             |
+| 面板   | `panel1`          | 顶部标题栏：停靠 Top，背景色 53, 147, 237                                      |
+| 图片框 | `pictureBox1`     | 放在 panel1 上，图片 `ico_title`（"智慧校园"标题），SizeMode 设为 StretchImage |
+| 面板   | `panel2`          | 停靠 Fill，背景图片 `bg_home`（校园），背景排列 Stretch                        |
+| 图片框 | `pic_environment` | "校园环境"入口，图片 `icon_02`                                                 |
+| 图片框 | `pic_security`    | "校园安防"入口，图片 `icon_03`                                                 |
+| 图片框 | `pic_exit`        | "退出"，图片 `icon_04`                                                         |
 
 > 三个图标放在 panel2 的背景图上，背景色都设成 **Transparent**，否则图标四周会露出一块灰色。
 

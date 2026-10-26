@@ -14,22 +14,22 @@
 
 界面在任务 2 已经做好，这次要写代码的控件：
 
-| 窗体 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 主界面 | `Main` | Load 里打开所有设备的串口 |
-| 主界面 | `pic_environment` | "校园环境"：打开 Environment 窗体 |
-| 校园环境 | `Environment` | Load 里启动采集线程，FormClosed 里停止线程 |
-| 校园环境 | `txt_fire`、`txt_smoke` | 显示"发生火情"/"发生烟情"或"正常" |
-| 校园环境 | `txt_light`、`txt_temperature`、`txt_humidity` | 显示光照、温度、湿度 |
-| 校园环境 | `btn_dataAnalyse` | 数据分析 / 关闭图表 |
-| 校园环境 | `chart1` | 最近 7 天的最高温度、平均温度 |
-| 校园环境 | `btn_ledEnvironment1`、`btn_ledEnvironment2` | 推送天气信息（两个按钮做同一件事） |
-| 校园环境 | `pic_lampOpen` | 灯光控制开关：点一下开灯，再点关灯 |
-| 校园环境 | `ch_autoLamp` | 自动控制路灯 |
-| 校园环境 | `txt_autoLight` | 设定开灯光照值：光照低于它就开灯 |
-| 校园环境 | `txt_ledMsg` | 要推送的 LED 信息 |
-| 校园环境 | `btn_ledSendMsg` | 推送LED信息 |
-| 校园环境 | `ch_autoLedFire` | 自动推送火情 |
+| 窗体     | 名称（Name）                                   | 文字（Text）和用途                         |
+| -------- | ---------------------------------------------- | ------------------------------------------ |
+| 主界面   | `Main`                                         | Load 里打开所有设备的串口                  |
+| 主界面   | `pic_environment`                              | "校园环境"：打开 Environment 窗体          |
+| 校园环境 | `Environment`                                  | Load 里启动采集线程，FormClosed 里停止线程 |
+| 校园环境 | `txt_fire`、`txt_smoke`                        | 显示"发生火情"/"发生烟情"或"正常"          |
+| 校园环境 | `txt_light`、`txt_temperature`、`txt_humidity` | 显示光照、温度、湿度                       |
+| 校园环境 | `btn_dataAnalyse`                              | 数据分析 / 关闭图表                        |
+| 校园环境 | `chart1`                                       | 最近 7 天的最高温度、平均温度              |
+| 校园环境 | `btn_ledEnvironment1`、`btn_ledEnvironment2`   | 推送天气信息（两个按钮做同一件事）         |
+| 校园环境 | `pic_lampOpen`                                 | 灯光控制开关：点一下开灯，再点关灯         |
+| 校园环境 | `ch_autoLamp`                                  | 自动控制路灯                               |
+| 校园环境 | `txt_autoLight`                                | 设定开灯光照值：光照低于它就开灯           |
+| 校园环境 | `txt_ledMsg`                                   | 要推送的 LED 信息                          |
+| 校园环境 | `btn_ledSendMsg`                               | 推送LED信息                                |
+| 校园环境 | `ch_autoLedFire`                               | 自动推送火情                               |
 
 ## 实现步骤
 

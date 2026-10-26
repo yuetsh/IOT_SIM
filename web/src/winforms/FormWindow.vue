@@ -26,7 +26,10 @@ const props = defineProps<{
 
 const p = computed(() => props.form.props)
 const runImages = inject(RUN_IMAGES, new Map<string, string>())
-provide(AMBIENT_BACK_COLOR, computed(() => (p.value.BackColor as string | null) ?? DEFAULT_BACK_COLOR))
+provide(
+  AMBIENT_BACK_COLOR,
+  computed(() => (p.value.BackColor as string | null) ?? DEFAULT_BACK_COLOR),
+)
 const borderless = computed(() => p.value.FormBorderStyle === 'None')
 // WinForms 中先加入 Controls 的控件在最上层，所以倒序渲染
 const childrenTopLast = computed(() => [...props.form.children].reverse())

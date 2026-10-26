@@ -56,7 +56,7 @@ function set(prop: PropDef, value: Value) {
 /** 图片属性：项目资源里的名字，没有设置时为空 */
 function imageOf(prop: PropDef) {
   const text = getPropText(props.doc, props.selected, prop.name)
-  return text === undefined ? '' : resourceNameOf(text) ?? text
+  return text === undefined ? '' : (resourceNameOf(text) ?? text)
 }
 
 function setImage(prop: PropDef, choice: string, select: HTMLSelectElement) {
@@ -77,10 +77,14 @@ function reset(prop: PropDef) {
 const nameDraft = ref('')
 const nameError = ref<string | null>(null)
 // 切换选中的控件或切换到另一个窗体时刷新
-watch([() => props.selected, () => props.doc.formName], () => {
-  nameDraft.value = props.selected || props.doc.formName
-  nameError.value = null
-}, { immediate: true })
+watch(
+  [() => props.selected, () => props.doc.formName],
+  () => {
+    nameDraft.value = props.selected || props.doc.formName
+    nameError.value = null
+  },
+  { immediate: true },
+)
 
 function commitName() {
   const name = nameDraft.value.trim()
@@ -151,13 +155,24 @@ function setFont(prop: PropDef, change: Partial<{ family: string; size: number; 
   set(prop, { ...base, ...change })
 }
 
-const itemsText = computed(() => getItems(props.doc, props.selected).map((item) => {
-  const v = parseValue(item)
-  return v.kind === 'string' ? v.value : item
-}).join('\n'))
+const itemsText = computed(() =>
+  getItems(props.doc, props.selected)
+    .map((item) => {
+      const v = parseValue(item)
+      return v.kind === 'string' ? v.value : item
+    })
+    .join('\n'),
+)
 
 function setItemsFromText(text: string) {
-  emit('setItems', props.selected, text.split('\n').map((s) => s.trimEnd()).filter((s) => s !== ''))
+  emit(
+    'setItems',
+    props.selected,
+    text
+      .split('\n')
+      .map((s) => s.trimEnd())
+      .filter((s) => s !== ''),
+  )
 }
 
 const handlerOf = (event: string) => getEventHandler(props.doc, props.selected, event) ?? ''
@@ -193,35 +208,80 @@ function renameHandler(event: string, value: string) {
         <div class="editor">
           <code v-if="prop.type !== 'image' && prop.type !== 'chart' && raw(prop) !== undefined" class="raw" :title="raw(prop)">{{ raw(prop) }}</code>
 
-          <input v-else-if="prop.type === 'string'" :value="str(prop)" @change="set(prop, { kind: 'string', value: ($event.target as HTMLInputElement).value })" />
+          <input
+            v-else-if="prop.type === 'string'"
+            :value="str(prop)"
+            @change="set(prop, { kind: 'string', value: ($event.target as HTMLInputElement).value })"
+          />
 
-          <textarea v-else-if="prop.type === 'multiline'" rows="2" :value="str(prop)"
-            @change="set(prop, { kind: 'string', value: ($event.target as HTMLTextAreaElement).value })" />
+          <textarea
+            v-else-if="prop.type === 'multiline'"
+            rows="2"
+            :value="str(prop)"
+            @change="set(prop, { kind: 'string', value: ($event.target as HTMLTextAreaElement).value })"
+          />
 
-          <input v-else-if="prop.type === 'char'" maxlength="1" class="short" :value="str(prop)"
-            @change="($event.target as HTMLInputElement).value ? set(prop, { kind: 'char', value: ($event.target as HTMLInputElement).value }) : reset(prop)" />
+          <input
+            v-else-if="prop.type === 'char'"
+            maxlength="1"
+            class="short"
+            :value="str(prop)"
+            @change="($event.target as HTMLInputElement).value ? set(prop, { kind: 'char', value: ($event.target as HTMLInputElement).value }) : reset(prop)"
+          />
 
-          <select v-else-if="prop.type === 'bool'" :value="String(boolOf(prop))"
-            @change="set(prop, { kind: 'bool', value: ($event.target as HTMLSelectElement).value === 'true' })">
+          <select
+            v-else-if="prop.type === 'bool'"
+            :value="String(boolOf(prop))"
+            @change="set(prop, { kind: 'bool', value: ($event.target as HTMLSelectElement).value === 'true' })"
+          >
             <option value="true">是</option>
             <option value="false">否</option>
           </select>
 
-          <input v-else-if="prop.type === 'int'" type="number" :value="num(prop)"
-            @change="set(prop, { kind: 'int', value: Number(($event.target as HTMLInputElement).value) })" />
+          <input
+            v-else-if="prop.type === 'int'"
+            type="number"
+            :value="num(prop)"
+            @change="set(prop, { kind: 'int', value: Number(($event.target as HTMLInputElement).value) })"
+          />
 
           <span v-else-if="prop.type === 'point'" class="pair">
-            X <input type="number" :value="point(prop).x" @change="set(prop, { kind: 'point', x: Number(($event.target as HTMLInputElement).value), y: point(prop).y })" />
-            Y <input type="number" :value="point(prop).y" @change="set(prop, { kind: 'point', x: point(prop).x, y: Number(($event.target as HTMLInputElement).value) })" />
+            X
+            <input
+              type="number"
+              :value="point(prop).x"
+              @change="set(prop, { kind: 'point', x: Number(($event.target as HTMLInputElement).value), y: point(prop).y })"
+            />
+            Y
+            <input
+              type="number"
+              :value="point(prop).y"
+              @change="set(prop, { kind: 'point', x: point(prop).x, y: Number(($event.target as HTMLInputElement).value) })"
+            />
           </span>
 
           <span v-else-if="prop.type === 'size'" class="pair">
-            宽 <input type="number" min="1" :value="size(prop).width" @change="set(prop, { kind: 'size', width: Number(($event.target as HTMLInputElement).value), height: size(prop).height })" />
-            高 <input type="number" min="1" :value="size(prop).height" @change="set(prop, { kind: 'size', width: size(prop).width, height: Number(($event.target as HTMLInputElement).value) })" />
+            宽
+            <input
+              type="number"
+              min="1"
+              :value="size(prop).width"
+              @change="set(prop, { kind: 'size', width: Number(($event.target as HTMLInputElement).value), height: size(prop).height })"
+            />
+            高
+            <input
+              type="number"
+              min="1"
+              :value="size(prop).height"
+              @change="set(prop, { kind: 'size', width: size(prop).width, height: Number(($event.target as HTMLInputElement).value) })"
+            />
           </span>
 
-          <select v-else-if="prop.type === 'enum'" :value="enumOf(prop)"
-            @change="set(prop, { kind: 'enum', type: prop.enumType!, member: ($event.target as HTMLSelectElement).value })">
+          <select
+            v-else-if="prop.type === 'enum'"
+            :value="enumOf(prop)"
+            @change="set(prop, { kind: 'enum', type: prop.enumType!, member: ($event.target as HTMLSelectElement).value })"
+          >
             <option v-for="option in prop.options" :key="option" :value="option">{{ prop.optionLabels?.[option] ?? option }}</option>
           </select>
 
@@ -232,39 +292,70 @@ function renameHandler(event: string, value: string) {
               <option v-for="(_, name) in NAMED_COLORS" :key="name" :value="name">{{ name }}</option>
               <option v-if="color(prop) && !color(prop)!.name" value="custom" disabled>{{ color(prop)!.css }}</option>
             </select>
-            <input type="color" title="自定义颜色" :value="color(prop)?.css.startsWith('#') ? color(prop)!.css : '#000000'"
-              @change="setColor(prop, ($event.target as HTMLInputElement).value)" />
+            <input
+              type="color"
+              title="自定义颜色"
+              :value="color(prop)?.css.startsWith('#') ? color(prop)!.css : '#000000'"
+              @change="setColor(prop, ($event.target as HTMLInputElement).value)"
+            />
           </span>
 
           <span v-else-if="prop.type === 'font'" class="font">
-            <select :value="font(prop)?.family ?? ''" @change="($event.target as HTMLSelectElement).value ? setFont(prop, { family: ($event.target as HTMLSelectElement).value }) : reset(prop)">
+            <select
+              :value="font(prop)?.family ?? ''"
+              @change="($event.target as HTMLSelectElement).value ? setFont(prop, { family: ($event.target as HTMLSelectElement).value }) : reset(prop)"
+            >
               <option value="">（默认：宋体 9）</option>
               <option v-for="family in FONT_FAMILIES" :key="family" :value="family">{{ family }}</option>
             </select>
             <template v-if="font(prop)">
-              <input type="number" min="5" max="72" step="0.5" class="short" :value="font(prop)!.size"
-                @change="setFont(prop, { size: Number(($event.target as HTMLInputElement).value) })" />
-              <label class="check"><input type="checkbox" :checked="font(prop)!.bold" @change="setFont(prop, { bold: ($event.target as HTMLInputElement).checked })" />粗</label>
-              <label class="check"><input type="checkbox" :checked="font(prop)!.italic" @change="setFont(prop, { italic: ($event.target as HTMLInputElement).checked })" />斜</label>
+              <input
+                type="number"
+                min="5"
+                max="72"
+                step="0.5"
+                class="short"
+                :value="font(prop)!.size"
+                @change="setFont(prop, { size: Number(($event.target as HTMLInputElement).value) })"
+              />
+              <label class="check"
+                ><input type="checkbox" :checked="font(prop)!.bold" @change="setFont(prop, { bold: ($event.target as HTMLInputElement).checked })" />粗</label
+              >
+              <label class="check"
+                ><input
+                  type="checkbox"
+                  :checked="font(prop)!.italic"
+                  @change="setFont(prop, { italic: ($event.target as HTMLInputElement).checked })"
+                />斜</label
+              >
             </template>
           </span>
 
           <span v-else-if="prop.type === 'chart'" class="chart-summary">
-            <span :title="`系列：${chartModel.series.map((s) => s.name).join('、') || '无'}；图例：${chartModel.legends.join('、') || '无'}`">{{ chartModel.series.length }} 个系列</span>
+            <span :title="`系列：${chartModel.series.map((s) => s.name).join('、') || '无'}；图例：${chartModel.legends.join('、') || '无'}`"
+              >{{ chartModel.series.length }} 个系列</span
+            >
             <button @click="chartOpen = true">编辑…</button>
           </span>
 
-          <textarea v-else-if="prop.type === 'items'" rows="4" :value="itemsText" placeholder="每行一项"
-            @change="setItemsFromText(($event.target as HTMLTextAreaElement).value)" />
+          <textarea
+            v-else-if="prop.type === 'items'"
+            rows="4"
+            :value="itemsText"
+            placeholder="每行一项"
+            @change="setItemsFromText(($event.target as HTMLTextAreaElement).value)"
+          />
 
-          <select v-else-if="prop.type === 'image'" :value="imageOf(prop)"
-            @change="setImage(prop, ($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)">
+          <select
+            v-else-if="prop.type === 'image'"
+            :value="imageOf(prop)"
+            @change="setImage(prop, ($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)"
+          >
             <option value="">（无）</option>
             <option v-for="name in resources?.names ?? []" :key="name" :value="name">Resources.{{ name }}</option>
             <option v-if="imageOf(prop) && !resources?.names.includes(imageOf(prop))" :value="imageOf(prop)">{{ imageOf(prop) }}（不在项目资源里）</option>
             <option value="+">添加资源…</option>
           </select>
-
         </div>
       </div>
     </div>
@@ -358,7 +449,7 @@ function renameHandler(event: string, value: string) {
   min-width: 0;
 }
 
-.editor input:not([type="checkbox"]):not([type="color"]),
+.editor input:not([type='checkbox']):not([type='color']),
 .editor select,
 .editor textarea {
   width: 100%;
@@ -394,7 +485,7 @@ function renameHandler(event: string, value: string) {
   background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 75%, #ddd 75%);
 }
 
-.color input[type="color"] {
+.color input[type='color'] {
   flex: none;
   width: 24px;
   height: 22px;

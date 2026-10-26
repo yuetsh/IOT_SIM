@@ -16,6 +16,6 @@ import { NConfigProvider, NDialogProvider, NMessageProvider, zhCN } from 'naive-
 <style>
 body {
   margin: 0;
-  font-family: system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
 }
 </style>

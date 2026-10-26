@@ -8,28 +8,28 @@
 
 主窗体 Form1：
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Form1` | 火焰烟雾 |
-| LED 显示屏 | `led1` | 窗体顶部，显示推送的灾情 |
-| 分组框 | `groupBox2` | 数据采集 |
-| 标签 | `lbl_time`、`lbl_fire`、`lbl_smoke` | 时间、火焰、烟雾 |
-| 文本框 | `txt_time`、`txt_fire`、`txt_smoke` | 显示时间、火焰状态、烟雾状态 |
-| 按钮 | `btn_get` | 获取 |
-| 分组框 | `groupBox1` | 配置 |
-| 标签 | `lbl_Ledport` | LED |
-| 下拉框 | `com_ledPort` | LED 屏的串口 |
-| 标签 | `lbl_4150port` | 环境采集 |
-| 下拉框 | `com_environmentPort` | ADAM-4150 的串口 |
-| 按钮 | `btn_Open` | 开启（打开后变成"关闭"） |
-| 按钮 | `OpenRecord` | 历史灾情信息 |
+| 控件       | 名称（Name）                        | 文字（Text）和用途           |
+| ---------- | ----------------------------------- | ---------------------------- |
+| 窗体       | `Form1`                             | 火焰烟雾                     |
+| LED 显示屏 | `led1`                              | 窗体顶部，显示推送的灾情     |
+| 分组框     | `groupBox2`                         | 数据采集                     |
+| 标签       | `lbl_time`、`lbl_fire`、`lbl_smoke` | 时间、火焰、烟雾             |
+| 文本框     | `txt_time`、`txt_fire`、`txt_smoke` | 显示时间、火焰状态、烟雾状态 |
+| 按钮       | `btn_get`                           | 获取                         |
+| 分组框     | `groupBox1`                         | 配置                         |
+| 标签       | `lbl_Ledport`                       | LED                          |
+| 下拉框     | `com_ledPort`                       | LED 屏的串口                 |
+| 标签       | `lbl_4150port`                      | 环境采集                     |
+| 下拉框     | `com_environmentPort`               | ADAM-4150 的串口             |
+| 按钮       | `btn_Open`                          | 开启（打开后变成"关闭"）     |
+| 按钮       | `OpenRecord`                        | 历史灾情信息                 |
 
 历史记录窗体 Form2：
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Form2` | 历史灾情记录 |
-| 列表框 | `lstbRecored` | 一行一条灾情记录 |
+| 控件   | 名称（Name）  | 文字（Text）和用途 |
+| ------ | ------------- | ------------------ |
+| 窗体   | `Form2`       | 历史灾情记录       |
+| 列表框 | `lstbRecored` | 一行一条灾情记录   |
 
 > 书上表 5-6 没列 `btn_get`、`OpenRecord`、`groupBox2`，照图加上。`lstbRecored` 的拼写就是这样（不是 Record），照着写。
 

@@ -2,14 +2,46 @@
 // 图表（WinForms 的 Chart，教材项目 8 的 7 天温度折线图）：运行器发来各个系列的点，用 Chart.js 画。
 // 图表类型按 WinForms 的 SeriesChartType 对应；配色是 WinForms 默认的 BrightPastel；图例默认在右边；不要动画。
 import {
-  ArcElement, BarController, BarElement, CategoryScale, Chart, DoughnutController, Filler, Legend, LinearScale, LineController,
-  LineElement, PieController, PointElement, RadarController, RadialLinearScale, Title, Tooltip, type ChartConfiguration,
+  ArcElement,
+  BarController,
+  BarElement,
+  CategoryScale,
+  Chart,
+  DoughnutController,
+  Filler,
+  Legend,
+  LinearScale,
+  LineController,
+  LineElement,
+  PieController,
+  PointElement,
+  RadarController,
+  RadialLinearScale,
+  Title,
+  Tooltip,
+  type ChartConfiguration,
 } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue'
 import type { ControlNode } from '@iot/shared'
 
-Chart.register(ArcElement, BarController, BarElement, CategoryScale, DoughnutController, Filler, Legend, LinearScale, LineController,
-  LineElement, PieController, PointElement, RadarController, RadialLinearScale, Title, Tooltip)
+Chart.register(
+  ArcElement,
+  BarController,
+  BarElement,
+  CategoryScale,
+  DoughnutController,
+  Filler,
+  Legend,
+  LinearScale,
+  LineController,
+  LineElement,
+  PieController,
+  PointElement,
+  RadarController,
+  RadialLinearScale,
+  Title,
+  Tooltip,
+)
 
 interface ChartSeries {
   name: string
@@ -33,7 +65,23 @@ interface ChartData {
 const props = defineProps<{ node: ControlNode; style: CSSProperties }>()
 
 /** WinForms 图表默认的 BrightPastel 配色 */
-const PALETTE = ['#418CF0', '#FCB441', '#E0400A', '#056492', '#BFBFBF', '#1A3B69', '#FFE382', '#129CDD', '#CA6B4B', '#005CDB', '#F3D288', '#506381', '#F1B9A8', '#E0830A', '#7893BE']
+const PALETTE = [
+  '#418CF0',
+  '#FCB441',
+  '#E0400A',
+  '#056492',
+  '#BFBFBF',
+  '#1A3B69',
+  '#FFE382',
+  '#129CDD',
+  '#CA6B4B',
+  '#005CDB',
+  '#F3D288',
+  '#506381',
+  '#F1B9A8',
+  '#E0830A',
+  '#7893BE',
+]
 
 const data = computed(() => props.node.props.Chart as ChartData | undefined)
 const canvas = ref<HTMLCanvasElement>()
@@ -84,12 +132,13 @@ function config(d: ChartData): ChartConfiguration {
         legend: { display: d.series.some((s) => s.inLegend), position, labels: { filter: (item) => d.series[item.datasetIndex ?? 0]?.inLegend ?? true } },
         title: { display: d.titles.length > 0, text: d.titles },
       },
-      scales: pie || chartKind === 'radar'
-        ? {}
-        : {
-            x: { stacked, grid: { color: '#d9d9d9' } },
-            y: { stacked, min: d.yMin ?? undefined, max: d.yMax ?? undefined, beginAtZero: true, grid: { color: '#d9d9d9' } },
-          },
+      scales:
+        pie || chartKind === 'radar'
+          ? {}
+          : {
+              x: { stacked, grid: { color: '#d9d9d9' } },
+              y: { stacked, min: d.yMin ?? undefined, max: d.yMax ?? undefined, beginAtZero: true, grid: { color: '#d9d9d9' } },
+            },
     },
   } as ChartConfiguration
 }

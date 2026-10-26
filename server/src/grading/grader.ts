@@ -135,7 +135,8 @@ async function runStep(driver: ProgramDriver, step: Step) {
       const index = items.indexOf(step.item)
       if (index < 0) {
         // 串口列表是空的：最常见的原因是没有填充
-        const hint = items.length === 0 && /^COM\d+$/.test(step.item) ? '。串口列表要在窗体的 Load 事件或下拉框的 Click 事件里用 SerialPort.GetPortNames() 填充' : ''
+        const hint =
+          items.length === 0 && /^COM\d+$/.test(step.item) ? '。串口列表要在窗体的 Load 事件或下拉框的 Click 事件里用 SerialPort.GetPortNames() 填充' : ''
         throw new Failure(`下拉框 ${step.control} 里没有"${step.item}"（现在的选项：${items.length ? items.join('、') : '空'}）${hint}`)
       }
       driver.act(node, { action: 'select', index })
@@ -151,7 +152,14 @@ async function runStep(driver: ProgramDriver, step: Step) {
       const rows = gridRows(node)
       if (step.row >= rows.length) throw new Failure(`数据表格 ${step.control} 里没有第 ${step.row + 1} 行（现在有 ${rows.length} 行数据）`)
       const column = typeof step.column === 'number' ? step.column : gridColumns(node).findIndex((c) => c.header === step.column || c.name === step.column)
-      if (column < 0) throw new Failure(`数据表格 ${step.control} 里没有"${step.column}"列（现在的列：${gridColumns(node).map((c) => c.header).join('、') || '没有'}）`)
+      if (column < 0)
+        throw new Failure(
+          `数据表格 ${step.control} 里没有"${step.column}"列（现在的列：${
+            gridColumns(node)
+              .map((c) => c.header)
+              .join('、') || '没有'
+          }）`,
+        )
       driver.act(node, { action: 'cellClick', row: step.row, column })
       if (step.kind === 'edit') driver.act(node, { action: 'cellEdit', row: step.row, column, value: step.value })
       await driver.settle()
@@ -302,8 +310,10 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
     case 'prop': {
       const actual = need(driver, e.control).props[e.prop]
       if (e.prop === 'Text' || e.prop === 'LedText') return `期望${prefix} ${e.control} ${desc ?? `显示"${e.value}"`}，实际是${quote(actual)}`
-      if (e.prop === 'Enabled') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '可用' : '变成灰色不可用')}，实际${actual === false ? '不可用' : '可用'}`
-      if (e.prop === 'Visible') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '显示出来' : '隐藏')}，实际${driver.isVisible(need(driver, e.control)) ? '显示着' : '是隐藏的'}`
+      if (e.prop === 'Enabled')
+        return `期望${prefix} ${e.control} ${desc ?? (e.value ? '可用' : '变成灰色不可用')}，实际${actual === false ? '不可用' : '可用'}`
+      if (e.prop === 'Visible')
+        return `期望${prefix} ${e.control} ${desc ?? (e.value ? '显示出来' : '隐藏')}，实际${driver.isVisible(need(driver, e.control)) ? '显示着' : '是隐藏的'}`
       if (e.prop === 'Checked') return `期望${prefix} ${e.control} ${desc ?? (e.value ? '被选中' : '没有被选中')}，实际${actual ? '被选中' : '没有被选中'}`
       if (e.prop === 'IsOn') return `期望${prefix}窗体上的 ${e.control} ${desc ?? (e.value ? '亮' : '灭')}，实际是${actual ? '亮' : '灭'}的`
       if (e.prop === 'Value') return `期望${prefix} ${e.control} ${desc ?? `的值是 ${String(e.value)}`}，实际是 ${String(actual)}`
@@ -312,7 +322,8 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
     case 'contains': {
       const node = need(driver, e.control)
       const items = listItems(node)
-      if (items) return `期望${prefix} ${e.control} ${desc ?? `的列表项包含"${e.text}"`}，实际${items.length ? `列表里是 ${items.map((i) => `"${i}"`).join('、')}` : '列表是空的'}`
+      if (items)
+        return `期望${prefix} ${e.control} ${desc ?? `的列表项包含"${e.text}"`}，实际${items.length ? `列表里是 ${items.map((i) => `"${i}"`).join('、')}` : '列表是空的'}`
       return `期望${prefix} ${e.control} ${desc ?? `的文字包含"${e.text}"`}，实际是${quote(node.props.Text)}`
     }
     case 'matches':
@@ -354,12 +365,18 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
       return `期望${prefix}${desc ?? `播放 ${e.name}`}，${driver.played.length ? `实际播放的是 ${driver.played.join('、')}` : '实际没有播放声音'}`
     case 'row': {
       const node = need(driver, e.control)
-      const wanted = Object.entries(e.cells).map(([k, v]) => `${k}=${v}`).join('，')
+      const wanted = Object.entries(e.cells)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('，')
       const columns = gridColumns(node)
       const missing = Object.keys(e.cells).filter((key) => !columns.some((c) => c.header === key || c.name === key))
-      if (missing.length) return `期望${prefix}数据表格 ${e.control} 里有"${missing.join('、')}"列，实际的列是 ${columns.map((c) => c.header).join('、') || '（没有数据）'}`
+      if (missing.length)
+        return `期望${prefix}数据表格 ${e.control} 里有"${missing.join('、')}"列，实际的列是 ${columns.map((c) => c.header).join('、') || '（没有数据）'}`
       const rows = gridRows(node)
-      const shown = rows.slice(0, 5).map((r) => r.join(' | ')).join('；')
+      const shown = rows
+        .slice(0, 5)
+        .map((r) => r.join(' | '))
+        .join('；')
       return `期望${prefix}数据表格 ${e.control} ${desc ?? (e.present ? `有一行 ${wanted}` : `没有 ${wanted} 的行`)}，实际表格里${rows.length ? `是：${shown}${rows.length > 5 ? ' ……' : ''}` : '没有数据'}`
     }
   }

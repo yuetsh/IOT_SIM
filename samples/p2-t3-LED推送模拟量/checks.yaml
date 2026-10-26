@@ -6,10 +6,10 @@
     - select: { control: com_ledPort, item: COM5 }
     - click: btn_open
     - click: btn_get
-    - expect: { control: txt_temperature, text: "25" }
-    - expect: { led: "25", desc: 显示温度 25 }
-    - expect: { led: "60", desc: 显示湿度 60 }
-    - expect: { led: "500", desc: 显示光照度 500 }
+    - expect: { control: txt_temperature, text: '25' }
+    - expect: { led: '25', desc: 显示温度 25 }
+    - expect: { led: '60', desc: 显示湿度 60 }
+    - expect: { led: '500', desc: 显示光照度 500 }
 
 - title: 能推送最新的环境信息
   steps:
@@ -19,4 +19,4 @@
     - click: btn_get
     - board: { temperature: 31 }
     - click: btn_get
-    - expect: { led: "31", desc: 显示最新的温度 31 }
+    - expect: { led: '31', desc: 显示最新的温度 31 }

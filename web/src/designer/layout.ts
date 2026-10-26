@@ -34,9 +34,7 @@ function dockOf(doc: DesignerDocument, name: string) {
 function paddingOf(doc: DesignerDocument, name: string) {
   const m = /Padding\((\d+)(?:,\s*(\d+),\s*(\d+),\s*(\d+))?\)/.exec(getPropText(doc, name, 'Padding') ?? '')
   if (!m) return { left: 0, top: 0, right: 0, bottom: 0 }
-  return m[2] === undefined
-    ? { left: +m[1], top: +m[1], right: +m[1], bottom: +m[1] }
-    : { left: +m[1], top: +m[2], right: +m[3], bottom: +m[4] }
+  return m[2] === undefined ? { left: +m[1], top: +m[1], right: +m[1], bottom: +m[1] } : { left: +m[1], top: +m[2], right: +m[3], bottom: +m[4] }
 }
 
 /** 容器里用来停靠的区域：客户区去掉内边距；带边框的面板去掉边框，分组框去掉边框和标题 */
@@ -63,7 +61,8 @@ export function dockLayout(doc: DesignerDocument): DesignerDocument {
     const point = pointOf(next, name)
     if (point.x !== bounds.x || point.y !== bounds.y) next = setProp(next, name, 'Location', { kind: 'point', x: bounds.x, y: bounds.y })
     const size = sizeOf(next, name)
-    if (size?.width !== bounds.width || size?.height !== bounds.height) next = setProp(next, name, 'Size', { kind: 'size', width: bounds.width, height: bounds.height })
+    if (size?.width !== bounds.width || size?.height !== bounds.height)
+      next = setProp(next, name, 'Size', { kind: 'size', width: bounds.width, height: bounds.height })
   }
 
   const layout = (container: string) => {

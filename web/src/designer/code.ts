@@ -20,13 +20,7 @@ export function ensureHandler(code: string, className: string, handler: string, 
   // 类里已有成员时，与上一个成员之间空一行
   const before = code.slice(0, lineStart)
   const hasMembers = !/\{\s*$/.test(before)
-  const method = [
-    ...(hasMembers ? [''] : []),
-    `${indent}private void ${handler}(object sender, ${args} e)`,
-    `${indent}{`,
-    '',
-    `${indent}}`,
-  ].join(eol)
+  const method = [...(hasMembers ? [''] : []), `${indent}private void ${handler}(object sender, ${args} e)`, `${indent}{`, '', `${indent}}`].join(eol)
   const next = `${before}${method}${eol}${code.slice(lineStart)}`
   return { code: next, line: lineOf(next, before.length) + (hasMembers ? 3 : 2) }
 }

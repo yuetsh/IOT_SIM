@@ -33,7 +33,10 @@ function nextName(prefix: string, taken: string[]) {
 function addSeries() {
   const d = draft.value
   d.series.push({
-    name: nextName('Series', d.series.map((s) => s.name)),
+    name: nextName(
+      'Series',
+      d.series.map((s) => s.name),
+    ),
     chartType: 'Column',
     chartArea: d.areas[0] ?? '',
     legend: d.legends[0] ?? '',
@@ -93,7 +96,7 @@ function save() {
       </section>
 
       <section v-if="series" class="fields">
-        <label title="Name：代码里用 chart1.Series[&quot;名称&quot;] 访问这个系列">名称</label>
+        <label title='Name：代码里用 chart1.Series["名称"] 访问这个系列'>名称</label>
         <input v-model="series.name" />
         <label title="ChartType：画成折线、柱形还是饼图">图表类型</label>
         <select v-model="series.chartType">

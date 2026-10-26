@@ -51,7 +51,18 @@ export const CHART_TYPES: Record<string, string> = {
 export const DEFAULT_CHART: ChartModel = {
   areas: ['ChartArea1'],
   legends: ['Legend1'],
-  series: [{ name: 'Series1', chartType: 'Column', chartArea: 'ChartArea1', legend: 'Legend1', legendText: '', isVisibleInLegend: true, xValueMember: '', yValueMembers: '' }],
+  series: [
+    {
+      name: 'Series1',
+      chartType: 'Column',
+      chartArea: 'ChartArea1',
+      legend: 'Legend1',
+      legendText: '',
+      isVisibleInLegend: true,
+      xValueMember: '',
+      yValueMembers: '',
+    },
+  ],
 }
 
 interface ChartObject {

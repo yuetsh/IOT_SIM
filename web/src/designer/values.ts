@@ -88,12 +88,9 @@ export function renderValue(value: Value): string {
         ? `System.Drawing.Color.FromArgb(${[value.r, value.g, value.b].map(byteArg).join(', ')})`
         : `System.Drawing.Color.FromArgb(${[value.a, value.r, value.g, value.b].map(byteArg).join(', ')})`
     case 'font': {
-      const styles = [
-        value.bold && 'Bold',
-        value.italic && 'Italic',
-        value.underline && 'Underline',
-        value.strikeout && 'Strikeout',
-      ].filter(Boolean) as string[]
+      const styles = [value.bold && 'Bold', value.italic && 'Italic', value.underline && 'Underline', value.strikeout && 'Strikeout'].filter(
+        Boolean,
+      ) as string[]
       const style = styles.length ? styles.map((s) => `System.Drawing.FontStyle.${s}`).join(' | ') : 'System.Drawing.FontStyle.Regular'
       // 与中文 Windows 上的 VS 一致：带 GB2312 字符集 134
       return `new System.Drawing.Font("${escapeString(value.family)}", ${value.size}F, ${style}, System.Drawing.GraphicsUnit.Point, ((byte)(${value.charset ?? 134})))`

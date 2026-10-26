@@ -68,9 +68,7 @@ export function deleteClass(db: Database, id: number): { error?: string } {
 }
 
 export function listStudents(db: Database, classId: number): Student[] {
-  return db
-    .query<Student, [number]>(`SELECT id, username, name, password FROM users WHERE class_id = ? AND role = 'student' ORDER BY username`)
-    .all(classId)
+  return db.query<Student, [number]>(`SELECT id, username, name, password FROM users WHERE class_id = ? AND role = 'student' ORDER BY username`).all(classId)
 }
 
 /**

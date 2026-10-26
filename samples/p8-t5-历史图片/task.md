@@ -12,19 +12,19 @@
 
 接着任务 4 的程序做。
 
-| 窗体 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 校园安防 | `btn_history` | 查看历史图像：打开 SecurityCameraData 窗体 |
-| 历史报警记录 | `SecurityCameraData` | 无边框、屏幕居中 |
-| 历史报警记录 | `panel1` | 标题栏：背景色 100, 116, 133，左边标签 `label1`"历史报警记录"（白字） |
-| 历史报警记录 | `pic_close` | 标题栏右边的关闭按钮：背景图片 `windowstate_closed_hover`，背景排列 Center |
-| 历史报警记录 | `panel_toolBar` | 工具栏：背景色 229, 229, 229 |
-| 历史报警记录 | `dateTimePicker1`、`dateTimePicker2` | 开始时间、结束时间（左边各配一个标签） |
-| 历史报警记录 | `btn_get` | 查询 |
-| 历史报警记录 | `pic_camera` | 显示照片：背景色 64, 64, 64 |
-| 历史报警记录 | `lb_noData` | NO DATA（红字，背景色 64, 64, 64，字号 48），叠在 pic_camera 中间 |
-| 历史报警记录 | `lb_time` | TIME（红字，背景色 64, 64, 64），叠在 pic_camera 右下角，显示拍摄时间 |
-| 历史报警记录 | `pic_up`、`pic_down` | 左、右翻页箭头：图片 `arrow_left_normal`、`arrow_right_normal`，SizeMode 设为 CenterImage |
+| 窗体         | 名称（Name）                         | 文字（Text）和用途                                                                        |
+| ------------ | ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| 校园安防     | `btn_history`                        | 查看历史图像：打开 SecurityCameraData 窗体                                                |
+| 历史报警记录 | `SecurityCameraData`                 | 无边框、屏幕居中                                                                          |
+| 历史报警记录 | `panel1`                             | 标题栏：背景色 100, 116, 133，左边标签 `label1`"历史报警记录"（白字）                     |
+| 历史报警记录 | `pic_close`                          | 标题栏右边的关闭按钮：背景图片 `windowstate_closed_hover`，背景排列 Center                |
+| 历史报警记录 | `panel_toolBar`                      | 工具栏：背景色 229, 229, 229                                                              |
+| 历史报警记录 | `dateTimePicker1`、`dateTimePicker2` | 开始时间、结束时间（左边各配一个标签）                                                    |
+| 历史报警记录 | `btn_get`                            | 查询                                                                                      |
+| 历史报警记录 | `pic_camera`                         | 显示照片：背景色 64, 64, 64                                                               |
+| 历史报警记录 | `lb_noData`                          | NO DATA（红字，背景色 64, 64, 64，字号 48），叠在 pic_camera 中间                         |
+| 历史报警记录 | `lb_time`                            | TIME（红字，背景色 64, 64, 64），叠在 pic_camera 右下角，显示拍摄时间                     |
+| 历史报警记录 | `pic_up`、`pic_down`                 | 左、右翻页箭头：图片 `arrow_left_normal`、`arrow_right_normal`，SizeMode 设为 CenterImage |
 
 > 注意 `pic_up` 是**左**箭头（上一张）、`pic_down` 是**右**箭头（下一张），名字照书上写。
 

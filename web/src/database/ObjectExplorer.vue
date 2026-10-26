@@ -47,7 +47,11 @@ function choose(key: string) {
 const REFRESH: ExplorerAction = { kind: 'refresh' }
 
 function rootMenu(event: MouseEvent) {
-  openMenu(event, [['新建数据库…', { kind: 'newDatabase' }], ['-', REFRESH], ['刷新', REFRESH]])
+  openMenu(event, [
+    ['新建数据库…', { kind: 'newDatabase' }],
+    ['-', REFRESH],
+    ['刷新', REFRESH],
+  ])
 }
 
 function databaseMenu(event: MouseEvent, database: string) {
@@ -61,7 +65,11 @@ function databaseMenu(event: MouseEvent, database: string) {
 }
 
 function tablesMenu(event: MouseEvent, database: string) {
-  openMenu(event, [['新建表…', { kind: 'newTable', database }], ['-', REFRESH], ['刷新', REFRESH]])
+  openMenu(event, [
+    ['新建表…', { kind: 'newTable', database }],
+    ['-', REFRESH],
+    ['刷新', REFRESH],
+  ])
 }
 
 function tableMenu(event: MouseEvent, database: string, table: ExplorerTable) {
@@ -88,18 +96,21 @@ function columnText(column: ExplorerTable['columns'][number]) {
     <ul class="tree">
       <li>
         <div class="node" @click="toggle('root')" @contextmenu="rootMenu">
-          <span class="arrow">{{ expanded.has('root') ? '▾' : '▸' }}</span>📁 数据库
+          <span class="arrow">{{ expanded.has('root') ? '▾' : '▸' }}</span
+          >📁 数据库
         </div>
         <ul v-if="expanded.has('root')">
           <li v-if="databases.length === 0" class="empty">（还没有数据库：右键"数据库"新建，或在上方恢复实验初始数据）</li>
           <li v-for="db in databases" :key="db.name">
             <div class="node" @click="toggle(`db:${db.name}`)" @contextmenu="databaseMenu($event, db.name)">
-              <span class="arrow">{{ expanded.has(`db:${db.name}`) ? '▾' : '▸' }}</span>🛢 {{ db.name }}
+              <span class="arrow">{{ expanded.has(`db:${db.name}`) ? '▾' : '▸' }}</span
+              >🛢 {{ db.name }}
             </div>
             <ul v-if="expanded.has(`db:${db.name}`)">
               <li>
                 <div class="node" @click="toggle(`tables:${db.name}`)" @contextmenu="tablesMenu($event, db.name)">
-                  <span class="arrow">{{ expanded.has(`tables:${db.name}`) ? '▾' : '▸' }}</span>📁 表
+                  <span class="arrow">{{ expanded.has(`tables:${db.name}`) ? '▾' : '▸' }}</span
+                  >📁 表
                 </div>
                 <ul v-if="expanded.has(`tables:${db.name}`)">
                   <li v-if="db.tables.length === 0" class="empty">（没有表）</li>
@@ -110,12 +121,14 @@ function columnText(column: ExplorerTable['columns'][number]) {
                       @click="toggle(`table:${db.name}/${table.name}`)"
                       @contextmenu="tableMenu($event, db.name, table)"
                     >
-                      <span class="arrow">{{ expanded.has(`table:${db.name}/${table.name}`) ? '▾' : '▸' }}</span>▦ dbo.{{ table.name }}
+                      <span class="arrow">{{ expanded.has(`table:${db.name}/${table.name}`) ? '▾' : '▸' }}</span
+                      >▦ dbo.{{ table.name }}
                     </div>
                     <ul v-if="expanded.has(`table:${db.name}/${table.name}`)">
                       <li>
                         <div class="node" @click="toggle(`columns:${db.name}/${table.name}`)">
-                          <span class="arrow">{{ expanded.has(`columns:${db.name}/${table.name}`) ? '▾' : '▸' }}</span>📁 列
+                          <span class="arrow">{{ expanded.has(`columns:${db.name}/${table.name}`) ? '▾' : '▸' }}</span
+                          >📁 列
                         </div>
                         <ul v-if="expanded.has(`columns:${db.name}/${table.name}`)">
                           <li v-for="column in table.columns" :key="column.name" class="node leaf">

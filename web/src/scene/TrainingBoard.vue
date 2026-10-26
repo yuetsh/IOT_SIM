@@ -151,20 +151,18 @@ const cameraTitle = computed(() =>
 
     <!-- 顶棚：红外对射、警示灯（DO0）、摄像头 -->
     <div class="ceiling">
-      <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">
-        红外对射
-      </button>
+      <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">红外对射</button>
       <div class="beam" :class="{ broken: digital.infrared }" @click="toggle('infrared')">
         <span v-if="digital.infrared" class="beam-tag">有人闯入</span>
       </div>
       <div class="device warning-light" :class="{ on: alarmOn }" title="警示灯（ADAM-4150 DO0）">警示灯</div>
       <div class="beam" :class="{ broken: digital.infrared }" @click="toggle('infrared')" />
       <div class="device camera" :class="{ on: camera.on }" :title="cameraTitle">
-        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M4 7h11a2 2 0 0 1 2 2v1.5l3.5-2.5v8L17 13.5V15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" /></svg>
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path fill="currentColor" d="M4 7h11a2 2 0 0 1 2 2v1.5l3.5-2.5v8L17 13.5V15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" />
+        </svg>
       </div>
-      <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">
-        红外对射
-      </button>
+      <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">红外对射</button>
     </div>
 
     <!-- LED 显示屏 -->
@@ -227,7 +225,14 @@ const cameraTitle = computed(() =>
       <div class="card" :title="playing ? `广播正在播放 ${playing.name}` : '广播（教材项目 7 用 Windows Media Player 播放铃声）'">
         <svg viewBox="0 0 24 24" width="30" height="30" class="icon speaker" :class="{ on: playing }">
           <path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z" />
-          <path v-if="playing" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path
+            v-if="playing"
+            d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
         </svg>
         <div class="card-title">广播</div>
         <div class="card-note">{{ playing ? `播放 ${playing.name}` : '静音' }}</div>
@@ -278,22 +283,16 @@ const cameraTitle = computed(() =>
       <div class="module">
         <div class="module-title">ADAM-4150 数字量（地址 1）</div>
         <div class="io-row">
-          <span v-for="(input, i) in DIGITAL_INPUTS" :key="input.key" class="io" :class="{ lit: digital[input.key] }">
-            <i />DI{{ i }} {{ input.label }}
-          </span>
+          <span v-for="(input, i) in DIGITAL_INPUTS" :key="input.key" class="io" :class="{ lit: digital[input.key] }"> <i />DI{{ i }} {{ input.label }} </span>
         </div>
         <div class="io-row">
-          <span v-for="(label, i) in RELAYS" :key="label" class="io out" :class="{ lit: relays[i] }">
-            <i />DO{{ i }} {{ label }}
-          </span>
+          <span v-for="(label, i) in RELAYS" :key="label" class="io out" :class="{ lit: relays[i] }"> <i />DO{{ i }} {{ label }} </span>
         </div>
       </div>
 
       <div class="module ports">
         <div class="module-title">串口服务器</div>
-        <div class="port-list">
-          <span>COM2 → 4017</span><span>COM3 → 4150</span><span>COM4 → ZigBee 协调器</span><span>COM5 → LED 屏</span>
-        </div>
+        <div class="port-list"><span>COM2 → 4017</span><span>COM3 → 4150</span><span>COM4 → ZigBee 协调器</span><span>COM5 → LED 屏</span></div>
         <button class="reset" :disabled="!board" @click="emit('reset')">实训台复位</button>
       </div>
     </div>
@@ -498,7 +497,7 @@ button {
   white-space: pre;
   color: #ff2a2a;
   text-shadow: 0 0 6px rgb(255 40 40 / 0.8);
-  font-family: "SimHei", "Noto Sans CJK SC", sans-serif;
+  font-family: 'SimHei', 'Noto Sans CJK SC', sans-serif;
   font-size: 30px;
   line-height: 36px;
   animation: led-scroll 12s linear infinite;

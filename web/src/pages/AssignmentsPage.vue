@@ -18,13 +18,15 @@ onMounted(async () => {
   loaded.value = true
 })
 
-const formatTime = (ms: number) =>
-  new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+const formatTime = (ms: number) => new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 const total = (a: Assignment) => a.scoring.auto.reduce((x, y) => x + y, 0)
 
 function status(row: Row) {
   const s = row.latest
-  if (!s) return row.deadline && Date.now() > row.deadline ? h(NTag, { type: 'error', size: 'small' }, () => '未提交，已截止') : h(NTag, { size: 'small' }, () => '未提交')
+  if (!s)
+    return row.deadline && Date.now() > row.deadline
+      ? h(NTag, { type: 'error', size: 'small' }, () => '未提交，已截止')
+      : h(NTag, { size: 'small' }, () => '未提交')
   if (s.status === 'pending') return h(NTag, { type: 'warning', size: 'small' }, () => '评分中')
   if (s.status === 'error') return h(NTag, { type: 'error', size: 'small' }, () => '评分出错')
   if (row.manualScore !== null) {

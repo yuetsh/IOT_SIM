@@ -6,18 +6,18 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Form1` | 人体红外ZigBee联动 |
-| 灯泡 | `lamp1` | 窗体上显示路灯的亮灭 |
-| 按钮 | `btn_lampOpen` | 开（手动开灯） |
-| 按钮 | `btn_lampClose` | 关（手动关灯） |
-| 分组框 | `groupBox1` | 配置 |
-| 下拉框 | `com_lamp` | 路灯（ZigBee 协调器）的串口 |
-| 下拉框 | `com_environment` | 环境采集（ADAM-4150）的串口 |
-| 复选框 | `ch_bodyInfrared` | 人体开关 |
-| 按钮 | `btn_open` | 打开（打开后变成"关闭"） |
-| 定时器 | `timer1` | Interval 设为 5000（5 秒），Enabled 保持 False |
+| 控件   | 名称（Name）      | 文字（Text）和用途                             |
+| ------ | ----------------- | ---------------------------------------------- |
+| 窗体   | `Form1`           | 人体红外ZigBee联动                             |
+| 灯泡   | `lamp1`           | 窗体上显示路灯的亮灭                           |
+| 按钮   | `btn_lampOpen`    | 开（手动开灯）                                 |
+| 按钮   | `btn_lampClose`   | 关（手动关灯）                                 |
+| 分组框 | `groupBox1`       | 配置                                           |
+| 下拉框 | `com_lamp`        | 路灯（ZigBee 协调器）的串口                    |
+| 下拉框 | `com_environment` | 环境采集（ADAM-4150）的串口                    |
+| 复选框 | `ch_bodyInfrared` | 人体开关                                       |
+| 按钮   | `btn_open`        | 打开（打开后变成"关闭"）                       |
+| 定时器 | `timer1`          | Interval 设为 5000（5 秒），Enabled 保持 False |
 
 > 书上的表格写的是 `btn_Open`，代码里是 `btn_open`。名字区分大小写，请按代码写成 `btn_open`，否则自动评分找不到这个按钮。
 

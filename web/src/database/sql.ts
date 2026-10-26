@@ -27,8 +27,7 @@ export interface ResultSet {
 }
 
 export type QueryReply =
-  | { type: 'result'; database: string; results: ResultSet[]; affected: number; ms: number }
-  | { type: 'error'; number: number; message: string; line: number }
+  { type: 'result'; database: string; results: ResultSet[]; affected: number; ms: number } | { type: 'error'; number: number; message: string; line: number }
 
 export const loadExplorer = () => api<{ databases: ExplorerDatabase[] }>('GET', '/api/db')
 export const runQuery = (database: string, sql: string) => api<QueryReply>('POST', '/api/db/query', { database, sql })
@@ -89,9 +88,30 @@ export interface DesignColumn {
 
 /** 设计器"数据类型"下拉里的常用类型（和 SSMS 一样也可以直接输入，如 varchar(20)） */
 export const COMMON_TYPES = [
-  'int', 'bigint', 'smallint', 'tinyint', 'bit', 'float', 'real', 'decimal(18, 0)', 'money',
-  'char(10)', 'varchar(50)', 'varchar(MAX)', 'nchar(10)', 'nvarchar(50)', 'nvarchar(MAX)', 'text', 'ntext',
-  'date', 'datetime', 'smalldatetime', 'time(7)', 'uniqueidentifier', 'varbinary(MAX)', 'image',
+  'int',
+  'bigint',
+  'smallint',
+  'tinyint',
+  'bit',
+  'float',
+  'real',
+  'decimal(18, 0)',
+  'money',
+  'char(10)',
+  'varchar(50)',
+  'varchar(MAX)',
+  'nchar(10)',
+  'nvarchar(50)',
+  'nvarchar(MAX)',
+  'text',
+  'ntext',
+  'date',
+  'datetime',
+  'smalldatetime',
+  'time(7)',
+  'uniqueidentifier',
+  'varbinary(MAX)',
+  'image',
 ]
 
 export function columnDefinition(column: DesignColumn) {

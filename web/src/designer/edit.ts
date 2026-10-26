@@ -19,9 +19,7 @@ export function listControls(doc: DesignerDocument): ControlInfo[] {
   for (const block of doc.blocks) {
     for (const stmt of block.stmts) if (stmt.kind === 'add') parents.set(stmt.child, stmt.target)
   }
-  return doc.prologue.flatMap((stmt) =>
-    stmt.kind === 'create' ? [{ name: stmt.name, type: stmt.type, parent: parents.get(stmt.name) ?? null }] : [],
-  )
+  return doc.prologue.flatMap((stmt) => (stmt.kind === 'create' ? [{ name: stmt.name, type: stmt.type, parent: parents.get(stmt.name) ?? null }] : []))
 }
 
 /** 某个容器里的子控件，按 Controls.Add 的顺序（第一个在最上层） */
@@ -133,7 +131,9 @@ export function setEvent(doc: DesignerDocument, target: string, event: string, d
 }
 
 const KEYWORDS = new Set(
-  'abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof stackalloc static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using virtual void volatile while'.split(' '),
+  'abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof stackalloc static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using virtual void volatile while'.split(
+    ' ',
+  ),
 )
 
 /** 检查控件名是否可用；可用返回 null，否则返回原因 */
@@ -206,11 +206,7 @@ export function removeControl(doc: DesignerDocument, name: string): DesignerDocu
   // 图表的图表区、图例、系列是 InitializeComponent 开头的局部变量，一起删掉
   for (const n of doomed) if (typeOf(next, n) === CHART_TYPE) next.prologue = removeChartDeclarations(next, n).prologue
   const keep = (s: Stmt) =>
-    !(
-      (s.kind === 'create' && doomed.has(s.name)) ||
-      (s.kind === 'add' && doomed.has(s.child)) ||
-      (s.kind === 'layout' && doomed.has(s.target))
-    )
+    !((s.kind === 'create' && doomed.has(s.name)) || (s.kind === 'add' && doomed.has(s.child)) || (s.kind === 'layout' && doomed.has(s.target)))
   next.prologue = next.prologue.filter(keep)
   next.epilogue = next.epilogue.filter(keep)
   next.blocks = next.blocks.filter((b) => !doomed.has(b.name))
@@ -229,7 +225,9 @@ export function renameControl(doc: DesignerDocument, from: string, to: string): 
         return s.name === from ? { ...s, name: to, text: undefined } : s
       case 'prop':
         if (s.target !== from) return s
-        return s.path === 'Name' ? { ...s, target: to, value: renderValue({ kind: 'string', value: to }), text: undefined } : { ...s, target: to, text: undefined }
+        return s.path === 'Name'
+          ? { ...s, target: to, value: renderValue({ kind: 'string', value: to }), text: undefined }
+          : { ...s, target: to, text: undefined }
       case 'event':
       case 'items':
         return s.target === from ? { ...s, target: to, text: undefined } : s
@@ -240,7 +238,9 @@ export function renameControl(doc: DesignerDocument, from: string, to: string): 
       case 'layout':
         return s.target === from ? { ...s, target: to, text: undefined } : s
       case 'raw':
-        return s.text.includes(`this.${from}`) ? { kind: 'raw', text: s.text.replace(new RegExp(`(?<![\\p{L}\\p{N}_])this\\.${from}(?![\\p{L}\\p{N}_])`, 'gu'), `this.${to}`) } : s
+        return s.text.includes(`this.${from}`)
+          ? { kind: 'raw', text: s.text.replace(new RegExp(`(?<![\\p{L}\\p{N}_])this\\.${from}(?![\\p{L}\\p{N}_])`, 'gu'), `this.${to}`) }
+          : s
     }
   }
   next.prologue = next.prologue.map(fix)
@@ -274,7 +274,12 @@ export function moveControl(doc: DesignerDocument, name: string, parent: string,
  * 子控件里有 AutoSize 的，末尾再加 PerformLayout()。已有的语句不调整顺序，只增删。
  */
 export function syncLayout(doc: DesignerDocument) {
-  const containers = ['', ...listControls(doc).filter((c) => isContainerType(c.type)).map((c) => c.name)]
+  const containers = [
+    '',
+    ...listControls(doc)
+      .filter((c) => isContainerType(c.type))
+      .map((c) => c.name),
+  ]
   for (const container of containers) {
     const children = childrenOf(doc, container)
     const hasChildren = children.length > 0 || container === ''
@@ -331,9 +336,7 @@ function ensureLayout(doc: DesignerDocument, target: string, op: 'SuspendLayout'
   } else {
     // 容器：ResumeLayout(false) + PerformLayout() 成对，排在 EndInit 和窗体的 ResumeLayout 之前
     const resume = list.findIndex((s) => s.kind === 'layout' && s.target === target && s.op === 'ResumeLayout')
-    const at = op === 'PerformLayout' && resume >= 0
-      ? resume + 1
-      : list.findIndex((s) => s.kind === 'layout' && (s.op === 'EndInit' || s.target === ''))
+    const at = op === 'PerformLayout' && resume >= 0 ? resume + 1 : list.findIndex((s) => s.kind === 'layout' && (s.op === 'EndInit' || s.target === ''))
     list.splice(at < 0 ? list.length : at, 0, stmt)
   }
 }

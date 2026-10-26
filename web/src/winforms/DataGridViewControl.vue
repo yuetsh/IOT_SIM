@@ -53,6 +53,11 @@ function click(row: number, column: number) {
   if (col?.check && !col.readOnly && p.value.ReadOnly !== true) props.act({ action: 'cellEdit', row, column, value: cell === true ? 'False' : 'True' })
 }
 
+function doubleClick(row: number, column: number) {
+  props.act({ action: 'cellDoubleClick', row, column })
+  startEdit(row, column)
+}
+
 function startEdit(row: number, column: number, initial?: string) {
   const col = columns.value.find((c) => c.index === column)
   if (!props.enabled || !col || col.readOnly || col.check || p.value.ReadOnly === true) return
@@ -137,12 +142,7 @@ function columnStyle(column: Column): CSSProperties {
         </tr>
       </thead>
       <tbody>
-        <tr
-          v-for="(row, r) in rows.items"
-          :key="r"
-          :class="{ 'wf-dgv-selected': selectedRows.has(r) }"
-          :style="{ height: `${rows.height}px` }"
-        >
+        <tr v-for="(row, r) in rows.items" :key="r" :class="{ 'wf-dgv-selected': selectedRows.has(r) }" :style="{ height: `${rows.height}px` }">
           <th v-if="rowHeaders" class="wf-dgv-rowheader" @click="click(r, -1)">
             {{ current?.[0] === r ? '▶' : row.isNew ? '*' : '' }}
           </th>
@@ -152,7 +152,7 @@ function columnStyle(column: Column): CSSProperties {
             :class="{ 'wf-dgv-current': isCurrent(r, column.index) }"
             :style="columnStyle(column)"
             @click="click(r, column.index)"
-            @dblclick="act({ action: 'cellDoubleClick', row: r, column: column.index }); startEdit(r, column.index)"
+            @dblclick="doubleClick(r, column.index)"
           >
             <input
               v-if="editing && editing.row === r && editing.column === column.index"

@@ -85,8 +85,7 @@ const formatTime = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', { ho
       <template v-if="titles.length">
         <h4 class="section">评价项</h4>
         <p class="note">
-          下面这些功能项由平台自动检查。点"自己检查"，平台会运行你现在的程序，逐项操作、核对结果，
-          告诉你哪几项还没做好。<b>不计分、不留记录</b>，可以随时检查。
+          下面这些功能项由平台自动检查。点"自己检查"，平台会运行你现在的程序，逐项操作、核对结果， 告诉你哪几项还没做好。<b>不计分、不留记录</b>，可以随时检查。
         </p>
         <div class="actions">
           <NButton type="primary" :loading="running" :disabled="running || titles.length === 0" @click="start">自己检查</NButton>
@@ -101,11 +100,7 @@ const formatTime = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', { ho
         <div v-if="current?.result && !current.result.compiled" class="error">编译没有通过，先改正编译错误</div>
 
         <ul class="items">
-          <li
-            v-for="(title, i) in titles"
-            :key="i"
-            :class="current?.result && !running ? (current.result.results[i]?.passed ? 'passed' : 'failed') : ''"
-          >
+          <li v-for="(title, i) in titles" :key="i" :class="current?.result && !running ? (current.result.results[i]?.passed ? 'passed' : 'failed') : ''">
             <span class="mark">{{ current?.result && !running ? (current.result.results[i]?.passed ? '✓' : '✗') : '·' }}</span>
             <div>
               <div class="title">

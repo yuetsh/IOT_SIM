@@ -33,9 +33,7 @@ class Browser {
     const headers: Record<string, string> = { 'x-real-ip': this.ip }
     if (this.accessToken) headers.authorization = `Bearer ${this.accessToken}`
     if (json !== undefined) headers['content-type'] = 'application/json'
-    const response = await app.fetch(
-      new Request(`http://localhost${path}`, { method, headers, body: json === undefined ? undefined : JSON.stringify(json) }),
-    )
+    const response = await app.fetch(new Request(`http://localhost${path}`, { method, headers, body: json === undefined ? undefined : JSON.stringify(json) }))
     const body = (await response.json()) as any
     if (body?.accessToken) {
       this.accessToken = body.accessToken
@@ -418,7 +416,13 @@ describe('作业', () => {
 
 describe('评阅与成绩', () => {
   const SAMPLE = 'p4-t3-报警灯'
-  const scoring = { auto: [10, 10], manual: [{ title: '窗体界面', points: 10 }, { title: '注释', points: 5 }] }
+  const scoring = {
+    auto: [10, 10],
+    manual: [
+      { title: '窗体界面', points: 10 },
+      { title: '注释', points: 5 },
+    ],
+  }
 
   async function submitted() {
     const t = await teacher()
@@ -427,7 +431,15 @@ describe('评阅与成绩', () => {
       { username: 's2', name: '乙', password: 'p2' },
     ])
     const files = (await loadSample(SAMPLE))!
-    const { body } = await t.post('/api/teacher/assignments', { classId, sampleId: SAMPLE, title: '报警灯', startMode: 'ui', template: files, scoring, deadline: null })
+    const { body } = await t.post('/api/teacher/assignments', {
+      classId,
+      sampleId: SAMPLE,
+      title: '报警灯',
+      startMode: 'ui',
+      template: files,
+      scoring,
+      deadline: null,
+    })
     const student = new Browser()
     await student.login('s1', 'p1')
     await student.post(`/api/assignments/${body.id}/submit`, { files })
@@ -452,7 +464,11 @@ describe('评阅与成绩', () => {
 
     expect((await student.get(`/api/assignments/${assignmentId}`)).body.review).toMatchObject({ scores: [8, null], comment: '界面整齐，注释还要补' })
     expect((await student.get('/api/assignments')).body[0].manualScore).toBe(8)
-    expect((await t.get(`/api/teacher/assignments/${assignmentId}/submissions`)).body[0]).toMatchObject({ username: 's1', manualScore: 8, review: { comment: '界面整齐，注释还要补' } })
+    expect((await t.get(`/api/teacher/assignments/${assignmentId}/submissions`)).body[0]).toMatchObject({
+      username: 's1',
+      manualScore: 8,
+      review: { comment: '界面整齐，注释还要补' },
+    })
   }, 60000)
 
   test('成绩表：总分 = 自动评分 + 老师评分；没提交的没有总分', async () => {
@@ -469,7 +485,11 @@ describe('评阅与成绩', () => {
   test('老师减少评分项后，已打的分按新的评分项对齐', async () => {
     const { t, assignmentId, userId } = await submitted()
     await t.put(`/api/teacher/assignments/${assignmentId}/students/${userId}/review`, { scores: [8, 4], comment: '' })
-    await t.patch(`/api/teacher/assignments/${assignmentId}`, { title: '报警灯', deadline: null, scoring: { auto: [10, 10], manual: [{ title: '窗体界面', points: 5 }] } })
+    await t.patch(`/api/teacher/assignments/${assignmentId}`, {
+      title: '报警灯',
+      deadline: null,
+      scoring: { auto: [10, 10], manual: [{ title: '窗体界面', points: 5 }] },
+    })
     expect((await t.get(`/api/teacher/assignments/${assignmentId}/students/${userId}`)).body.review.scores).toEqual([5])
   }, 60000)
 
@@ -487,7 +507,12 @@ describe('语言服务', () => {
 
   test('代码补全、边写边检查（中文提示）；请求格式不对拒绝；没登录不能用', async () => {
     const t = await teacher()
-    const files = [{ path: 'Program.cs', content: 'using System.Windows.Forms;\nstatic class P\n{\n    static void Main()\n    {\n        var b = new Button();\n        b.\n    }\n}\n' }]
+    const files = [
+      {
+        path: 'Program.cs',
+        content: 'using System.Windows.Forms;\nstatic class P\n{\n    static void Main()\n    {\n        var b = new Button();\n        b.\n    }\n}\n',
+      },
+    ]
     const completions = await t.post('/api/language', { type: 'complete', session: 'tab1', files, file: 'Program.cs', line: 7, column: 11 })
     expect(completions.body.items.map((i: any) => i.label)).toEqual(expect.arrayContaining(['Text', 'Click', 'Enabled']))
 
@@ -500,7 +525,13 @@ describe('语言服务', () => {
 
   test('平台支持的旧版线程 API（Suspend / Resume / Abort）不提示"已过时"', async () => {
     const t = await teacher()
-    const files = [{ path: 'Program.cs', content: 'using System.Threading;\nstatic class P\n{\n    static void Main()\n    {\n        var t = new Thread(() => Thread.Sleep(10));\n        t.Start();\n        t.Suspend();\n        t.Resume();\n        t.Abort();\n    }\n}\n' }]
+    const files = [
+      {
+        path: 'Program.cs',
+        content:
+          'using System.Threading;\nstatic class P\n{\n    static void Main()\n    {\n        var t = new Thread(() => Thread.Sleep(10));\n        t.Start();\n        t.Suspend();\n        t.Resume();\n        t.Abort();\n    }\n}\n',
+      },
+    ]
     const check = await t.post('/api/language', { type: 'diagnostics', session: 'tab2', files })
     expect(check.body.diagnostics).toEqual([])
   }, 60000)
@@ -529,16 +560,40 @@ describe('数据库页面', () => {
       database: '测试库',
       sql: "CREATE TABLE T (ID int IDENTITY(1,1) PRIMARY KEY, name nvarchar(20)); INSERT INTO T (name) VALUES (N'张三'), (N'李四'); SELECT * FROM T WHERE name LIKE N'张%'",
     })
-    expect(created.body).toMatchObject({ type: 'result', database: '测试库', affected: 2, results: [{ columns: [{ name: 'ID', type: 'int' }, { name: 'name', type: 'nvarchar(20)' }], rows: [[1, '张三']], total: 1 }] })
+    expect(created.body).toMatchObject({
+      type: 'result',
+      database: '测试库',
+      affected: 2,
+      results: [
+        {
+          columns: [
+            { name: 'ID', type: 'int' },
+            { name: 'name', type: 'nvarchar(20)' },
+          ],
+          rows: [[1, '张三']],
+          total: 1,
+        },
+      ],
+    })
 
     const error = await t.post('/api/db/query', { database: '测试库', sql: 'SELECT * FROM 不存在的表' })
     expect(error.body).toEqual({ type: 'error', number: 208, message: "对象名 '不存在的表' 无效。", line: 1 })
 
     const explorer = (await t.get('/api/db')).body
-    expect(explorer.databases).toEqual([{ name: '测试库', tables: [{ name: 'T', columns: [
-      { name: 'ID', type: 'int', nullable: false, identity: true, primaryKey: true },
-      { name: 'name', type: 'nvarchar(20)', nullable: true, identity: false, primaryKey: false },
-    ] }] }])
+    expect(explorer.databases).toEqual([
+      {
+        name: '测试库',
+        tables: [
+          {
+            name: 'T',
+            columns: [
+              { name: 'ID', type: 'int', nullable: false, identity: true, primaryKey: true },
+              { name: 'name', type: 'nvarchar(20)', nullable: true, identity: false, primaryKey: false },
+            ],
+          },
+        ],
+      },
+    ])
     expect((await student.get('/api/db')).body.databases).toEqual([])
     expect((await new Browser().get('/api/db')).status).toBe(401)
   }, 60000)
@@ -573,7 +628,13 @@ describe('数据库页面', () => {
 
 describe('AI 评阅', () => {
   const SAMPLE = 'p4-t3-报警灯'
-  const scoring = { auto: [10, 10], manual: [{ title: '窗体界面', points: 10 }, { title: '注释规范', points: 5 }] }
+  const scoring = {
+    auto: [10, 10],
+    manual: [
+      { title: '窗体界面', points: 10 },
+      { title: '注释规范', points: 5 },
+    ],
+  }
   /** 假的模型服务：记下收到的请求，返回固定的评分（第二项故意超出满分，检查服务器会限制） */
   const requests: any[] = []
   let fake: ReturnType<typeof Bun.serve>
@@ -584,7 +645,13 @@ describe('AI 评阅', () => {
       port: 0,
       async fetch(req) {
         requests.push(await req.json())
-        const content = JSON.stringify({ scores: [{ item: '窗体界面', score: 8.6, reason: '布局整齐' }, { item: '注释规范', score: 9, reason: '注释充分' }], comment: '界面整齐，继续加油。' })
+        const content = JSON.stringify({
+          scores: [
+            { item: '窗体界面', score: 8.6, reason: '布局整齐' },
+            { item: '注释规范', score: 9, reason: '注释充分' },
+          ],
+          comment: '界面整齐，继续加油。',
+        })
         return Response.json({ choices: [{ message: { content } }] })
       },
     })
@@ -599,9 +666,15 @@ describe('AI 评阅', () => {
   })
 
   test('分数限制在 0 到满分并取整；评分项个数不对时报错', () => {
-    const manual = [{ title: 'A', points: 10 }, { title: 'B', points: 5 }]
+    const manual = [
+      { title: 'A', points: 10 },
+      { title: 'B', points: 5 },
+    ]
     expect(normalizeAiResult({ scores: [{ score: 8.6, reason: 'x' }, { score: -1 }], comment: ' 好 ' }, manual)).toEqual({
-      scores: [{ score: 9, reason: 'x' }, { score: 0, reason: '' }],
+      scores: [
+        { score: 9, reason: 'x' },
+        { score: 0, reason: '' },
+      ],
       comment: '好',
     })
     expect(() => normalizeAiResult({ scores: [{ score: 1 }] }, manual)).toThrow('评分项个数不对')
@@ -611,7 +684,15 @@ describe('AI 评阅', () => {
     const t = await teacher()
     const classId = await classWithStudents(t, [{ username: 's1', name: '甲同学', password: 'p1' }])
     const files = (await loadSample(SAMPLE))!
-    const { body } = await t.post('/api/teacher/assignments', { classId, sampleId: SAMPLE, title: '报警灯', startMode: 'ui', template: files, scoring, deadline: null })
+    const { body } = await t.post('/api/teacher/assignments', {
+      classId,
+      sampleId: SAMPLE,
+      title: '报警灯',
+      startMode: 'ui',
+      template: files,
+      scoring,
+      deadline: null,
+    })
     const assignmentId = body.id as number
     const student = new Browser()
     await student.login('s1', 'p1')
@@ -622,7 +703,14 @@ describe('AI 评阅', () => {
 
     const userId = (await student.get('/api/me')).body.user.id
     const detail = (await t.get(`/api/teacher/assignments/${assignmentId}/students/${userId}`)).body
-    expect(detail.aiReview).toMatchObject({ status: 'done', scores: [{ score: 9, reason: '布局整齐' }, { score: 5, reason: '注释充分' }], comment: '界面整齐，继续加油。' })
+    expect(detail.aiReview).toMatchObject({
+      status: 'done',
+      scores: [
+        { score: 9, reason: '布局整齐' },
+        { score: 5, reason: '注释充分' },
+      ],
+      comment: '界面整齐，继续加油。',
+    })
     expect(detail.screenshots).toEqual([{ form: 'Form1', png }])
     expect((await t.get(`/api/teacher/assignments/${assignmentId}/submissions`)).body[0]).toMatchObject({ aiStatus: 'done', aiManual: 14, review: null })
     expect((await t.get(`/api/teacher/classes/${classId}/gradebook`)).body.students[0].scores[assignmentId]).toMatchObject({ manual: null, aiManual: 14 })

@@ -6,9 +6,9 @@
     - click: btn_Open
     - expect: { control: btn_Open, text: 关闭, desc: 按钮文字变成"关闭" }
     - click: btn_get
-    - expect: { control: txt_temperature, text: "25" }
-    - expect: { control: txt_humidity, text: "60" }
-    - expect: { control: txt_light, text: "500" }
+    - expect: { control: txt_temperature, text: '25' }
+    - expect: { control: txt_humidity, text: '60' }
+    - expect: { control: txt_light, text: '500' }
 
 - title: 环境变化后能获取到新的数值
   steps:
@@ -16,5 +16,5 @@
     - click: btn_Open
     - board: { temperature: 31, light: 300 }
     - click: btn_get
-    - expect: { control: txt_temperature, text: "31" }
-    - expect: { control: txt_light, text: "300" }
+    - expect: { control: txt_temperature, text: '31' }
+    - expect: { control: txt_light, text: '300' }

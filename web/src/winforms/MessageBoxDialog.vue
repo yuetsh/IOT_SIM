@@ -8,13 +8,39 @@ const emit = defineEmits<{ reply: [result: string] }>()
 
 const BUTTONS: Record<string, [string, string][]> = {
   OK: [['OK', '确定']],
-  OKCancel: [['OK', '确定'], ['Cancel', '取消']],
-  YesNo: [['Yes', '是(Y)'], ['No', '否(N)']],
-  YesNoCancel: [['Yes', '是(Y)'], ['No', '否(N)'], ['Cancel', '取消']],
-  RetryCancel: [['Retry', '重试(R)'], ['Cancel', '取消']],
-  AbortRetryIgnore: [['Abort', '中止(A)'], ['Retry', '重试(R)'], ['Ignore', '忽略(I)']],
+  OKCancel: [
+    ['OK', '确定'],
+    ['Cancel', '取消'],
+  ],
+  YesNo: [
+    ['Yes', '是(Y)'],
+    ['No', '否(N)'],
+  ],
+  YesNoCancel: [
+    ['Yes', '是(Y)'],
+    ['No', '否(N)'],
+    ['Cancel', '取消'],
+  ],
+  RetryCancel: [
+    ['Retry', '重试(R)'],
+    ['Cancel', '取消'],
+  ],
+  AbortRetryIgnore: [
+    ['Abort', '中止(A)'],
+    ['Retry', '重试(R)'],
+    ['Ignore', '忽略(I)'],
+  ],
 }
-const ICONS: Record<string, string> = { Error: '⛔', Hand: '⛔', Stop: '⛔', Warning: '⚠️', Exclamation: '⚠️', Information: 'ℹ️', Asterisk: 'ℹ️', Question: '❓' }
+const ICONS: Record<string, string> = {
+  Error: '⛔',
+  Hand: '⛔',
+  Stop: '⛔',
+  Warning: '⚠️',
+  Exclamation: '⚠️',
+  Information: 'ℹ️',
+  Asterisk: 'ℹ️',
+  Question: '❓',
+}
 
 const buttons = computed(() => BUTTONS[props.box.buttons] ?? BUTTONS.OK)
 const icon = computed(() => ICONS[props.box.icon])

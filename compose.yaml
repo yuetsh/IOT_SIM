@@ -7,10 +7,10 @@ services:
     # 和 app 同一个镜像（构建有缓存，不会重复构建）；写上 build，新服务器上就不会去 Docker Hub 拉这个镜像
     build: .
     user: root
-    command: ["sh", "-c", "chown -R \"$$APP_UID\" /data"]
+    command: ['sh', '-c', 'chown -R "$$APP_UID" /data']
     volumes:
       - data:/data
-    restart: "no"
+    restart: 'no'
     networks: [default]
 
   app:
@@ -51,7 +51,7 @@ services:
     # 整个平台的资源上限（两个班同时运行约需 1.5 GB），可在 .env 里用 APP_MEM_LIMIT 调整
     mem_limit: ${APP_MEM_LIMIT:-4g}
     pids_limit: 4096
-    expose: ["3000"]
+    expose: ['3000']
     networks: [default]
 
   caddy:

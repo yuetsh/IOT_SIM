@@ -36,14 +36,19 @@ function listen(file: string) {
 
 function save() {
   // 按素材库的顺序保存，生成的代码稳定
-  emit('save', gallery.value.map((g) => g.name).filter((name) => chosen.value.has(name)))
+  emit(
+    'save',
+    gallery.value.map((g) => g.name).filter((name) => chosen.value.has(name)),
+  )
   emit('update:show', false)
 }
 </script>
 
 <template>
   <NModal :show="show" preset="card" title="项目资源" style="width: 560px; max-width: calc(100vw - 32px)" @update:show="emit('update:show', $event)">
-    <p class="note">勾选要加入项目的图片和声音（平台素材库，名字和教材一致）。代码里写 <code>Properties.Resources.名字</code>，图片框的"图片"属性也可以直接选。</p>
+    <p class="note">
+      勾选要加入项目的图片和声音（平台素材库，名字和教材一致）。代码里写 <code>Properties.Resources.名字</code>，图片框的"图片"属性也可以直接选。
+    </p>
     <div class="items">
       <!-- 点整行都能勾选；复选框和"试听"自己处理点击，不再传给这一行 -->
       <div v-for="item in gallery" :key="item.name" class="item" :class="{ on: chosen.has(item.name) }" @click="toggle(item.name, !chosen.has(item.name))">
@@ -123,7 +128,7 @@ function save() {
 }
 
 .name {
-  font-family: Consolas, "Courier New", monospace;
+  font-family: Consolas, 'Courier New', monospace;
   font-size: 13px;
 }
 

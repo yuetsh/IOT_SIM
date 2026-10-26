@@ -61,7 +61,11 @@ function propsOf(doc: DesignerDocument, target: string): Record<string, unknown>
 
 /** 教材控件在 Designer.cs 里不写、但运行时构造函数会设置的外观 */
 const DEVICE_DEFAULTS: Record<string, Record<string, unknown>> = {
-  'WinFormsDeviceControlLibrary.LED': { BackColor: '#000000', ForeColor: '#ff0000', Font: { family: '宋体', size: 70, bold: false, italic: false, underline: false, strikeout: false } },
+  'WinFormsDeviceControlLibrary.LED': {
+    BackColor: '#000000',
+    ForeColor: '#ff0000',
+    Font: { family: '宋体', size: 70, bold: false, italic: false, underline: false, strikeout: false },
+  },
   'WinFormsDeviceControlLibrary.Lamp': { BackColor: '#ffffff' },
   'WinFormsDeviceControlLibrary.Alarm': { BackColor: '#ffffff' },
 }
@@ -73,17 +77,26 @@ export function previewTree(doc: DesignerDocument): ControlNode {
     const props: Record<string, unknown> = { ...DEVICE_DEFAULTS[type], ...propsOf(doc, name) }
     // 设计时即使 Visible = false 也显示出来（和 VS 一样），方便选中和编辑
     props.Visible = true
-    if (type === 'System.Windows.Forms.ComboBox' || type === 'System.Windows.Forms.ListBox') props.Items = getItems(doc, name).map((item) => {
-      const v = parseValue(item)
-      return v.kind === 'string' ? v.value : item
-    })
+    if (type === 'System.Windows.Forms.ComboBox' || type === 'System.Windows.Forms.ListBox')
+      props.Items = getItems(doc, name).map((item) => {
+        const v = parseValue(item)
+        return v.kind === 'string' ? v.value : item
+      })
     // 设计器里不需要滚动：LED 只显示黑底
     if (type === 'WinFormsDeviceControlLibrary.LED') props.LedText = ''
     // 图表和 VS 一样用示例数据画出各个系列
     if (type === CHART_TYPE) props.Chart = previewChart(readChart(doc, name))
     // 和 VS 一样显示今天的日期
     if (type === 'System.Windows.Forms.DateTimePicker') props.Text = previewDate(String(props.Format ?? 'Long'))
-    return { id: name, type: clientType(type), name, props, children: childrenOf(doc, name).filter((c) => types.has(c)).map(build) }
+    return {
+      id: name,
+      type: clientType(type),
+      name,
+      props,
+      children: childrenOf(doc, name)
+        .filter((c) => types.has(c))
+        .map(build),
+    }
   }
   const formProps = propsOf(doc, '')
   return {
@@ -91,7 +104,9 @@ export function previewTree(doc: DesignerDocument): ControlNode {
     type: 'Form',
     name: doc.formName,
     props: { ClientSize: { width: 300, height: 300 }, ...formProps, Visible: true },
-    children: childrenOf(doc, '').filter((c) => types.has(c)).map(build),
+    children: childrenOf(doc, '')
+      .filter((c) => types.has(c))
+      .map(build),
   }
 }
 

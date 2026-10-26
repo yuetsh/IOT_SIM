@@ -53,8 +53,7 @@ function review(row: Row) {
   void router.push(`/teacher/assignments/${row.id}`)
 }
 
-const formatTime = (ms: number) =>
-  new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+const formatTime = (ms: number) => new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 const columns: DataTableColumns<Row> = [
   { title: '作业', key: 'title' },

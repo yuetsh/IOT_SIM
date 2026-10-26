@@ -1,27 +1,195 @@
 [
-  {"name": "switch_on", "file": "switch_on.png", "label": "开关：开", "kind": "image", "key": "6e660e1ff6fc2ff3167919bc386c300112bbce72", "hidpi": "switch_on.2x.png"},
-  {"name": "switch_off", "file": "switch_off.png", "label": "开关：关", "kind": "image", "key": "5d748b614084e878d6189d22f27813477cb8f4d9", "hidpi": "switch_off.2x.png"},
-  {"name": "ring", "file": "ring.mp3", "label": "铃声", "kind": "audio"},
-  {"name": "ico_title", "file": "ico_title.png", "label": "标题：智慧校园", "kind": "image", "key": "8a4db5ad7bc26136ae48056d6e71fa077e36e80f", "hidpi": "ico_title.2x.png"},
-  {"name": "bg_home", "file": "bg_home.png", "label": "主界面背景：校园", "kind": "image", "key": "e56bcc13f7128dec305b6012b255d63fb0f94450", "hidpi": "bg_home.2x.png"},
-  {"name": "icon_02", "file": "icon_02.png", "label": "图标：校园环境", "kind": "image", "key": "fa6a1eaa87c87913803c77f928fa9c16b7f4bf6d", "hidpi": "icon_02.2x.png"},
-  {"name": "icon_03", "file": "icon_03.png", "label": "图标：校园安防", "kind": "image", "key": "d085064a505544968278a85233b7d9ac23661169", "hidpi": "icon_03.2x.png"},
-  {"name": "icon_04", "file": "icon_04.png", "label": "图标：退出", "kind": "image", "key": "c853d74ecab64a9ee85bdf24ccfa63e80123cce3", "hidpi": "icon_04.2x.png"},
-  {"name": "day_01", "file": "day_01.png", "label": "路灯场景：亮灯", "kind": "image", "key": "05065abdb4538906bd7c86e940ab5fb02d51469d", "hidpi": "day_01.2x.png"},
-  {"name": "day_02", "file": "day_02.png", "label": "路灯场景：灭灯", "kind": "image", "key": "470d523e90e188fe5c423d8cffeae6993d5528ff", "hidpi": "day_02.2x.png"},
-  {"name": "bg_from1", "file": "bg_from1.png", "label": "面板背景（宽）", "kind": "image", "key": "7a8c0a16fcab37b28a66e041024b25341cc69462", "hidpi": "bg_from1.2x.png"},
-  {"name": "bg_from2", "file": "bg_from2.png", "label": "面板背景（窄）", "kind": "image", "key": "52497df301d2b7e4eac0c297ce2316ef24863c47", "hidpi": "bg_from2.2x.png"},
-  {"name": "icon_monitor", "file": "icon_monitor.png", "label": "监控：无画面", "kind": "image", "key": "23e6f1efc0f382c17d8a091b76531a3b5879349d", "hidpi": "icon_monitor.2x.png"},
-  {"name": "panel_video_ctrl", "file": "panel_video_ctrl.png", "label": "监控：方向盘底座", "kind": "image", "key": "396443a1d8c141942c0f447e0c69786cf6ad3350", "hidpi": "panel_video_ctrl.2x.png"},
-  {"name": "btn_arrow_up_normal", "file": "btn_arrow_up_normal.png", "label": "方向键：上", "kind": "image", "key": "3c8b75ad465c8a61d0279facc233a0c64b62205a", "hidpi": "btn_arrow_up_normal.2x.png"},
-  {"name": "btn_arrow_up_press", "file": "btn_arrow_up_press.png", "label": "方向键：上（按下）", "kind": "image", "key": "51e1b9926d2bd611e3fda74a01231b46a930c460", "hidpi": "btn_arrow_up_press.2x.png"},
-  {"name": "btn_arrow_down_normal", "file": "btn_arrow_down_normal.png", "label": "方向键：下", "kind": "image", "key": "caf46f81c15aaca788462ebc47e58df299f097d9", "hidpi": "btn_arrow_down_normal.2x.png"},
-  {"name": "btn_arrow_down_press", "file": "btn_arrow_down_press.png", "label": "方向键：下（按下）", "kind": "image", "key": "88c1bea8d6fad99b14658d8265a88b04bc595006", "hidpi": "btn_arrow_down_press.2x.png"},
-  {"name": "btn_arrow_left_normal", "file": "btn_arrow_left_normal.png", "label": "方向键：左", "kind": "image", "key": "a38beb2373154d0474ad1715035aec5e2adf8c3f", "hidpi": "btn_arrow_left_normal.2x.png"},
-  {"name": "btn_arrow_left_press", "file": "btn_arrow_left_press.png", "label": "方向键：左（按下）", "kind": "image", "key": "47bd7a8ffc077130a8ceca627383a4647729c638", "hidpi": "btn_arrow_left_press.2x.png"},
-  {"name": "btn_arrow_right_normal", "file": "btn_arrow_right_normal.png", "label": "方向键：右", "kind": "image", "key": "e69e459f54d67e2c52128015bd6cfcf0e800a893", "hidpi": "btn_arrow_right_normal.2x.png"},
-  {"name": "btn_arrow_right_press", "file": "btn_arrow_right_press.png", "label": "方向键：右（按下）", "kind": "image", "key": "afb1f5fe5a14b7cef298a7d4c67c4cece9e01170", "hidpi": "btn_arrow_right_press.2x.png"},
-  {"name": "arrow_left_normal", "file": "arrow_left_normal.png", "label": "翻页：上一张", "kind": "image", "key": "5a9036955f791f0c41ba52afffb5ecc640d137f1", "hidpi": "arrow_left_normal.2x.png"},
-  {"name": "arrow_right_normal", "file": "arrow_right_normal.png", "label": "翻页：下一张", "kind": "image", "key": "62c53dfb3acf291ef07d6e52fcb989cd48c020b9", "hidpi": "arrow_right_normal.2x.png"},
-  {"name": "windowstate_closed_hover", "file": "windowstate_closed_hover.png", "label": "关闭按钮", "kind": "image", "key": "e361965dbd881dc21511208ce11f649517e8ddb6", "hidpi": "windowstate_closed_hover.2x.png"}
+  {
+    "name": "switch_on",
+    "file": "switch_on.png",
+    "label": "开关：开",
+    "kind": "image",
+    "key": "6e660e1ff6fc2ff3167919bc386c300112bbce72",
+    "hidpi": "switch_on.2x.png"
+  },
+  {
+    "name": "switch_off",
+    "file": "switch_off.png",
+    "label": "开关：关",
+    "kind": "image",
+    "key": "5d748b614084e878d6189d22f27813477cb8f4d9",
+    "hidpi": "switch_off.2x.png"
+  },
+  { "name": "ring", "file": "ring.mp3", "label": "铃声", "kind": "audio" },
+  {
+    "name": "ico_title",
+    "file": "ico_title.png",
+    "label": "标题：智慧校园",
+    "kind": "image",
+    "key": "8a4db5ad7bc26136ae48056d6e71fa077e36e80f",
+    "hidpi": "ico_title.2x.png"
+  },
+  {
+    "name": "bg_home",
+    "file": "bg_home.png",
+    "label": "主界面背景：校园",
+    "kind": "image",
+    "key": "e56bcc13f7128dec305b6012b255d63fb0f94450",
+    "hidpi": "bg_home.2x.png"
+  },
+  {
+    "name": "icon_02",
+    "file": "icon_02.png",
+    "label": "图标：校园环境",
+    "kind": "image",
+    "key": "fa6a1eaa87c87913803c77f928fa9c16b7f4bf6d",
+    "hidpi": "icon_02.2x.png"
+  },
+  {
+    "name": "icon_03",
+    "file": "icon_03.png",
+    "label": "图标：校园安防",
+    "kind": "image",
+    "key": "d085064a505544968278a85233b7d9ac23661169",
+    "hidpi": "icon_03.2x.png"
+  },
+  {
+    "name": "icon_04",
+    "file": "icon_04.png",
+    "label": "图标：退出",
+    "kind": "image",
+    "key": "c853d74ecab64a9ee85bdf24ccfa63e80123cce3",
+    "hidpi": "icon_04.2x.png"
+  },
+  {
+    "name": "day_01",
+    "file": "day_01.png",
+    "label": "路灯场景：亮灯",
+    "kind": "image",
+    "key": "05065abdb4538906bd7c86e940ab5fb02d51469d",
+    "hidpi": "day_01.2x.png"
+  },
+  {
+    "name": "day_02",
+    "file": "day_02.png",
+    "label": "路灯场景：灭灯",
+    "kind": "image",
+    "key": "470d523e90e188fe5c423d8cffeae6993d5528ff",
+    "hidpi": "day_02.2x.png"
+  },
+  {
+    "name": "bg_from1",
+    "file": "bg_from1.png",
+    "label": "面板背景（宽）",
+    "kind": "image",
+    "key": "7a8c0a16fcab37b28a66e041024b25341cc69462",
+    "hidpi": "bg_from1.2x.png"
+  },
+  {
+    "name": "bg_from2",
+    "file": "bg_from2.png",
+    "label": "面板背景（窄）",
+    "kind": "image",
+    "key": "52497df301d2b7e4eac0c297ce2316ef24863c47",
+    "hidpi": "bg_from2.2x.png"
+  },
+  {
+    "name": "icon_monitor",
+    "file": "icon_monitor.png",
+    "label": "监控：无画面",
+    "kind": "image",
+    "key": "23e6f1efc0f382c17d8a091b76531a3b5879349d",
+    "hidpi": "icon_monitor.2x.png"
+  },
+  {
+    "name": "panel_video_ctrl",
+    "file": "panel_video_ctrl.png",
+    "label": "监控：方向盘底座",
+    "kind": "image",
+    "key": "396443a1d8c141942c0f447e0c69786cf6ad3350",
+    "hidpi": "panel_video_ctrl.2x.png"
+  },
+  {
+    "name": "btn_arrow_up_normal",
+    "file": "btn_arrow_up_normal.png",
+    "label": "方向键：上",
+    "kind": "image",
+    "key": "3c8b75ad465c8a61d0279facc233a0c64b62205a",
+    "hidpi": "btn_arrow_up_normal.2x.png"
+  },
+  {
+    "name": "btn_arrow_up_press",
+    "file": "btn_arrow_up_press.png",
+    "label": "方向键：上（按下）",
+    "kind": "image",
+    "key": "51e1b9926d2bd611e3fda74a01231b46a930c460",
+    "hidpi": "btn_arrow_up_press.2x.png"
+  },
+  {
+    "name": "btn_arrow_down_normal",
+    "file": "btn_arrow_down_normal.png",
+    "label": "方向键：下",
+    "kind": "image",
+    "key": "caf46f81c15aaca788462ebc47e58df299f097d9",
+    "hidpi": "btn_arrow_down_normal.2x.png"
+  },
+  {
+    "name": "btn_arrow_down_press",
+    "file": "btn_arrow_down_press.png",
+    "label": "方向键：下（按下）",
+    "kind": "image",
+    "key": "88c1bea8d6fad99b14658d8265a88b04bc595006",
+    "hidpi": "btn_arrow_down_press.2x.png"
+  },
+  {
+    "name": "btn_arrow_left_normal",
+    "file": "btn_arrow_left_normal.png",
+    "label": "方向键：左",
+    "kind": "image",
+    "key": "a38beb2373154d0474ad1715035aec5e2adf8c3f",
+    "hidpi": "btn_arrow_left_normal.2x.png"
+  },
+  {
+    "name": "btn_arrow_left_press",
+    "file": "btn_arrow_left_press.png",
+    "label": "方向键：左（按下）",
+    "kind": "image",
+    "key": "47bd7a8ffc077130a8ceca627383a4647729c638",
+    "hidpi": "btn_arrow_left_press.2x.png"
+  },
+  {
+    "name": "btn_arrow_right_normal",
+    "file": "btn_arrow_right_normal.png",
+    "label": "方向键：右",
+    "kind": "image",
+    "key": "e69e459f54d67e2c52128015bd6cfcf0e800a893",
+    "hidpi": "btn_arrow_right_normal.2x.png"
+  },
+  {
+    "name": "btn_arrow_right_press",
+    "file": "btn_arrow_right_press.png",
+    "label": "方向键：右（按下）",
+    "kind": "image",
+    "key": "afb1f5fe5a14b7cef298a7d4c67c4cece9e01170",
+    "hidpi": "btn_arrow_right_press.2x.png"
+  },
+  {
+    "name": "arrow_left_normal",
+    "file": "arrow_left_normal.png",
+    "label": "翻页：上一张",
+    "kind": "image",
+    "key": "5a9036955f791f0c41ba52afffb5ecc640d137f1",
+    "hidpi": "arrow_left_normal.2x.png"
+  },
+  {
+    "name": "arrow_right_normal",
+    "file": "arrow_right_normal.png",
+    "label": "翻页：下一张",
+    "kind": "image",
+    "key": "62c53dfb3acf291ef07d6e52fcb989cd48c020b9",
+    "hidpi": "arrow_right_normal.2x.png"
+  },
+  {
+    "name": "windowstate_closed_hover",
+    "file": "windowstate_closed_hover.png",
+    "label": "关闭按钮",
+    "kind": "image",
+    "key": "e361965dbd881dc21511208ce11f649517e8ddb6",
+    "hidpi": "windowstate_closed_hover.2x.png"
+  }
 ]

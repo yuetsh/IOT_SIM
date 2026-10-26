@@ -6,17 +6,17 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `frm_LED` | LED推送模拟量 |
-| LED 显示屏 | `led` | 窗体上方的 LED 控件 |
-| 分组框 | `grp_show` | 数据显示 |
-| 文本框 | `txt_light`、`txt_temperature`、`txt_humidity` | 显示光照度、温度、湿度的值（前面放标签） |
-| 按钮 | `btn_get` | 获取 |
-| 分组框 | `grp_config` | 配置 |
-| 下拉框 | `com_adamPort` | 模拟量串口（ADAM-4017+） |
-| 下拉框 | `com_ledPort` | LED串口 |
-| 按钮 | `btn_open` | 开启（打开后变成"关闭"） |
+| 控件       | 名称（Name）                                   | 文字（Text）和用途                       |
+| ---------- | ---------------------------------------------- | ---------------------------------------- |
+| 窗体       | `frm_LED`                                      | LED推送模拟量                            |
+| LED 显示屏 | `led`                                          | 窗体上方的 LED 控件                      |
+| 分组框     | `grp_show`                                     | 数据显示                                 |
+| 文本框     | `txt_light`、`txt_temperature`、`txt_humidity` | 显示光照度、温度、湿度的值（前面放标签） |
+| 按钮       | `btn_get`                                      | 获取                                     |
+| 分组框     | `grp_config`                                   | 配置                                     |
+| 下拉框     | `com_adamPort`                                 | 模拟量串口（ADAM-4017+）                 |
+| 下拉框     | `com_ledPort`                                  | LED串口                                  |
+| 按钮       | `btn_open`                                     | 开启（打开后变成"关闭"）                 |
 
 > 书上的表格写的是 `btn_Open`，代码里是 `btn_open`（小写 o）；表格里也没有列 LED 控件，代码里叫 `led`。请按代码起名，自动评分按这些名字找控件。
 

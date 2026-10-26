@@ -73,7 +73,7 @@ function applyMarkers() {
         startColumn: d.column,
         endLineNumber: d.line,
         // 编译器只给出起点；标到该行的下一个词结尾，至少一个字符
-        endColumn: (model.getWordAtPosition({ lineNumber: d.line, column: d.column })?.endColumn ?? d.column + 1),
+        endColumn: model.getWordAtPosition({ lineNumber: d.line, column: d.column })?.endColumn ?? d.column + 1,
       }))
     monaco.editor.setModelMarkers(model, 'csharp-compiler', markers)
   }
@@ -134,11 +134,14 @@ onMounted(() => {
   applyMarkers()
 })
 
-watch(() => props.files, () => {
-  syncModels()
-  showActive()
-  applyMarkers()
-})
+watch(
+  () => props.files,
+  () => {
+    syncModels()
+    showActive()
+    applyMarkers()
+  },
+)
 watch(() => props.activeFile, showActive)
 watch(
   () => props.diagnostics,
@@ -158,9 +161,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="code-editor">
-    <div v-if="activeFile?.endsWith('.Designer.cs')" class="designer-note">
-      此文件由窗体设计器生成，一般不要手动修改；控件的属性和事件请在设计器里设置。
-    </div>
+    <div v-if="activeFile?.endsWith('.Designer.cs')" class="designer-note">此文件由窗体设计器生成，一般不要手动修改；控件的属性和事件请在设计器里设置。</div>
     <div ref="container" class="monaco-host" />
   </div>
 </template>

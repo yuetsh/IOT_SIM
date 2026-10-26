@@ -8,29 +8,29 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Environment` | 校园环境；FormBorderStyle 设为 None，StartPosition 设为 CenterScreen |
-| 面板 | `panel1` | 顶部标题栏：停靠 Top，背景色 100, 116, 133，放标题图 `ico_title` |
-| 面板 | `panel2` | 停靠 Fill，下面的面板都放在它里面 |
-| 面板 | `panel3` | panel2 里停靠 Top，背景色 229, 229, 229 |
-| 标签 | `lb_return` | <  返回主窗体（放在 panel3 上） |
-| 面板 | `panel_bg` | panel3 下面停靠 Fill，背景图片 `day_02`（路灯没亮的场景），背景排列 Stretch |
-| 面板 | `panel5` | panel_bg 里停靠 Bottom：环境数据栏 |
-| 文本框 | `txt_fire`、`txt_smoke`、`txt_light`、`txt_temperature`、`txt_humidity` | 火焰、烟雾、光照、温度、湿度（左边各配一个标签） |
-| 按钮 | `btn_dataAnalyse` | 数据分析 |
-| 按钮 | `btn_ledEnvironment1` | 推送天气信息（环境数据栏里的那个） |
-| 面板 | `panel_form` | panel_bg 里停靠 Right，背景色 Transparent，背景图片 `bg_from2` |
-| 分组框 | `groupBox2` | 路灯控制 |
-| 复选框 | `ch_autoLamp` | 自动控制 |
-| 文本框 | `txt_autoLight` | 设定开灯光照值（后面配标签"lx"） |
-| 图片框 | `pic_lampOpen` | 灯光控制的开关：背景色 Transparent，背景图片 `switch_off` |
-| 分组框 | `groupBox3` | LED推送 |
-| 文本框 | `txt_ledMsg` | LED信息（Multiline 设为 True） |
-| 复选框 | `ch_autoLedFire` | 自动推送火情 |
-| 按钮 | `btn_ledSendMsg` | 推送LED信息 |
-| 按钮 | `btn_ledEnvironment2` | 推送天气信息（LED推送组里的那个） |
-| 图表 | `chart1` | 放在 panel_bg 左下方，显示最高温度和平均温度 |
+| 控件   | 名称（Name）                                                            | 文字（Text）和用途                                                          |
+| ------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 窗体   | `Environment`                                                           | 校园环境；FormBorderStyle 设为 None，StartPosition 设为 CenterScreen        |
+| 面板   | `panel1`                                                                | 顶部标题栏：停靠 Top，背景色 100, 116, 133，放标题图 `ico_title`            |
+| 面板   | `panel2`                                                                | 停靠 Fill，下面的面板都放在它里面                                           |
+| 面板   | `panel3`                                                                | panel2 里停靠 Top，背景色 229, 229, 229                                     |
+| 标签   | `lb_return`                                                             | < 返回主窗体（放在 panel3 上）                                              |
+| 面板   | `panel_bg`                                                              | panel3 下面停靠 Fill，背景图片 `day_02`（路灯没亮的场景），背景排列 Stretch |
+| 面板   | `panel5`                                                                | panel_bg 里停靠 Bottom：环境数据栏                                          |
+| 文本框 | `txt_fire`、`txt_smoke`、`txt_light`、`txt_temperature`、`txt_humidity` | 火焰、烟雾、光照、温度、湿度（左边各配一个标签）                            |
+| 按钮   | `btn_dataAnalyse`                                                       | 数据分析                                                                    |
+| 按钮   | `btn_ledEnvironment1`                                                   | 推送天气信息（环境数据栏里的那个）                                          |
+| 面板   | `panel_form`                                                            | panel_bg 里停靠 Right，背景色 Transparent，背景图片 `bg_from2`              |
+| 分组框 | `groupBox2`                                                             | 路灯控制                                                                    |
+| 复选框 | `ch_autoLamp`                                                           | 自动控制                                                                    |
+| 文本框 | `txt_autoLight`                                                         | 设定开灯光照值（后面配标签"lx"）                                            |
+| 图片框 | `pic_lampOpen`                                                          | 灯光控制的开关：背景色 Transparent，背景图片 `switch_off`                   |
+| 分组框 | `groupBox3`                                                             | LED推送                                                                     |
+| 文本框 | `txt_ledMsg`                                                            | LED信息（Multiline 设为 True）                                              |
+| 复选框 | `ch_autoLedFire`                                                        | 自动推送火情                                                                |
+| 按钮   | `btn_ledSendMsg`                                                        | 推送LED信息                                                                 |
+| 按钮   | `btn_ledEnvironment2`                                                   | 推送天气信息（LED推送组里的那个）                                           |
+| 图表   | `chart1`                                                                | 放在 panel_bg 左下方，显示最高温度和平均温度                                |
 
 > 书上表 8-6、表 8-7 把四个按钮的"名称"写成了"数据分析""推送天气信息""推送LED信息"，那是按钮上的文字。名称按上表写，任务 3 的代码和自动评分都用这些名字。
 
@@ -53,4 +53,4 @@
 ## 在平台上怎么试
 
 1. 运行后在主界面点"校园环境"，打开 Environment 窗体：背景是路灯场景，底部有五个文本框和"数据分析""推送天气信息"，右边有"路灯控制""LED推送"两组，左下方有图表（现在还没有数据）。
-2. 点"<  返回主窗体"，Environment 关闭，主界面还在。
+2. 点"< 返回主窗体"，Environment 关闭，主界面还在。

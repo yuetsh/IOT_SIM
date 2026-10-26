@@ -96,15 +96,15 @@
 
 在服务器的 `~/IOT_SIM` 目录下：
 
-| 做什么 | 命令 |
-|---|---|
+| 做什么       | 命令                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------- |
 | 更新到新版本 | 推送到两个仓库的 main（GitHub 测试通过后自动部署），或在服务器上执行 `deploy/update.sh` |
-| 改老师密码 | 修改 `.env` 后 `docker compose up -d` |
-| 学生账号 | 老师登录后在"班级管理"里导入名单、查看和重置密码 |
-| 看日志 | `docker compose logs -f app` |
-| 看资源占用 | `docker stats` |
-| 备份数据 | `deploy/backup.sh`，见下文"备份与恢复" |
-| 重启 / 停止 | `docker compose restart` / `docker compose down` |
+| 改老师密码   | 修改 `.env` 后 `docker compose up -d`                                                   |
+| 学生账号     | 老师登录后在"班级管理"里导入名单、查看和重置密码                                        |
+| 看日志       | `docker compose logs -f app`                                                            |
+| 看资源占用   | `docker stats`                                                                          |
+| 备份数据     | `deploy/backup.sh`，见下文"备份与恢复"                                                  |
+| 重启 / 停止  | `docker compose restart` / `docker compose down`                                        |
 
 ## 备份与恢复
 
@@ -124,15 +124,15 @@ deploy/restore.sh backups/20261025-153000 # 用某份备份替换现在的全部
 
 写在 `.env` 里，改完 `docker compose up -d` 生效。
 
-| 变量 | 默认 | 说明 |
-|---|---|---|
-| `TEACHER_PASSWORD` | （必填） | 老师账号的密码 |
-| `TEACHER_USERNAME` | `admin` | 老师账号 |
-| `DEEPSEEK_API_KEY` | （空） | AI 评阅用的 DeepSeek 密钥；不填就不做 AI 评阅 |
-| `AI_MODEL` | `deepseek-flash` | AI 评阅用的模型（需要支持图片输入） |
-| `APP_MEM_LIMIT` | `4g` | 整个平台的内存上限 |
-| `SIM_MAX_RUNS` | `150` | 全站同时运行的学生程序上限，超过时提示"服务器繁忙" |
-| `SIM_HEAP_LIMIT_MB` | `128` | 每个学生程序的内存上限 |
-| `SIM_CPU_LIMIT_SECONDS` | `120` | 每次运行累计 CPU 时间上限（防死循环） |
-| `SIM_MAX_RUN_MINUTES` | `60` | 每次运行最长时间 |
-| `SIM_GRADE_CONCURRENCY` | `16` | 全站同时跑几个评分检查项（提交评分和"自己检查"共用）。2 核实测：45 人同时自测项目 8 任务 3，最后一人约 1.5 分钟出结果；调到 24 以上 CPU 不够，定时器来不及触发，正确的程序会被误判 |
+| 变量                    | 默认             | 说明                                                                                                                                                                               |
+| ----------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TEACHER_PASSWORD`      | （必填）         | 老师账号的密码                                                                                                                                                                     |
+| `TEACHER_USERNAME`      | `admin`          | 老师账号                                                                                                                                                                           |
+| `DEEPSEEK_API_KEY`      | （空）           | AI 评阅用的 DeepSeek 密钥；不填就不做 AI 评阅                                                                                                                                      |
+| `AI_MODEL`              | `deepseek-flash` | AI 评阅用的模型（需要支持图片输入）                                                                                                                                                |
+| `APP_MEM_LIMIT`         | `4g`             | 整个平台的内存上限                                                                                                                                                                 |
+| `SIM_MAX_RUNS`          | `150`            | 全站同时运行的学生程序上限，超过时提示"服务器繁忙"                                                                                                                                 |
+| `SIM_HEAP_LIMIT_MB`     | `128`            | 每个学生程序的内存上限                                                                                                                                                             |
+| `SIM_CPU_LIMIT_SECONDS` | `120`            | 每次运行累计 CPU 时间上限（防死循环）                                                                                                                                              |
+| `SIM_MAX_RUN_MINUTES`   | `60`             | 每次运行最长时间                                                                                                                                                                   |
+| `SIM_GRADE_CONCURRENCY` | `16`             | 全站同时跑几个评分检查项（提交评分和"自己检查"共用）。2 核实测：45 人同时自测项目 8 任务 3，最后一人约 1.5 分钟出结果；调到 24 以上 CPU 不够，定时器来不及触发，正确的程序会被误判 |

@@ -12,21 +12,21 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `frm_control` | 智慧教室情景控制 |
-| 分组框 | `grp_mode` | 模式选择 |
-| 标签 | `lbl_mode` | 智慧教室将开启（启用后变成"智慧教室已开启"） |
-| 按钮 | `btn_apply` | 启用（启用后变成"关闭"） |
-| 分组框 | `grp_input` | 采集量 |
-| 下拉框 | `com_import` | 采集器的串口 |
-| 文本框 | `txt_light`、`txt_temperature`、`txt_humidity` | 光照度、温度、湿度 |
-| 分组框 | `grp_status` | 状态栏 |
-| 图片框 | `pic_airconditioneStatus` | 空调开关状态，图片选 switch_off |
-| 滑动条 | `trb_airconditione` | 模拟空调温度：最小值 18，最大值 32，值 18 |
-| 图片框 | `pic_lightsStatus` | 灯光开关状态，图片选 switch_off；点它手动开关灯 |
-| 灯泡 | `lamp` | 窗体上显示灯的亮灭 |
-| 定时器 | `timer` | 间隔 2000（2 秒） |
+| 控件   | 名称（Name）                                   | 文字（Text）和用途                              |
+| ------ | ---------------------------------------------- | ----------------------------------------------- |
+| 窗体   | `frm_control`                                  | 智慧教室情景控制                                |
+| 分组框 | `grp_mode`                                     | 模式选择                                        |
+| 标签   | `lbl_mode`                                     | 智慧教室将开启（启用后变成"智慧教室已开启"）    |
+| 按钮   | `btn_apply`                                    | 启用（启用后变成"关闭"）                        |
+| 分组框 | `grp_input`                                    | 采集量                                          |
+| 下拉框 | `com_import`                                   | 采集器的串口                                    |
+| 文本框 | `txt_light`、`txt_temperature`、`txt_humidity` | 光照度、温度、湿度                              |
+| 分组框 | `grp_status`                                   | 状态栏                                          |
+| 图片框 | `pic_airconditioneStatus`                      | 空调开关状态，图片选 switch_off                 |
+| 滑动条 | `trb_airconditione`                            | 模拟空调温度：最小值 18，最大值 32，值 18       |
+| 图片框 | `pic_lightsStatus`                             | 灯光开关状态，图片选 switch_off；点它手动开关灯 |
+| 灯泡   | `lamp`                                         | 窗体上显示灯的亮灭                              |
+| 定时器 | `timer`                                        | 间隔 2000（2 秒）                               |
 
 其余标签（串口、光照度、温度、湿度、空调、灯光、18℃、32℃）照书上的图摆好，名字不影响评分。
 

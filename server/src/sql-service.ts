@@ -25,9 +25,7 @@ export interface SqlColumnInfo {
 }
 
 export type SqlRequest =
-  | { type: 'exec'; dir: string; database: string; sql: string }
-  | { type: 'script'; dir: string; sql: string }
-  | { type: 'explorer'; dir: string }
+  { type: 'exec'; dir: string; database: string; sql: string } | { type: 'script'; dir: string; sql: string } | { type: 'explorer'; dir: string }
 
 /** SQL 报错（编号和信息与 SQL Server 一致） */
 export class SqlError extends Error {
@@ -78,7 +76,13 @@ class SqlService {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'inherit',
-      env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME ?? '/tmp', DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1', TZ: config.timeZone },
+      env: {
+        PATH: process.env.PATH ?? '/usr/bin:/bin',
+        HOME: process.env.HOME ?? '/tmp',
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1',
+        DOTNET_NOLOGO: '1',
+        TZ: config.timeZone,
+      },
     })
     this.proc = proc
     this.ready = new Promise<void>((resolveReady) => {

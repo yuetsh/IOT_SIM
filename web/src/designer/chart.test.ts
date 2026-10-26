@@ -42,8 +42,26 @@ describe('图表的系列和图例', () => {
       areas: ['ChartArea1'],
       legends: ['MaxLegend', 'AVGLegend'],
       series: [
-        { name: 'MaxSeries', chartType: 'Line', chartArea: 'ChartArea1', legend: 'MaxLegend', legendText: '最大值', isVisibleInLegend: true, xValueMember: '_Time', yValueMembers: 'MaxTemperature' },
-        { name: 'AVGSeries', chartType: 'Line', chartArea: 'ChartArea1', legend: 'AVGLegend', legendText: '平均值', isVisibleInLegend: true, xValueMember: '_Time', yValueMembers: 'AVGTemperature' },
+        {
+          name: 'MaxSeries',
+          chartType: 'Line',
+          chartArea: 'ChartArea1',
+          legend: 'MaxLegend',
+          legendText: '最大值',
+          isVisibleInLegend: true,
+          xValueMember: '_Time',
+          yValueMembers: 'MaxTemperature',
+        },
+        {
+          name: 'AVGSeries',
+          chartType: 'Line',
+          chartArea: 'ChartArea1',
+          legend: 'AVGLegend',
+          legendText: '平均值',
+          isVisibleInLegend: true,
+          xValueMember: '_Time',
+          yValueMembers: 'AVGTemperature',
+        },
       ],
     })
   })
@@ -70,7 +88,8 @@ describe('图表的系列和图例', () => {
     const { doc, name } = addControl(parseDesigner(EMPTY_FORM), def, '', { x: 10, y: 20 })
     expect(name).toBe('chart1')
     const out = generateDesigner(doc)
-    expect(out).toContain(`            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+    expect(out)
+      .toContain(`            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
             System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();`)

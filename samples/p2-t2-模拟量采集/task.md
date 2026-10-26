@@ -6,16 +6,16 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `frm_analog` | 模拟量采集 |
-| 分组框 | `grp_show` | 数据显示 |
-| 标签 | `lbl_light`、`lbl_temperature`、`lbl_humidity` | 光照度、温度、湿度 |
+| 控件   | 名称（Name）                                   | 文字（Text）和用途         |
+| ------ | ---------------------------------------------- | -------------------------- |
+| 窗体   | `frm_analog`                                   | 模拟量采集                 |
+| 分组框 | `grp_show`                                     | 数据显示                   |
+| 标签   | `lbl_light`、`lbl_temperature`、`lbl_humidity` | 光照度、温度、湿度         |
 | 文本框 | `txt_light`、`txt_temperature`、`txt_humidity` | 显示光照度、温度、湿度的值 |
-| 按钮 | `btn_get` | 获取 |
-| 分组框 | `grp_config` | 配置 |
-| 下拉框 | `com_port` | 串口 |
-| 按钮 | `btn_Open` | 开启（打开后变成"关闭"） |
+| 按钮   | `btn_get`                                      | 获取                       |
+| 分组框 | `grp_config`                                   | 配置                       |
+| 下拉框 | `com_port`                                     | 串口                       |
+| 按钮   | `btn_Open`                                     | 开启（打开后变成"关闭"）   |
 
 > 窗体名：在设计器里点窗体空白处，把属性窗口的**名称**从 `Form1` 改成 `frm_analog`，类名、文件名和 Program.cs 会跟着改。先改名再双击窗体，生成的 Load 事件才叫 `frm_analog_Load`。
 

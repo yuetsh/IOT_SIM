@@ -18,10 +18,7 @@ async function designerFiles(dir: string) {
 }
 
 describe('读入 Designer.cs 再原样写出，内容逐字节不变', async () => {
-  const files = [
-    ...(await designerFiles(resolve(ROOT, 'samples'))),
-    ...(existsSync(REFERENCE_DIR) ? await designerFiles(REFERENCE_DIR) : []),
-  ]
+  const files = [...(await designerFiles(resolve(ROOT, 'samples'))), ...(existsSync(REFERENCE_DIR) ? await designerFiles(REFERENCE_DIR) : [])]
   for (const file of files) {
     test(file.replace(`${ROOT}/`, ''), async () => {
       const text = await Bun.file(file).text()

@@ -22,7 +22,7 @@ const vertical = computed(() => p.value.Orientation === 'Vertical')
 const tickStyle = computed(() => String(p.value.TickStyle ?? 'BottomRight'))
 const size = computed(() => p.value.Size as { width: number; height: number } | undefined)
 /** 轨道方向上的长度 */
-const length = computed(() => (vertical.value ? size.value?.height ?? 104 : size.value?.width ?? 104))
+const length = computed(() => (vertical.value ? (size.value?.height ?? 104) : (size.value?.width ?? 104)))
 
 /** 值 → 沿轨道的位置（像素）；竖向时最小值在下面 */
 function position(v: number) {

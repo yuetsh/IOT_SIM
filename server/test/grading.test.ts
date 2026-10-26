@@ -37,11 +37,15 @@ describe('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
   test('每个示例都有评分规则', () => expect(ids.length).toBe(23))
   for (const id of ids) {
-    test(id, async () => {
-      const result = await grade(await prepare(id, id), await checksOf(id), id)
-      expect(result.compiled).toBe(true)
-      expect(result.results.filter((r) => !r.passed)).toEqual([])
-    }, 60000)
+    test(
+      id,
+      async () => {
+        const result = await grade(await prepare(id, id), await checksOf(id), id)
+        expect(result.compiled).toBe(true)
+        expect(result.results.filter((r) => !r.passed)).toEqual([])
+      },
+      60000,
+    )
   }
 })
 
@@ -66,7 +70,11 @@ describe('改坏的代码', () => {
 
   test('判断写反：入侵时显示"正常"', async () => {
     const id = 'p4-t1-红外对射'
-    const dir = await prepare(id, 'reversed', { file: 'Form1.cs', from: 'if (DeviceCtrlHelper.adam4150Helper.SetData().infraredValue)', to: 'if (!DeviceCtrlHelper.adam4150Helper.SetData().infraredValue)' })
+    const dir = await prepare(id, 'reversed', {
+      file: 'Form1.cs',
+      from: 'if (DeviceCtrlHelper.adam4150Helper.SetData().infraredValue)',
+      to: 'if (!DeviceCtrlHelper.adam4150Helper.SetData().infraredValue)',
+    })
     const result = await grade(dir, await checksOf(id), id)
     const realtime = result.results.find((r) => r.title === '能实时显示入侵数据')!
     expect(realtime.passed).toBe(false)
@@ -94,7 +102,11 @@ describe('改坏的代码', () => {
 
   test('数据库：照书上 INSERT 不写列名，温度和光照存反了', async () => {
     const id = 'p6-t2-存储环境数据'
-    const dir = await prepare(id, 'insert-order', { file: 'Form1.cs', from: 'insert into CampusEnvironment (temperature, humidity, light, addtime) values', to: 'insert into CampusEnvironment  values' })
+    const dir = await prepare(id, 'insert-order', {
+      file: 'Form1.cs',
+      from: 'insert into CampusEnvironment (temperature, humidity, light, addtime) values',
+      to: 'insert into CampusEnvironment  values',
+    })
     const result = await grade(dir, await checksOf(id), id)
     const save = result.results.find((r) => r.title === '能把数据保存到数据库，并显示在表格中')!
     expect(save.passed).toBe(false)
@@ -157,7 +169,11 @@ describe('改坏的代码', () => {
 
   test('管理平台：开灯时换错了背景图片', async () => {
     const id = 'p8-t3-环境采集与分析'
-    const dir = await prepare(id, 'lamp-image', { file: 'Environment.cs', from: 'panel_bg.BackgroundImage = Properties.Resources.day_01;', to: 'panel_bg.BackgroundImage = Properties.Resources.day_02;' })
+    const dir = await prepare(id, 'lamp-image', {
+      file: 'Environment.cs',
+      from: 'panel_bg.BackgroundImage = Properties.Resources.day_01;',
+      to: 'panel_bg.BackgroundImage = Properties.Resources.day_02;',
+    })
     const result = await grade(dir, await checksOf(id), id)
     const lamp = result.results.find((r) => r.title === '路灯能手动控制')!
     expect(lamp).toMatchObject({ passed: false, message: '期望 panel_bg 背景换成亮灯的场景（day_01），实际是别的图片' })
@@ -165,7 +181,11 @@ describe('改坏的代码', () => {
 
   test('报警灯接错了 DO 口', async () => {
     const id = 'p4-t3-报警灯'
-    const dir = await prepare(id, 'relay', { file: 'Form1.cs', from: 'DeviceCtrlHelper.adam4150Helper.OnOff(0, IsOpen);', to: 'DeviceCtrlHelper.adam4150Helper.OnOff(1, IsOpen);' })
+    const dir = await prepare(id, 'relay', {
+      file: 'Form1.cs',
+      from: 'DeviceCtrlHelper.adam4150Helper.OnOff(0, IsOpen);',
+      to: 'DeviceCtrlHelper.adam4150Helper.OnOff(1, IsOpen);',
+    })
     const result = await grade(dir, await checksOf(id), id)
     expect(result.results[0]).toMatchObject({ passed: false, message: '期望实训台的报警灯（ADAM-4150 DO0）打开，实际是关闭的' })
   }, 60000)

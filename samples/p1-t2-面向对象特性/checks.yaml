@@ -2,14 +2,14 @@
 # 格式说明见 server/src/grading/checks.ts
 - title: 计算器能正确计算（装箱与拆箱）
   steps:
-    - text: { control: txtNum1, value: "7" }
-    - text: { control: txtNum2, value: "2" }
-    - select: { control: cmboxType, item: "+" }
+    - text: { control: txtNum1, value: '7' }
+    - text: { control: txtNum2, value: '2' }
+    - select: { control: cmboxType, item: '+' }
     - click: btnCalculate
-    - expect: { control: txtResult, text: "9" }
-    - select: { control: cmboxType, item: "/" }
+    - expect: { control: txtResult, text: '9' }
+    - select: { control: cmboxType, item: '/' }
     - click: btnCalculate
-    - expect: { control: txtResult, text: "3.5" }
+    - expect: { control: txtResult, text: '3.5' }
 
 - title: 多态：不同国家的人说不同的语言
   steps:

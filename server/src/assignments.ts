@@ -121,7 +121,9 @@ export function updateAssignment(
     id,
   )
   // 分值变了，已评分的提交重新算分
-  for (const s of db.query<{ id: number; result: string }, [number]>(`SELECT id, result FROM submissions WHERE assignment_id = ? AND status = 'done'`).all(id)) {
+  for (const s of db
+    .query<{ id: number; result: string }, [number]>(`SELECT id, result FROM submissions WHERE assignment_id = ? AND status = 'done'`)
+    .all(id)) {
     db.query('UPDATE submissions SET auto_score = ? WHERE id = ?').run(autoScore(JSON.parse(s.result), changes.scoring), s.id)
   }
   return {}
@@ -180,7 +182,10 @@ export function createSubmission(db: Database, assignmentId: number, userId: num
 }
 
 export function pendingSubmissionIds(db: Database): number[] {
-  return db.query<{ id: number }, []>(`SELECT id FROM submissions WHERE status = 'pending' ORDER BY id`).all().map((r) => r.id)
+  return db
+    .query<{ id: number }, []>(`SELECT id FROM submissions WHERE status = 'pending' ORDER BY id`)
+    .all()
+    .map((r) => r.id)
 }
 
 export function submissionForGrading(db: Database, id: number) {
@@ -211,7 +216,16 @@ export function saveGrade(db: Database, id: number, result: GradeResult | null) 
 export function classSubmissions(db: Database, assignmentId: number) {
   return db
     .query<
-      { user_id: number; username: string; name: string; submission_id: number | null; status: Submission['status'] | null; auto_score: number | null; created_at: number | null; count: number },
+      {
+        user_id: number
+        username: string
+        name: string
+        submission_id: number | null
+        status: Submission['status'] | null
+        auto_score: number | null
+        created_at: number | null
+        count: number
+      },
       [number]
     >(
       `SELECT u.id AS user_id, u.username, u.name, s.id AS submission_id, s.status, s.auto_score, s.created_at,

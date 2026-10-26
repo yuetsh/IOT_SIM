@@ -34,7 +34,7 @@ defineProps<{ result: ResultSet }>()
 .grid {
   border-collapse: collapse;
   font-size: 12px;
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   background: #fff;
 }
 

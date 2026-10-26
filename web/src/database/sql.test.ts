@@ -29,7 +29,7 @@ describe('编辑表数据生成的 T-SQL', () => {
   })
 
   test('有主键时按主键定位', () => {
-    expect(updateCell(campus, 1, '600', [3, '500', '2024-01-16 09:00:00.000'])).toBe('UPDATE TOP (1) [CampusEnvironment] SET [light] = N\'600\' WHERE [ID] = 3')
+    expect(updateCell(campus, 1, '600', [3, '500', '2024-01-16 09:00:00.000'])).toBe("UPDATE TOP (1) [CampusEnvironment] SET [light] = N'600' WHERE [ID] = 3")
     expect(deleteRow(campus, [3, '500', null])).toBe('DELETE TOP (1) FROM [CampusEnvironment] WHERE [ID] = 3')
   })
 
@@ -38,9 +38,16 @@ describe('编辑表数据生成的 T-SQL', () => {
   })
 
   test('新增行跳过自增列；什么都没填时用 DEFAULT VALUES', () => {
-    expect(insertRow(campus, new Map([[2, '2024-01-20 08:00:00'], [0, '9'], [1, null]]))).toBe(
-      "INSERT INTO [CampusEnvironment] ([light], [addtime]) VALUES (NULL, N'2024-01-20 08:00:00')",
-    )
+    expect(
+      insertRow(
+        campus,
+        new Map([
+          [2, '2024-01-20 08:00:00'],
+          [0, '9'],
+          [1, null],
+        ]),
+      ),
+    ).toBe("INSERT INTO [CampusEnvironment] ([light], [addtime]) VALUES (NULL, N'2024-01-20 08:00:00')")
     expect(insertRow(campus, new Map())).toBe('INSERT INTO [CampusEnvironment] DEFAULT VALUES')
   })
 })
@@ -53,16 +60,25 @@ describe('表设计器生成的 T-SQL', () => {
         { name: 'EnvironmentDay', type: 'date', nullable: true, identity: false, primaryKey: false },
         { name: 'EnvironmentWork', type: 'varchar(200)', nullable: true, identity: false, primaryKey: false },
       ]),
-    ).toBe('CREATE TABLE [EnvironmentWorkNew]\n(\n    [id] int IDENTITY(1,1) NOT NULL,\n    [EnvironmentDay] date NULL,\n    [EnvironmentWork] varchar(200) NULL,\n    PRIMARY KEY ([id])\n)')
+    ).toBe(
+      'CREATE TABLE [EnvironmentWorkNew]\n(\n    [id] int IDENTITY(1,1) NOT NULL,\n    [EnvironmentDay] date NULL,\n    [EnvironmentWork] varchar(200) NULL,\n    PRIMARY KEY ([id])\n)',
+    )
   })
 
   test('给已有的表加列', () => {
-    expect(addColumns('T', [{ name: 'memo', type: 'nvarchar(50)', nullable: true, identity: false, primaryKey: false }])).toBe('ALTER TABLE [T] ADD [memo] nvarchar(50) NULL')
+    expect(addColumns('T', [{ name: 'memo', type: 'nvarchar(50)', nullable: true, identity: false, primaryKey: false }])).toBe(
+      'ALTER TABLE [T] ADD [memo] nvarchar(50) NULL',
+    )
   })
 })
 
 test('消息栏和 SSMS 一致', () => {
-  expect(messages({ type: 'error', number: 208, message: "对象名 'X' 无效。", line: 2 })).toEqual([{ text: "消息 208，级别 16，状态 1，第 2 行\n对象名 'X' 无效。", error: true }])
-  expect(messages({ type: 'result', database: 'db', results: [{ columns: [], rows: [], total: 3 }], affected: 1, ms: 1 }).map((m) => m.text)).toEqual(['(3 行受影响)', '(1 行受影响)'])
+  expect(messages({ type: 'error', number: 208, message: "对象名 'X' 无效。", line: 2 })).toEqual([
+    { text: "消息 208，级别 16，状态 1，第 2 行\n对象名 'X' 无效。", error: true },
+  ])
+  expect(messages({ type: 'result', database: 'db', results: [{ columns: [], rows: [], total: 3 }], affected: 1, ms: 1 }).map((m) => m.text)).toEqual([
+    '(3 行受影响)',
+    '(1 行受影响)',
+  ])
   expect(messages({ type: 'result', database: 'db', results: [], affected: -1, ms: 1 }).map((m) => m.text)).toEqual(['命令已成功完成。'])
 })

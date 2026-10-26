@@ -13,7 +13,10 @@ function tableNames(task: string): string[] {
       previous = []
       continue
     }
-    const cells = line.trim().replace(/^\||\|$/g, '').split('|')
+    const cells = line
+      .trim()
+      .replace(/^\||\|$/g, '')
+      .split('|')
     // 表头是分隔行（|---|）上面那一行；数据行里出现"名称"两个字不算表头
     if (cells.every((c) => /^\s*:?-+:?\s*$/.test(c))) column = previous.findIndex((c) => c.includes('名称'))
     else if (column >= 0) names.push(...[...(cells[column] ?? '').matchAll(/`([^`]+)`/g)].map((m) => m[1]))

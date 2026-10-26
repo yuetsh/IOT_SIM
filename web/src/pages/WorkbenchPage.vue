@@ -10,7 +10,17 @@ import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
 import { gallery, loadGallery, projectResources, resourcePrefix, resourcesFile, RESOURCES_FILE } from '../designer/resources'
 import ResourcesDialog from '../designer/ResourcesDialog.vue'
-import { classPathError, formNameTaken, isFormDesigner, newClassFile, newFormFiles, nextFormName, projectNamespace, renameForm, startupForm } from '../designer/templates'
+import {
+  classPathError,
+  formNameTaken,
+  isFormDesigner,
+  newClassFile,
+  newFormFiles,
+  nextFormName,
+  projectNamespace,
+  renameForm,
+  startupForm,
+} from '../designer/templates'
 import CodeEditor from '../editor/CodeEditor.vue'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
@@ -36,11 +46,13 @@ const DESIGN = '设计:'
 /** 每个 X.Designer.cs 对应一个设计器标签页，和它的代码文件 X.cs */
 const forms = computed(() => {
   const startup = startupForm(files.value)
-  return files.value
-    .filter((f) => isFormDesigner(f.path))
-    .map((f) => ({ tab: DESIGN + f.path, designer: f.path, code: f.path.replace(/\.Designer\.cs$/, '.cs') }))
-    // 启动窗体排在最前
-    .sort((a, b) => Number(b.code === `${startup}.cs`) - Number(a.code === `${startup}.cs`))
+  return (
+    files.value
+      .filter((f) => isFormDesigner(f.path))
+      .map((f) => ({ tab: DESIGN + f.path, designer: f.path, code: f.path.replace(/\.Designer\.cs$/, '.cs') }))
+      // 启动窗体排在最前
+      .sort((a, b) => Number(b.code === `${startup}.cs`) - Number(a.code === `${startup}.cs`))
+  )
 })
 /**
  * 标签页按窗体分组：每个窗体依次是 [设计]、代码；其他文件（Program.cs 等）放最后。
@@ -79,7 +91,9 @@ const message = useMessage()
 const workKey = ref<string>()
 
 const STATUS_TEXT = { idle: '未运行', compiling: '编译中…', running: '运行中', stopped: '已停止' } as const
-const statusType = computed(() => ({ idle: 'default', compiling: 'warning', running: 'success', stopped: 'default' })[state.status] as 'default' | 'warning' | 'success')
+const statusType = computed(
+  () => ({ idle: 'default', compiling: 'warning', running: 'success', stopped: 'default' })[state.status] as 'default' | 'warning' | 'success',
+)
 const running = computed(() => state.status === 'compiling' || state.status === 'running')
 
 /**
@@ -164,7 +178,6 @@ const taskPanel = computed(() => {
   if (!id || (!sampleTask.value && !sampleChecks.value.length)) return null
   return { task: sampleTask.value, titles: sampleChecks.value, target: `sample:${id}`, url: `/api/samples/${encodeURIComponent(id)}/selfcheck` }
 })
-
 
 // ---------- 作业 ----------
 const assignment = ref<Assignment | null>(null)
@@ -265,8 +278,7 @@ function pollSubmission() {
 }
 onBeforeUnmount(() => clearTimeout(pollTimer))
 
-const formatTime = (ms: number) =>
-  new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+const formatTime = (ms: number) => new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 // ---------- 自动保存到服务器 ----------
 /** idle：还没改过；pending：有改动等待保存；saving：正在保存；saved：已保存；error：保存失败（下次改动时重试） */
@@ -510,13 +522,7 @@ function run() {
       </template>
       <template v-else>
         <strong>物联网编程仿真平台</strong>
-        <NSelect
-          class="sample-select"
-          :value="sampleId"
-          :options="samples"
-          placeholder="选择示例工程"
-          @update:value="loadSample"
-        />
+        <NSelect class="sample-select" :value="sampleId" :options="samples" placeholder="选择示例工程" @update:value="loadSample" />
       </template>
       <NButton type="primary" :disabled="running" title="F5" @click="run">▶ 运行</NButton>
       <NButton :disabled="!running" title="Shift+F5" @click="session.stop">■ 停止</NButton>
@@ -546,8 +552,7 @@ function run() {
       <span v-if="!viewing" class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
       <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
       <span v-if="!assignmentId && !viewing && currentUser?.role === 'teacher'" class="metrics">
-        编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返
-        {{ state.metrics.lastRoundTripMs }} ms
+        编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返 {{ state.metrics.lastRoundTripMs }} ms
       </span>
       <span class="spacer" />
       <RouterLink v-if="!assignmentId && currentUser?.role === 'student'" to="/assignments" class="nav-link">我的作业</RouterLink>
@@ -616,7 +621,12 @@ function run() {
             </template>
             将删除 {{ deletableClass }}，代码里用到它的地方需要自己修改。确定删除吗？
           </NPopconfirm>
-          <NButton size="small" quaternary title="相当于 VS 的“项目属性 → 资源”：添加图片和声音，代码里用 Properties.Resources.名字" @click="resourcesOpen = true">
+          <NButton
+            size="small"
+            quaternary
+            title="相当于 VS 的“项目属性 → 资源”：添加图片和声音，代码里用 Properties.Resources.名字"
+            @click="resourcesOpen = true"
+          >
             项目资源{{ resourceNames.length ? `（${resourceNames.length}）` : '' }}
           </NButton>
           <NPopconfirm v-if="deletableForm" positive-text="删除" negative-text="取消" @positive-click="deleteForm">
@@ -655,11 +665,7 @@ function run() {
         />
       </section>
 
-      <button
-        class="run-toggle"
-        :title="runCollapsed ? '展开运行区' : '收起运行区（左边的代码和设计器占满宽度，运行时自动展开）'"
-        @click="toggleRunArea()"
-      >
+      <button class="run-toggle" :title="runCollapsed ? '展开运行区' : '收起运行区（左边的代码和设计器占满宽度，运行时自动展开）'" @click="toggleRunArea()">
         {{ runCollapsed ? '◂' : '▸' }}
       </button>
       <RunArea v-show="!runCollapsed" :session="session" @diagnostic="showDiagnostic" />

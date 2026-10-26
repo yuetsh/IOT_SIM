@@ -28,8 +28,7 @@ export function imageSources(value: unknown, images: ReadonlyMap<string, string>
 }
 
 /** <img> 的 srcset：有两倍图时浏览器按屏幕分辨率选 */
-export const srcset = (sources: { src: string; hidpi?: string } | undefined) =>
-  sources?.hidpi ? `${sources.src} 1x, ${sources.hidpi} 2x` : undefined
+export const srcset = (sources: { src: string; hidpi?: string } | undefined) => (sources?.hidpi ? `${sources.src} 1x, ${sources.hidpi} 2x` : undefined)
 
 /** 背景图片的 CSS：BackgroundImageLayout 为 Tile（默认，平铺）、None（左上角一张）、Center、Stretch、Zoom */
 export function backgroundCss(value: unknown, layout: unknown, images: ReadonlyMap<string, string>): CSSProperties {

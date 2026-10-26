@@ -64,7 +64,10 @@ function userPrompt(input: {
       ? input.result.results.map((r) => `- ${r.passed ? '通过' : '未通过'}：${r.title}${r.message ? `（${r.message}）` : ''}`).join('\n')
       : '编译没有通过。'
     : '（还没有自动评分结果）'
-  const hints = conventionHints(input.files).map((h) => `- ${h.text}`).join('\n') || '- 无'
+  const hints =
+    conventionHints(input.files)
+      .map((h) => `- ${h.text}`)
+      .join('\n') || '- 无'
   const code = input.files
     .filter((f) => f.path.endsWith('.cs'))
     .map((f) => `===== ${f.path} =====\n${f.content}`)
@@ -75,8 +78,12 @@ function userPrompt(input: {
 ${items}
 
 ${BOOK_CRITERIA}
-${input.bookNames.length ? `- 本作业书上表格规定的控件名（学生照着用是规范的，不扣分）：${input.bookNames.join('、')}
-` : ''}
+${
+  input.bookNames.length
+    ? `- 本作业书上表格规定的控件名（学生照着用是规范的，不扣分）：${input.bookNames.join('、')}
+`
+    : ''
+}
 平台自动评分的结果（功能，供参考，不用再评）：
 ${auto}
 
@@ -101,10 +108,7 @@ async function callModel(system: string, user: string, screenshots: Screenshot[]
         { role: 'system', content: system },
         {
           role: 'user',
-          content: [
-            { type: 'text', text: user },
-            ...screenshots.map((s) => ({ type: 'image_url', image_url: { url: `data:image/png;base64,${s.png}` } })),
-          ],
+          content: [{ type: 'text', text: user }, ...screenshots.map((s) => ({ type: 'image_url', image_url: { url: `data:image/png;base64,${s.png}` } }))],
         },
       ],
     }),

@@ -9,7 +9,6 @@ import { config } from '../config'
 import { safeJoin } from '../run-session'
 import { grade } from './grader'
 
-
 /** 把作品写进一个干净的工程目录（评分和自测用） */
 export async function writeProject(dir: string, files: SourceFile[]) {
   await rm(dir, { recursive: true, force: true })

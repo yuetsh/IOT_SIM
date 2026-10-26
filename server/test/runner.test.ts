@@ -176,7 +176,13 @@ test('编译错误：书上常见的 True 大写给出中文提示', async () =>
   const sample = resolve(ROOT, 'samples/p2-t1-LED显示屏')
   for (const name of ['Program.cs', 'Form1.Designer.cs']) await Bun.write(`${dir}/${name}`, Bun.file(`${sample}/${name}`))
   const form1 = await Bun.file(`${sample}/Form1.cs`).text()
-  await Bun.write(`${dir}/Form1.cs`, form1.replace('private void btn_Open_Click(object sender, EventArgs e)\n        {', 'private void btn_Open_Click(object sender, EventArgs e)\n        {\n            bool IsOpen = True;'))
+  await Bun.write(
+    `${dir}/Form1.cs`,
+    form1.replace(
+      'private void btn_Open_Click(object sender, EventArgs e)\n        {',
+      'private void btn_Open_Click(object sender, EventArgs e)\n        {\n            bool IsOpen = True;',
+    ),
+  )
 
   runner = await Runner.start(dir)
   const compiled = await runner.waitFor('compiled')
@@ -193,9 +199,9 @@ test('项目2 任务2：温度读数来自实训台，滑块变化后再次获�
   runner.send({ type: 'action', id: port, action: 'select', index: 1 })
   runner.send({ type: 'action', id: id('btn_Open'), action: 'click' })
   const textOf = (name: string) =>
-    runner.next('patch', (m) => m.changes.some((c) => c.id === id(name) && c.prop === 'Text')).then(
-      (m) => m.changes.findLast((c) => c.id === id(name) && c.prop === 'Text')!.value,
-    )
+    runner
+      .next('patch', (m) => m.changes.some((c) => c.id === id(name) && c.prop === 'Text'))
+      .then((m) => m.changes.findLast((c) => c.id === id(name) && c.prop === 'Text')!.value)
 
   let temperature = textOf('txt_temperature')
   runner.send({ type: 'action', id: id('btn_get'), action: 'click' })
@@ -279,19 +285,23 @@ test('项目1 任务1：多窗体——打开增加用户窗体、添加用户�
 describe('所有示例都能编译通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/meta.json').scan({ cwd: resolve(ROOT, 'samples') }))).map((p) => p.split('/')[0]).sort()
   for (const id of ids) {
-    test(id, async () => {
-      const result = await compileService.compile(await prepareSample(id))
-      expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
-    }, 30000)
+    test(
+      id,
+      async () => {
+        const result = await compileService.compile(await prepareSample(id))
+        expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
+      },
+      30000,
+    )
   }
 })
 
 test('项目1 任务2：计算器（装箱拆箱）和多态', async () => {
   const { runner, id } = await startSample('p1-t2-面向对象特性')
   const textOf = (name: string) =>
-    runner.next('patch', (m) => m.changes.some((c) => c.id === id(name) && c.prop === 'Text')).then(
-      (m) => m.changes.findLast((c) => c.id === id(name) && c.prop === 'Text')!.value,
-    )
+    runner
+      .next('patch', (m) => m.changes.some((c) => c.id === id(name) && c.prop === 'Text'))
+      .then((m) => m.changes.findLast((c) => c.id === id(name) && c.prop === 'Text')!.value)
   runner.send({ type: 'action', id: id('txtNum1'), action: 'text', value: '7' })
   runner.send({ type: 'action', id: id('txtNum2'), action: 'text', value: '2' })
   runner.send({ type: 'action', id: id('cmboxType'), action: 'select', index: 3 })
@@ -483,8 +493,17 @@ test('旧版线程 API：Suspend / Resume / Abort、线程自己挂起、休眠�
   const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
   expect(runner.messages.filter((m) => m.type === 'exception')).toEqual([])
   for (const line of [
-    'state0=Unstarted', 'state1=Suspended', 'frozen=True', 'abortSuspended=error', 'joined=True,Stopped',
-    'selfState=Suspended', 'self=resumed', 'resumeRunning=error', 'sleeperJoined=True', 'unstarted=Unstarted, AbortRequested', 'param=42',
+    'state0=Unstarted',
+    'state1=Suspended',
+    'frozen=True',
+    'abortSuspended=error',
+    'joined=True,Stopped',
+    'selfState=Suspended',
+    'self=resumed',
+    'resumeRunning=error',
+    'sleeperJoined=True',
+    'unstarted=Unstarted, AbortRequested',
+    'param=42',
   ]) {
     expect(output).toContain(line)
   }
@@ -677,15 +696,17 @@ test('TrackBar：拖动时先 ValueChanged 再 Scroll，超出范围的值截到
   runner.send({ type: 'action', id: bar.id, action: 'scroll', value: '99' })
   await runner.waitFor('console', (m) => m.text === 'scroll=32\n')
   const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
-  expect(output).toContain("error=“40”的值对于“Value”无效。")
+  expect(output).toContain('error=“40”的值对于“Value”无效。')
   expect(output).toContain('changed=26\nscroll=26\nchanged=32\nscroll=32\n')
 }, 30000)
 
-test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读', async () => {
-  process.env.SIM_TEST_SECRET = '不该被看到'
-  const { runner } = await runMain(
-    'sandbox',
-    `
+test.skipIf(config.sandbox === 'none')(
+  '沙箱：看不到服务器文件、别的运行目录、环境变量和其他进程，工程目录只读',
+  async () => {
+    process.env.SIM_TEST_SECRET = '不该被看到'
+    const { runner } = await runMain(
+      'sandbox',
+      `
         Console.WriteLine("passwd=" + File.Exists("/etc/passwd"));
         Console.WriteLine("runs=" + Directory.Exists(${JSON.stringify(config.runsDir)}));
         Console.WriteLine("home=" + Directory.Exists("/home"));
@@ -695,19 +716,21 @@ test.skipIf(config.sandbox === 'none')('沙箱：看不到服务器文件、别�
         try { File.WriteAllText("/sim/app/hack.txt", "x"); Console.WriteLine("write=ok"); } catch (Exception) { Console.WriteLine("write=denied"); }
         File.WriteAllText("/tmp/ok.txt", "x");
         Console.WriteLine("tmp=" + File.Exists("/tmp/ok.txt"));`,
-  )
-  expect((await runner.waitFor('compiled')).ok).toBe(true)
-  await runner.finished()
-  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
-  expect(output).toContain('passwd=False')
-  expect(output).toContain('runs=False')
-  expect(output).toContain('home=False')
-  expect(output).toContain('secret=null')
-  // 只能看到 bwrap 和自己
-  expect(Number(/procs=(\d+)/.exec(output)?.[1])).toBeLessThanOrEqual(2)
-  expect(output).toContain('write=denied')
-  expect(output).toContain('tmp=True')
-}, 30000)
+    )
+    expect((await runner.waitFor('compiled')).ok).toBe(true)
+    await runner.finished()
+    const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+    expect(output).toContain('passwd=False')
+    expect(output).toContain('runs=False')
+    expect(output).toContain('home=False')
+    expect(output).toContain('secret=null')
+    // 只能看到 bwrap 和自己
+    expect(Number(/procs=(\d+)/.exec(output)?.[1])).toBeLessThanOrEqual(2)
+    expect(output).toContain('write=denied')
+    expect(output).toContain('tmp=True')
+  },
+  30000,
+)
 
 test('内存上限：不停分配内存的程序得到 OutOfMemoryException，而不是吃光服务器内存', async () => {
   const { runner } = await runMain(
@@ -768,14 +791,18 @@ using System.Runtime.InteropServices;
   expect(result.diagnostics.filter((d) => d.file.includes('AssemblyInfo'))).toEqual([])
 }, 30000)
 
-test.skipIf(config.sandbox === 'none')('CPU 时间上限：死循环的程序到时被结束，并提示检查死循环', async () => {
-  const limit = config.cpuLimitSeconds
-  config.cpuLimitSeconds = 2
-  try {
-    const { runner } = await runMain('cpu', '        long i = 0;\n        while (true) i++;')
-    const { code, signal } = await runner.finished()
-    expect(cpuLimitMessage(code, signal)).toContain('死循环')
-  } finally {
-    config.cpuLimitSeconds = limit
-  }
-}, 30000)
+test.skipIf(config.sandbox === 'none')(
+  'CPU 时间上限：死循环的程序到时被结束，并提示检查死循环',
+  async () => {
+    const limit = config.cpuLimitSeconds
+    config.cpuLimitSeconds = 2
+    try {
+      const { runner } = await runMain('cpu', '        long i = 0;\n        while (true) i++;')
+      const { code, signal } = await runner.finished()
+      expect(cpuLimitMessage(code, signal)).toContain('死循环')
+    } finally {
+      config.cpuLimitSeconds = limit
+    }
+  },
+  30000,
+)

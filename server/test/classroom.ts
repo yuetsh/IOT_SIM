@@ -195,9 +195,7 @@ try {
     await s.client.request('PUT', `/api/works/${encodeURIComponent(`assignment:${assignment.id}`)}`, { files: s.files })
   })
 
-  await phase('边写边检查', students, (s) =>
-    s.client.request('POST', '/api/language', { type: 'diagnostics', session: 'tab', files: s.files }),
-  )
+  await phase('边写边检查', students, (s) => s.client.request('POST', '/api/language', { type: 'diagnostics', session: 'tab', files: s.files }))
 
   // 老师说"运行看看"：全班 SPREAD 内先后按 F5
   await phase('运行到窗体出现', students, async (s) => {
@@ -209,17 +207,22 @@ try {
     window.form = ((await shown) as Extract<ServerMessage, { type: 'formShown' }>).form
   })
 
-  if (!process.env.SAMPLE) await phase('点按钮到实训台', students.filter((s) => s.window?.form), async (s) => {
-    const window = s.window!
-    window.action('com_lamp', { action: 'dropDown' })
-    window.action('com_lamp', { action: 'select', index: 3 })
-    window.action('btn_open', { action: 'click' })
-    await Bun.sleep(300)
-    // 设备消息由服务器记进实训台状态，再以 board 消息推给浏览器
-    const lit = window.waitFor((m) => m.type === 'board' && m.state.zigbee[1] === true, 30_000)
-    window.action('btn_lampOpen', { action: 'click' })
-    await lit
-  })
+  if (!process.env.SAMPLE)
+    await phase(
+      '点按钮到实训台',
+      students.filter((s) => s.window?.form),
+      async (s) => {
+        const window = s.window!
+        window.action('com_lamp', { action: 'dropDown' })
+        window.action('com_lamp', { action: 'select', index: 3 })
+        window.action('btn_open', { action: 'click' })
+        await Bun.sleep(300)
+        // 设备消息由服务器记进实训台状态，再以 board 消息推给浏览器
+        const lit = window.waitFor((m) => m.type === 'board' && m.state.zigbee[1] === true, 30_000)
+        window.action('btn_lampOpen', { action: 'click' })
+        await lit
+      },
+    )
 
   // 程序都还开着，再自己检查一遍（评分进程和正在运行的程序抢 CPU）
   await phase('自己检查', students, async (s) => {

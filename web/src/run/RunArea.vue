@@ -59,10 +59,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <template>
   <section class="run-area" :class="{ maximized }">
     <div ref="desktop" class="desktop">
-      <div
-        class="desktop-canvas"
-        :style="scale < 1 ? { transform: `scale(${scale})`, width: `${100 / scale}%`, height: `${100 / scale}%` } : undefined"
-      >
+      <div class="desktop-canvas" :style="scale < 1 ? { transform: `scale(${scale})`, width: `${100 / scale}%`, height: `${100 / scale}%` } : undefined">
         <FormWindow
           v-for="(form, index) in state.forms"
           :key="form.root.id"
@@ -73,21 +70,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           :act="session.act"
         />
       </div>
-      <MessageBoxDialog
-        v-for="box in state.messageBoxes"
-        :key="box.requestId"
-        :box="box"
-        @reply="session.replyMessageBox(box.requestId, $event)"
-      />
+      <MessageBoxDialog v-for="box in state.messageBoxes" :key="box.requestId" :box="box" @reply="session.replyMessageBox(box.requestId, $event)" />
       <div v-if="state.connection === 'lost'" class="desktop-hint lost">与服务器的连接断开了，正在重新连接…</div>
       <div v-else-if="state.connection === 'restored' && state.forms.length === 0" class="desktop-hint lost">
         连接已恢复。刚才的程序随连接断开已经结束，请重新运行
       </div>
       <div v-else-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
       <div class="desktop-tools">
-        <span v-if="scale < 1" class="desktop-scale" title="窗体比运行区大，按比例缩小显示；点&quot;放大&quot;可以看得更清楚">
-          缩放 {{ Math.round(scale * 100) }}%
-        </span>
+        <span v-if="scale < 1" class="desktop-scale" title='窗体比运行区大，按比例缩小显示；点"放大"可以看得更清楚'> 缩放 {{ Math.round(scale * 100) }}% </span>
         <button type="button" :title="maximized ? '还原（Esc）' : '运行区占满整个网页'" @click="maximized = !maximized">
           {{ maximized ? '还原' : '放大' }}
         </button>

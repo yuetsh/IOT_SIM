@@ -3,10 +3,24 @@ import { expect, test } from 'bun:test'
 import { generateDesigner, parseDesigner } from './document'
 import { addControl } from './edit'
 import { controlDef } from './catalog'
-import { assignmentTemplate, classPathError, formNameTaken, newClassFile, newFormFiles, nextFormName, projectNamespace, renameForm, startupForm } from './templates'
+import {
+  assignmentTemplate,
+  classPathError,
+  formNameTaken,
+  newClassFile,
+  newFormFiles,
+  nextFormName,
+  projectNamespace,
+  renameForm,
+  startupForm,
+} from './templates'
 
 const files = [
-  { path: 'Program.cs', content: 'namespace 登录\n{\n    static class Program\n    {\n        static void Main()\n        {\n            Application.Run(new Login());\n        }\n    }\n}\n' },
+  {
+    path: 'Program.cs',
+    content:
+      'namespace 登录\n{\n    static class Program\n    {\n        static void Main()\n        {\n            Application.Run(new Login());\n        }\n    }\n}\n',
+  },
   { path: 'Login.cs', content: 'namespace 登录\n{\n    public partial class Login : Form\n    {\n    }\n}\n' },
 ]
 
@@ -68,10 +82,14 @@ test('作业起点"空白工程"：Program.cs 启动空的 Form1', async () => {
 })
 
 test('新建类：可以带文件夹，文件夹也是命名空间的一段；名字不能重复', () => {
-  const files = [{ path: 'Program.cs', content: 'namespace 智慧校园\n{\n    static class Program { }\n}\n' }, { path: 'AppSet.cs', content: 'class AppSet { }' }]
+  const files = [
+    { path: 'Program.cs', content: 'namespace 智慧校园\n{\n    static class Program { }\n}\n' },
+    { path: 'AppSet.cs', content: 'class AppSet { }' },
+  ]
   expect(newClassFile('智慧校园', 'SQLHelpers/SQLHelper')).toEqual({
     path: 'SQLHelpers/SQLHelper.cs',
-    content: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Text;\nusing System.Threading.Tasks;\n\nnamespace 智慧校园.SQLHelpers\n{\n    class SQLHelper\n    {\n    }\n}\n',
+    content:
+      'using System;\nusing System.Collections.Generic;\nusing System.Linq;\nusing System.Text;\nusing System.Threading.Tasks;\n\nnamespace 智慧校园.SQLHelpers\n{\n    class SQLHelper\n    {\n    }\n}\n',
   })
   expect(newClassFile('智慧校园', 'RecordClass.cs').path).toBe('RecordClass.cs')
   expect(classPathError(files, 'SQLHelpers/SQLBLL')).toBeNull()
@@ -84,7 +102,10 @@ test('新建类：可以带文件夹，文件夹也是命名空间的一段；�
 test('窗体改名：类名、构造函数、Program.cs 和两个文件名一起改，方法名和字符串不动', async () => {
   const blank = assignmentTemplate(await sample('p8-t1-主界面'), 'blank')
   const code = blank.find((f) => f.path === 'Form1.cs')!
-  code.content = code.content.replace('InitializeComponent();', 'InitializeComponent();\n            MessageBox.Show("Form1"); // Form1\n        }\n\n        private void Form1_Load(object sender, EventArgs e)\n        {\n            Form1 other = new Form1();')
+  code.content = code.content.replace(
+    'InitializeComponent();',
+    'InitializeComponent();\n            MessageBox.Show("Form1"); // Form1\n        }\n\n        private void Form1_Load(object sender, EventArgs e)\n        {\n            Form1 other = new Form1();',
+  )
   const files = renameForm(blank, 'Form1.Designer.cs', 'Main')
   expect(files.map((f) => f.path).sort()).toEqual(['Main.Designer.cs', 'Main.cs', 'Program.cs'])
   expect(files.find((f) => f.path === 'Program.cs')!.content).toContain('Application.Run(new Main())')

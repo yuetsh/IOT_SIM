@@ -10,14 +10,14 @@
 
 登录窗体：
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Login` | 登录 |
-| 文本框 | `txtUserName` | 输入用户名（前面放标签 `LblUsername`） |
+| 控件   | 名称（Name）  | 文字（Text）和用途                                                   |
+| ------ | ------------- | -------------------------------------------------------------------- |
+| 窗体   | `Login`       | 登录                                                                 |
+| 文本框 | `txtUserName` | 输入用户名（前面放标签 `LblUsername`）                               |
 | 文本框 | `txtPassword` | 输入密码，PasswordChar 设为星号 *（前面放标签 `LblPwd`，文字"密码"） |
-| 按钮 | `btnOk` | 登录 |
-| 按钮 | `btnCancel` | 取消 |
-| 按钮 | `btnAdd` | 增加用户 |
+| 按钮   | `btnOk`       | 登录                                                                 |
+| 按钮   | `btnCancel`   | 取消                                                                 |
+| 按钮   | `btnAdd`      | 增加用户                                                             |
 
 用户名前面的标签 `LblUsername` 文字是"用户名称"。
 
@@ -25,14 +25,14 @@
 
 增加用户窗体（点"＋ 新建窗体"，名字填 AddUser）：
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `AddUser` | 增加用户 |
-| 文本框 | `txtNewUser1` | 新用户名（前面放标签"用户名"） |
-| 文本框 | `txtPass1` | 密码，PasswordChar 设为星号 * |
-| 文本框 | `txtPass2` | 确认密码，PasswordChar 设为星号 * |
-| 按钮 | `btnOk` | 确定 |
-| 按钮 | `btnCancel` | 取消 |
+| 控件   | 名称（Name）  | 文字（Text）和用途                |
+| ------ | ------------- | --------------------------------- |
+| 窗体   | `AddUser`     | 增加用户                          |
+| 文本框 | `txtNewUser1` | 新用户名（前面放标签"用户名"）    |
+| 文本框 | `txtPass1`    | 密码，PasswordChar 设为星号 *     |
+| 文本框 | `txtPass2`    | 确认密码，PasswordChar 设为星号 * |
+| 按钮   | `btnOk`       | 确定                              |
+| 按钮   | `btnCancel`   | 取消                              |
 
 > 书上的控件表和代码对不上：表里写 `txtPwd`、`BtnOk`，增加用户窗体写 `txtUserName`、`txtPwd`、`txtCheckPwd`，代码里用的是上面这些名字。请按上面的表起名，自动评分按这些名字操作。
 

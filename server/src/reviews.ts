@@ -39,7 +39,8 @@ export function saveReview(db: Database, assignmentId: number, userId: number, s
   if (!Array.isArray(scores) || scores.length !== manual.length) return { error: `老师评分项应有 ${manual.length} 项` }
   for (const [i, s] of scores.entries()) {
     if (s === null) continue
-    if (typeof s !== 'number' || !Number.isFinite(s) || s < 0 || s > manual[i].points) return { error: `"${manual[i].title}"的得分要在 0 到 ${manual[i].points} 之间` }
+    if (typeof s !== 'number' || !Number.isFinite(s) || s < 0 || s > manual[i].points)
+      return { error: `"${manual[i].title}"的得分要在 0 到 ${manual[i].points} 之间` }
   }
   db.query(
     `INSERT INTO reviews (assignment_id, user_id, scores, comment, updated_at) VALUES (?, ?, ?, ?, ?)
@@ -53,10 +54,13 @@ export function studentDetail(db: Database, assignmentId: number, userId: number
   const student = db.query<{ id: number; username: string; name: string }, [number]>('SELECT id, username, name FROM users WHERE id = ?').get(userId)
   if (!student) return null
   const latest = latestSubmission(db, assignmentId, userId)
-  const row = latest && db.query<{ files: string; screenshots: string | null }, [number]>('SELECT files, screenshots FROM submissions WHERE id = ?').get(latest.id)
+  const row =
+    latest && db.query<{ files: string; screenshots: string | null }, [number]>('SELECT files, screenshots FROM submissions WHERE id = ?').get(latest.id)
   const files = row ? (JSON.parse(row.files) as SourceFile[]) : null
   const screenshots = row?.screenshots ? (JSON.parse(row.screenshots) as Screenshot[]) : []
-  const count = db.query<{ n: number }, [number, number]>('SELECT COUNT(*) AS n FROM submissions WHERE assignment_id = ? AND user_id = ?').get(assignmentId, userId)!.n
+  const count = db
+    .query<{ n: number }, [number, number]>('SELECT COUNT(*) AS n FROM submissions WHERE assignment_id = ? AND user_id = ?')
+    .get(assignmentId, userId)!.n
   return {
     student,
     submission: latest,
@@ -77,7 +81,13 @@ export function submissionFiles(db: Database, submissionId: number) {
     )
     .get(submissionId)
   if (!row) return null
-  return { files: JSON.parse(row.files) as SourceFile[], assignmentId: row.assignment_id, assignmentTitle: row.title, studentName: row.name, username: row.username }
+  return {
+    files: JSON.parse(row.files) as SourceFile[],
+    assignmentId: row.assignment_id,
+    assignmentTitle: row.title,
+    studentName: row.name,
+    username: row.username,
+  }
 }
 
 /** 全班成绩表：每个学生在每个作业上的自动评分、老师评分和总分 */
@@ -91,7 +101,9 @@ export function gradebook(db: Database, classId: number) {
       return { id: a.id, title: a.title, scoring, total: sum(scoring.auto) + sum(scoring.manual.map((m) => m.points)) }
     })
   const students = db
-    .query<{ id: number; username: string; name: string }, [number]>(`SELECT id, username, name FROM users WHERE class_id = ? AND role = 'student' ORDER BY username`)
+    .query<{ id: number; username: string; name: string }, [number]>(
+      `SELECT id, username, name FROM users WHERE class_id = ? AND role = 'student' ORDER BY username`,
+    )
     .all(classId)
   return {
     assignments: assignments.map(({ id, title, total }) => ({ id, title, total })),

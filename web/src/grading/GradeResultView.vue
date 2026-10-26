@@ -20,7 +20,9 @@ const manualScore = computed(() => props.review?.scores.reduce<number>((a, s) =>
   <div class="grade">
     <div v-if="submission.status === 'pending'" class="pending">
       <NSpin size="small" />
-      <span>评分中…<template v-if="submission.queueAhead">前面还有 {{ submission.queueAhead }} 份在排队</template></span>
+      <span
+        >评分中…<template v-if="submission.queueAhead">前面还有 {{ submission.queueAhead }} 份在排队</template></span
+      >
     </div>
     <div v-else-if="submission.status === 'error'" class="error">评分时服务器出错了，请重新提交；还是不行请告诉老师。</div>
     <template v-else-if="submission.result">
@@ -47,7 +49,9 @@ const manualScore = computed(() => props.review?.scores.reduce<number>((a, s) =>
         </div>
         <ul class="items">
           <li v-for="(m, i) in manual" :key="i">
-            <span class="title">{{ m.title }}<span class="points">{{ review.scores[i] ?? '未打分' }} / {{ m.points }} 分</span></span>
+            <span class="title"
+              >{{ m.title }}<span class="points">{{ review.scores[i] ?? '未打分' }} / {{ m.points }} 分</span></span
+            >
           </li>
         </ul>
         <div v-if="review.comment" class="comment">老师评语：{{ review.comment }}</div>
@@ -138,6 +142,6 @@ const manualScore = computed(() => props.review?.scores.reduce<number>((a, s) =>
 }
 
 .manual span + span::before {
-  content: "、";
+  content: '、';
 }
 </style>

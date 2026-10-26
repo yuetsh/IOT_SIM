@@ -172,7 +172,12 @@ const surface = ref<HTMLElement>()
 // ---------- 缩放：教材项目 8 的窗体有 1043×791，"适应"时按画布宽度缩小（不放大） ----------
 type ZoomChoice = 'fit' | '1' | '0.75' | '0.5'
 const ZOOM_KEY = 'iot-sim:designer-zoom'
-const ZOOM_OPTIONS: [ZoomChoice, string][] = [['fit', '适应宽度'], ['1', '100%'], ['0.75', '75%'], ['0.5', '50%']]
+const ZOOM_OPTIONS: [ZoomChoice, string][] = [
+  ['fit', '适应宽度'],
+  ['1', '100%'],
+  ['0.75', '75%'],
+  ['0.5', '50%'],
+]
 const zoomChoice = ref<ZoomChoice>(readZoom())
 function readZoom(): ZoomChoice {
   try {
@@ -325,9 +330,25 @@ function onKeyDown(event: KeyboardEvent) {
 // ---------- 工具箱 ----------
 const TOOLBOX_GROUPS = ['常用控件', '容器', '数据', '组件', '物联网设备'] as const
 const ICONS: Record<string, string> = {
-  按钮: '▭', 标签: 'A', 文本框: '▤', 下拉框: '☰', 列表框: '≣', 图片框: '🖼', 日期时间选择器: '📅', 滑动条: '⊶',
-  复选框: '☑', 单选按钮: '◉', 分组框: '⬚', 面板: '▢', 数据表格: '▦', 图表: '📈',
-  定时器: '⏱', 媒体播放器: '🔊', 'LED 显示屏': '▬', 灯泡: '💡', 报警灯: '🚨',
+  按钮: '▭',
+  标签: 'A',
+  文本框: '▤',
+  下拉框: '☰',
+  列表框: '≣',
+  图片框: '🖼',
+  日期时间选择器: '📅',
+  滑动条: '⊶',
+  复选框: '☑',
+  单选按钮: '◉',
+  分组框: '⬚',
+  面板: '▢',
+  数据表格: '▦',
+  图表: '📈',
+  定时器: '⏱',
+  媒体播放器: '🔊',
+  'LED 显示屏': '▬',
+  灯泡: '💡',
+  报警灯: '🚨',
 }
 const DRAG_TYPE = 'application/x-winforms-control'
 
@@ -437,6 +458,11 @@ function onDoubleClick(event: MouseEvent) {
   openEvent(hit, def.defaultEvent)
 }
 
+function deleteComponent(name: string) {
+  commit(removeControl(parsed.value.doc!, name))
+  selected.value = ''
+}
+
 function onComponentDoubleClick(name: string) {
   const d = parsed.value.doc
   if (d) openEvent(name, controlDef(typeOf(d, name) ?? '').defaultEvent)
@@ -475,7 +501,8 @@ const noop = () => {}
           @dragstart="onToolDragStart($event, def)"
           @dblclick="onToolDoubleClick(def)"
         >
-          <span class="tool-icon">{{ ICONS[def.label] ?? '▫' }}</span>{{ def.label }}
+          <span class="tool-icon">{{ ICONS[def.label] ?? '▫' }}</span
+          >{{ def.label }}
         </div>
       </template>
     </aside>
@@ -495,9 +522,7 @@ const noop = () => {}
             {{ value === 'fit' ? `${label}（${Math.round(zoom * 100)}%）` : label }}
           </option>
         </select>
-        <button class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">
-          查看生成的代码
-        </button>
+        <button class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">查看生成的代码</button>
       </div>
       <div class="window" :class="{ selected: selected === '' }" :style="zoom !== 1 ? { zoom } : undefined">
         <div class="titlebar" @pointerdown="selected = ''">
@@ -543,7 +568,7 @@ const noop = () => {}
           :class="{ active: selected === c.name }"
           @click="selected = c.name"
           @dblclick="onComponentDoubleClick(c.name)"
-          @keydown.delete="commit(removeControl(parsed.doc!, c.name)); selected = ''"
+          @keydown.delete="deleteComponent(c.name)"
         >
           ⏱ {{ c.name }}
         </button>
@@ -694,7 +719,7 @@ const noop = () => {}
   height: 30px;
   padding: 0 8px;
   background: #fff;
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   font-size: 12px;
   user-select: none;
 }
@@ -707,7 +732,7 @@ const noop = () => {}
 .client {
   position: relative;
   overflow: hidden;
-  font-family: "SimSun", "Songti SC", "Noto Serif CJK SC", "Noto Serif SC", serif;
+  font-family: 'SimSun', 'Songti SC', 'Noto Serif CJK SC', 'Noto Serif SC', serif;
   font-size: 12px;
 }
 
@@ -734,14 +759,46 @@ const noop = () => {}
   pointer-events: auto;
 }
 
-.handle.nw { left: -4px; top: -4px; cursor: nwse-resize; }
-.handle.n { left: calc(50% - 4px); top: -4px; cursor: ns-resize; }
-.handle.ne { right: -4px; top: -4px; cursor: nesw-resize; }
-.handle.e { right: -4px; top: calc(50% - 4px); cursor: ew-resize; }
-.handle.se { right: -4px; bottom: -4px; cursor: nwse-resize; }
-.handle.s { left: calc(50% - 4px); bottom: -4px; cursor: ns-resize; }
-.handle.sw { left: -4px; bottom: -4px; cursor: nesw-resize; }
-.handle.w { left: -4px; top: calc(50% - 4px); cursor: ew-resize; }
+.handle.nw {
+  left: -4px;
+  top: -4px;
+  cursor: nwse-resize;
+}
+.handle.n {
+  left: calc(50% - 4px);
+  top: -4px;
+  cursor: ns-resize;
+}
+.handle.ne {
+  right: -4px;
+  top: -4px;
+  cursor: nesw-resize;
+}
+.handle.e {
+  right: -4px;
+  top: calc(50% - 4px);
+  cursor: ew-resize;
+}
+.handle.se {
+  right: -4px;
+  bottom: -4px;
+  cursor: nwse-resize;
+}
+.handle.s {
+  left: calc(50% - 4px);
+  bottom: -4px;
+  cursor: ns-resize;
+}
+.handle.sw {
+  left: -4px;
+  bottom: -4px;
+  cursor: nesw-resize;
+}
+.handle.w {
+  left: -4px;
+  top: calc(50% - 4px);
+  cursor: ew-resize;
+}
 
 .form-resize {
   position: absolute;

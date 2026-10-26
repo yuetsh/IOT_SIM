@@ -1,14 +1,6 @@
 import { reactive, shallowReactive } from 'vue'
 import { validAccessToken } from '../tokens'
-import type {
-  BoardState,
-  ClientMessage,
-  ControlNode,
-  Diagnostic,
-  ServerMessage,
-  SourceFile,
-  UserAction,
-} from '@iot/shared'
+import type { BoardState, ClientMessage, ControlNode, Diagnostic, ServerMessage, SourceFile, UserAction } from '@iot/shared'
 
 export interface OpenForm {
   root: ControlNode

@@ -46,8 +46,7 @@ function cell(row: Row, assignmentId: number) {
   const c = row.scores[assignmentId]
   const open = () => router.push({ path: `/teacher/assignments/${assignmentId}`, query: { student: row.userId } })
   if (!c?.submitted) return h('span', { class: 'missing' }, '未交')
-  const text =
-    c.manual !== null ? String(c.total) : c.aiManual !== null ? `${(c.auto ?? 0) + c.aiManual}（AI 建议，待确认）` : `${c.total}（待评）`
+  const text = c.manual !== null ? String(c.total) : c.aiManual !== null ? `${(c.auto ?? 0) + c.aiManual}（AI 建议，待确认）` : `${c.total}（待评）`
   return h(NButton, { text: true, type: 'primary', onClick: open }, () => text)
 }
 

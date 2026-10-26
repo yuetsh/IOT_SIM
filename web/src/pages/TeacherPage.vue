@@ -53,9 +53,7 @@ async function loadClasses() {
 }
 
 async function loadStudents() {
-  students.value = selectedId.value
-    ? ((await attempt(() => api<Student[]>('GET', `/api/teacher/classes/${selectedId.value}/students`))) ?? [])
-    : []
+  students.value = selectedId.value ? ((await attempt(() => api<Student[]>('GET', `/api/teacher/classes/${selectedId.value}/students`))) ?? []) : []
 }
 
 async function selectClass(id: number) {
@@ -173,18 +171,14 @@ async function confirmImport() {
   else
     dialog.warning({
       title: '部分学生没有导入',
-      content: () =>
-        h('div', [h('p', summary), ...result.errors.map((e) => h('div', `${rows[e.row - 1]?.username ?? ''}：${e.message}`))]),
+      content: () => h('div', [h('p', summary), ...result.errors.map((e) => h('div', `${rows[e.row - 1]?.username ?? ''}：${e.message}`))]),
       positiveText: '知道了',
     })
 }
 
 function exportRoster() {
   if (!selected.value) return
-  downloadCsv(`${selected.value.name}-名单.csv`, [
-    ['学号', '姓名', '密码'],
-    ...students.value.map((s) => [`\t${s.username}`, s.name, `\t${s.password}`]),
-  ])
+  downloadCsv(`${selected.value.name}-名单.csv`, [['学号', '姓名', '密码'], ...students.value.map((s) => [`\t${s.username}`, s.name, `\t${s.password}`])])
 }
 
 function downloadTemplate() {
@@ -226,13 +220,7 @@ async function signOut() {
             </form>
           </NPopover>
         </div>
-        <button
-          v-for="c in classes"
-          :key="c.id"
-          class="class-item"
-          :class="{ active: c.id === selectedId }"
-          @click="selectClass(c.id)"
-        >
+        <button v-for="c in classes" :key="c.id" class="class-item" :class="{ active: c.id === selectedId }" @click="selectClass(c.id)">
           <span>{{ c.name }}</span>
           <span class="count">{{ c.studentCount }} 人</span>
         </button>
@@ -267,7 +255,8 @@ async function signOut() {
               <input ref="fileInput" type="file" accept=".csv,text/csv" hidden @change="onFileChosen" />
             </div>
             <p class="tip">
-              名单是 Excel 另存的 CSV，列为"学号、姓名、密码"。密码可以留空，平台会生成 6 位数字密码；导入后点"导出名单"发给学生。学号已存在时更新姓名和班级，密码留空则不变。
+              名单是 Excel 另存的 CSV，列为"学号、姓名、密码"。密码可以留空，平台会生成 6
+              位数字密码；导入后点"导出名单"发给学生。学号已存在时更新姓名和班级，密码留空则不变。
             </p>
             <NDataTable :columns="columns" :data="students" :row-key="(s: Student) => s.id" size="small" :bordered="false" />
           </NTabPane>
@@ -292,14 +281,19 @@ async function signOut() {
       @update:show="(v: boolean) => !v && (preview = null)"
     >
       <p>
-        共 {{ preview?.length }} 人<template v-if="preview && previewValid.length < preview.length">，
-          <span class="problem">{{ preview.length - previewValid.length }} 行有问题，不会导入</span></template
+        共 {{ preview?.length }} 人<template v-if="preview && previewValid.length < preview.length"
+          >， <span class="problem">{{ preview.length - previewValid.length }} 行有问题，不会导入</span></template
         >。
       </p>
       <div class="preview">
         <table>
           <thead>
-            <tr><th>学号</th><th>姓名</th><th>密码</th><th /></tr>
+            <tr>
+              <th>学号</th>
+              <th>姓名</th>
+              <th>密码</th>
+              <th />
+            </tr>
           </thead>
           <tbody>
             <tr v-for="(r, i) in preview" :key="i" :class="{ bad: r.problem }">

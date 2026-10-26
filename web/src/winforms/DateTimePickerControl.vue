@@ -33,8 +33,7 @@ function pick(event: Event) {
   if (!picked) return
   const [date, time] = value.value.split('T')
   const withSeconds = (t: string) => (t.length === 5 ? `${t}:00` : t)
-  const next =
-    inputType.value === 'date' ? `${picked}T${time}` : inputType.value === 'time' ? `${date}T${withSeconds(picked)}` : withSeconds(picked)
+  const next = inputType.value === 'date' ? `${picked}T${time}` : inputType.value === 'time' ? `${date}T${withSeconds(picked)}` : withSeconds(picked)
   props.act({ action: 'pick', value: next })
 }
 

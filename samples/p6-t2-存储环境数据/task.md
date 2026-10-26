@@ -12,20 +12,20 @@
 
 ## 界面和控件名
 
-| 控件 | 名称（Name） | 文字（Text）和用途 |
-|---|---|---|
-| 窗体 | `Form1` | 校园灾情数据存储 |
-| 分组框 | `groupBox2` | 配置 |
-| 下拉框 | `com_port` | ADAM-4017+ 的串口 |
-| 按钮 | `btn_Open` | 开启（打开后变成"关闭"） |
-| 分组框 | `groupBox1` | 数据显示 |
-| 文本框 | `txt_light`、`txt_temperature`、`txt_humidity` | 光照度、温度、湿度 |
-| 按钮 | `btn_get` | 获取 |
-| 按钮 | `btn_save` | 保存 |
-| 按钮 | `btnUpdate` | 修改 |
-| 按钮 | `btnDelete` | 删除 |
-| 分组框 | `groupBox3` | 历史记录 |
-| 数据表格 | `dataGridView1` | 显示数据库里的记录 |
+| 控件     | 名称（Name）                                   | 文字（Text）和用途       |
+| -------- | ---------------------------------------------- | ------------------------ |
+| 窗体     | `Form1`                                        | 校园灾情数据存储         |
+| 分组框   | `groupBox2`                                    | 配置                     |
+| 下拉框   | `com_port`                                     | ADAM-4017+ 的串口        |
+| 按钮     | `btn_Open`                                     | 开启（打开后变成"关闭"） |
+| 分组框   | `groupBox1`                                    | 数据显示                 |
+| 文本框   | `txt_light`、`txt_temperature`、`txt_humidity` | 光照度、温度、湿度       |
+| 按钮     | `btn_get`                                      | 获取                     |
+| 按钮     | `btn_save`                                     | 保存                     |
+| 按钮     | `btnUpdate`                                    | 修改                     |
+| 按钮     | `btnDelete`                                    | 删除                     |
+| 分组框   | `groupBox3`                                    | 历史记录                 |
+| 数据表格 | `dataGridView1`                                | 显示数据库里的记录       |
 
 > 注意按钮名字的写法不统一：`btn_Open`、`btn_get`、`btn_save` 带下划线，`btnUpdate`、`btnDelete` 不带，照书上的写，自动评分按这些名字找按钮。
 

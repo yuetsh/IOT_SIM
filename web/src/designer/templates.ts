@@ -21,7 +21,10 @@ export function nextFormName(files: SourceFile[]): string {
 
 /** 窗体名是否已被使用（同名文件或同名类） */
 export function formNameTaken(files: SourceFile[], name: string): boolean {
-  return files.some((f) => f.path === `${name}.cs` || f.path === `${name}.Designer.cs` || new RegExp(`(?<![\\p{L}\\p{N}_])class\\s+${name}(?![\\p{L}\\p{N}_])`, 'u').test(f.content))
+  return files.some(
+    (f) =>
+      f.path === `${name}.cs` || f.path === `${name}.Designer.cs` || new RegExp(`(?<![\\p{L}\\p{N}_])class\\s+${name}(?![\\p{L}\\p{N}_])`, 'u').test(f.content),
+  )
 }
 
 /**

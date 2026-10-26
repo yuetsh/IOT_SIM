@@ -84,18 +84,16 @@ export function registerLanguageFeatures() {
       if (!result) return { suggestions: [] }
       const range = toRange(result.range)
       return {
-        suggestions: result.items.map(
-          (item, index): Item => ({
-            index,
-            label: item.label,
-            insertText: item.insert,
-            filterText: item.filter,
-            sortText: item.sort,
-            kind: KINDS[item.kind] ?? Kind.Text,
-            detail: item.detail || undefined,
-            range,
-          }),
-        ),
+        suggestions: result.items.map((item, index): Item => ({
+          index,
+          label: item.label,
+          insertText: item.insert,
+          filterText: item.filter,
+          sortText: item.sort,
+          kind: KINDS[item.kind] ?? Kind.Text,
+          detail: item.detail || undefined,
+          range,
+        })),
       }
     },
     // 选中某一项时再取它的签名和说明
