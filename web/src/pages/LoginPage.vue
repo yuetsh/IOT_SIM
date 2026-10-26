@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 登录页：学生用老师发的账号密码登录，老师用自己的账号登录。
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { NButton, NInput } from 'naive-ui'
 import { login } from '../auth'
 
@@ -43,6 +43,7 @@ async function submit() {
       />
       <div v-if="error" class="error">{{ error }}</div>
       <NButton type="primary" attr-type="submit" block :loading="busy" :disabled="!username || !password">登录</NButton>
+      <RouterLink to="/help" target="_blank" class="help">第一次使用？看使用说明</RouterLink>
     </form>
   </div>
 </template>
@@ -84,5 +85,12 @@ p {
 .error {
   color: #dc2626;
   font-size: 13px;
+}
+
+.help {
+  align-self: center;
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
 }
 </style>

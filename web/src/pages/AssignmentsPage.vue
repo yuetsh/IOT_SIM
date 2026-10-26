@@ -55,6 +55,7 @@ async function signOut() {
       <span class="title">我的作业</span>
       <RouterLink to="/" class="nav-link">自由练习</RouterLink>
       <span class="spacer" />
+      <RouterLink to="/help" target="_blank" class="nav-link">使用说明</RouterLink>
       <span class="user">
         {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
       </span>

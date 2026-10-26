@@ -1,12 +1,16 @@
-// 页面路由：登录页、实验页（自由练习、做作业、老师运行学生的提交共用）、学生的作业列表、数据库页面、老师的班级管理页和评阅页。
+// 页面路由：登录页、使用说明、实验页（自由练习、做作业、老师运行学生的提交共用）、学生的作业列表、数据库页面、老师的班级管理页和评阅页。
 import { createRouter, createWebHistory } from 'vue-router'
 import { apiHooks } from './api'
 import { currentUser } from './auth'
 
 export const router = createRouter({
   history: createWebHistory(),
+  // 使用说明的 /help#teacher 打开时滚到老师部分
+  scrollBehavior: (to) => (to.hash ? { el: to.hash } : { top: 0 }),
   routes: [
     { path: '/login', component: () => import('./pages/LoginPage.vue'), meta: { public: true } },
+    // 使用说明：没登录也能看（学生部分）
+    { path: '/help', component: () => import('./pages/HelpPage.vue'), meta: { public: true } },
     { path: '/', component: () => import('./pages/WorkbenchPage.vue') },
     { path: '/assignments', component: () => import('./pages/AssignmentsPage.vue') },
     { path: '/database', component: () => import('./pages/DatabasePage.vue') },

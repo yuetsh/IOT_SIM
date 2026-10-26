@@ -514,6 +514,7 @@ function run() {
       <span class="spacer" />
       <RouterLink v-if="!assignmentId && currentUser?.role === 'student'" to="/assignments" class="nav-link">我的作业</RouterLink>
       <RouterLink v-if="!viewing" to="/database" target="_blank" class="nav-link" title="在新标签页打开数据库（代替 SSMS）">数据库</RouterLink>
+      <RouterLink v-if="!viewing" to="/help" target="_blank" class="nav-link" title="在新标签页打开使用说明">使用说明</RouterLink>
       <span class="user">
         {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
       </span>

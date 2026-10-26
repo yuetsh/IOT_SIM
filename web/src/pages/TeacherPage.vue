@@ -207,6 +207,7 @@ async function signOut() {
       <span class="title">班级管理</span>
       <RouterLink to="/" class="nav-link">返回实验</RouterLink>
       <span class="spacer" />
+      <RouterLink to="/help#teacher" target="_blank" class="nav-link">使用说明</RouterLink>
       <span class="user">{{ currentUser?.name }}</span>
       <NButton quaternary size="small" @click="signOut">退出</NButton>
     </header>
