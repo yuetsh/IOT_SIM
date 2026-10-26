@@ -15,12 +15,16 @@ const props = defineProps<{
   selected: string
   /** 项目资源（图片属性从这里选）和引用资源的前缀 global::命名空间.Properties.Resources. */
   resources?: { names: string[]; prefix: string }
+  /** 窗体改名时检查新名字和工程里其他窗体、类有没有重名（没有问题返回 null） */
+  checkFormName?: (name: string) => string | null
 }>()
 
 const emit = defineEmits<{
   setProp: [target: string, path: string, value: Value | null]
   setItems: [target: string, items: string[]]
   rename: [from: string, to: string]
+  /** 窗体本身改名：类名和文件名一起改 */
+  renameForm: [to: string]
   /** 双击事件或点"生成"：绑定（必要时生成）事件处理方法并跳到代码 */
   openEvent: [target: string, event: string, handler?: string]
   clearEvent: [target: string, event: string]
@@ -80,7 +84,13 @@ watch([() => props.selected, () => props.doc.formName], () => {
 
 function commitName() {
   const name = nameDraft.value.trim()
-  if (!props.selected || name === props.selected) return
+  if (!props.selected) {
+    if (name === props.doc.className) return
+    nameError.value = checkName(props.doc, name, props.doc.formName) ?? props.checkFormName?.(name) ?? null
+    if (!nameError.value) emit('renameForm', name)
+    return
+  }
+  if (name === props.selected) return
   nameError.value = checkName(props.doc, name, props.selected)
   if (!nameError.value) emit('rename', props.selected, name)
 }
@@ -171,9 +181,10 @@ function renameHandler(event: string, value: string) {
       <div class="row">
         <label title="Name：控件的名称，代码里用这个名字访问它">名称</label>
         <div class="editor">
-          <input v-model="nameDraft" :disabled="selected === ''" @change="commitName" @keydown.enter="commitName" />
+          <input v-model="nameDraft" @change="commitName" @keydown.enter="commitName" />
           <div v-if="nameError" class="error">{{ nameError }}</div>
           <div v-else-if="selected !== ''" class="note">改名后，代码里用到旧名字的地方要自己修改</div>
+          <div v-else class="note">改名后，类名、文件名和 Program.cs 里的 new 跟着改；Form1_Load 这样的方法名不变</div>
         </div>
       </div>
 

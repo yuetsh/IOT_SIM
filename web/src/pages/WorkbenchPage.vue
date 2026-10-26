@@ -10,7 +10,7 @@ import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
 import { gallery, loadGallery, projectResources, resourcePrefix, resourcesFile, RESOURCES_FILE } from '../designer/resources'
 import ResourcesDialog from '../designer/ResourcesDialog.vue'
-import { classPathError, formNameTaken, isFormDesigner, newClassFile, newFormFiles, nextFormName, projectNamespace, startupForm } from '../designer/templates'
+import { classPathError, formNameTaken, isFormDesigner, newClassFile, newFormFiles, nextFormName, projectNamespace, renameForm, startupForm } from '../designer/templates'
 import CodeEditor from '../editor/CodeEditor.vue'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
@@ -417,6 +417,18 @@ function deleteForm() {
   activeTab.value = forms.value[0]?.tab ?? files.value[0]?.path
 }
 
+const checkFormName = (name: string) => (formNameTaken(files.value, name) ? `已经有名为“${name}”的窗体或类` : null)
+
+/** 属性窗口里给窗体改名：类名、引用和两个文件名一起改（这一步不进设计器的撤销历史） */
+function renameActiveForm(name: string) {
+  const form = activeForm.value
+  if (!form) return
+  files.value = renameForm(files.value, form.designer, name)
+  designerHistory.clear(form.designer)
+  filesChanged()
+  activeTab.value = DESIGN + form.designer.replace(/[^/]*\.Designer\.cs$/, `${name}.Designer.cs`)
+}
+
 /** 设计器改动了 Designer.cs（以及插入事件处理方法时的代码文件） */
 function onDesignerUpdate(designerText: string, codeText?: string) {
   const form = activeForm.value
@@ -627,7 +639,9 @@ function run() {
           @open-code="openCode"
           @open-designer-file="activeTab = activeForm.designer"
           :resources="designerResources"
+          :check-form-name="checkFormName"
           @add-resource="resourcesOpen = true"
+          @rename-form="renameActiveForm"
         />
         <ResourcesDialog v-model:show="resourcesOpen" :selected="resourceNames" @save="saveResources" />
         <CodeEditor

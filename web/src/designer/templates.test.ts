@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test'
 import { generateDesigner, parseDesigner } from './document'
 import { addControl } from './edit'
 import { controlDef } from './catalog'
-import { assignmentTemplate, classPathError, formNameTaken, newClassFile, newFormFiles, nextFormName, projectNamespace, startupForm } from './templates'
+import { assignmentTemplate, classPathError, formNameTaken, newClassFile, newFormFiles, nextFormName, projectNamespace, renameForm, startupForm } from './templates'
 
 const files = [
   { path: 'Program.cs', content: 'namespace 登录\n{\n    static class Program\n    {\n        static void Main()\n        {\n            Application.Run(new Login());\n        }\n    }\n}\n' },
@@ -79,4 +79,28 @@ test('新建类：可以带文件夹，文件夹也是命名空间的一段；�
   expect(classPathError(files, 'Other/AppSet')).toBe('已经有名为“AppSet”的类或窗体')
   expect(classPathError(files, '1abc')).toContain('不能以数字开头')
   expect(classPathError(files, 'Properties/X')).toContain('平台管理')
+})
+
+test('窗体改名：类名、构造函数、Program.cs 和两个文件名一起改，方法名和字符串不动', async () => {
+  const blank = assignmentTemplate(await sample('p8-t1-主界面'), 'blank')
+  const code = blank.find((f) => f.path === 'Form1.cs')!
+  code.content = code.content.replace('InitializeComponent();', 'InitializeComponent();\n            MessageBox.Show("Form1"); // Form1\n        }\n\n        private void Form1_Load(object sender, EventArgs e)\n        {\n            Form1 other = new Form1();')
+  const files = renameForm(blank, 'Form1.Designer.cs', 'Main')
+  expect(files.map((f) => f.path).sort()).toEqual(['Main.Designer.cs', 'Main.cs', 'Program.cs'])
+  expect(files.find((f) => f.path === 'Program.cs')!.content).toContain('Application.Run(new Main())')
+  const main = files.find((f) => f.path === 'Main.cs')!.content
+  expect(main).toContain('public partial class Main : Form')
+  expect(main).toContain('public Main()')
+  expect(main).toContain('MessageBox.Show("Form1"); // Form1')
+  expect(main).toContain('private void Form1_Load(object sender, EventArgs e)')
+  expect(main).toContain('Main other = new Main();')
+  const designer = files.find((f) => f.path === 'Main.Designer.cs')!.content
+  const doc = parseDesigner(designer)
+  expect(doc.className).toBe('Main')
+  expect(doc.formName).toBe('Main')
+  expect(designer).toContain('            // \n            // Main\n            // \n')
+  expect(designer).toContain('this.Name = "Main";')
+  // 窗体标题是 Text，VS 改名时也不改
+  expect(designer).toContain('this.Text = "Form1";')
+  expect(startupForm(files)).toBe('Main')
 })

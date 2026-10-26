@@ -45,32 +45,56 @@ export function classClosingBrace(code: string, className: string): number {
   if (i < 0) return -1
   let depth = 0
   while (i < code.length) {
-    const c = code[i]
-    if (code.startsWith('//', i)) {
-      const end = code.indexOf('\n', i)
-      i = end < 0 ? code.length : end
+    const skipped = skipLiteral(code, i)
+    if (skipped >= 0) {
+      i = skipped
       continue
     }
-    if (code.startsWith('/*', i)) {
-      const end = code.indexOf('*/', i + 2)
-      i = end < 0 ? code.length : end + 2
-      continue
-    }
-    if (c === '@' && code[i + 1] === '"') {
-      i += 2
-      while (i < code.length && !(code[i] === '"' && code[i + 1] !== '"')) i += code[i] === '"' ? 2 : 1
-      i++
-      continue
-    }
-    if (c === '"' || c === "'") {
-      i++
-      while (i < code.length && code[i] !== c && code[i] !== '\n') i += code[i] === '\\' ? 2 : 1
-      i++
-      continue
-    }
-    if (c === '{') depth++
-    else if (c === '}' && --depth === 0) return i
+    if (code[i] === '{') depth++
+    else if (code[i] === '}' && --depth === 0) return i
     i++
   }
   return -1
+}
+
+/** i 处是注释、字符串或字符时返回它结束后的位置，否则返回 -1 */
+function skipLiteral(code: string, i: number): number {
+  const c = code[i]
+  if (code.startsWith('//', i)) {
+    const end = code.indexOf('\n', i)
+    return end < 0 ? code.length : end
+  }
+  if (code.startsWith('/*', i)) {
+    const end = code.indexOf('*/', i + 2)
+    return end < 0 ? code.length : end + 2
+  }
+  if (c === '@' && code[i + 1] === '"') {
+    i += 2
+    while (i < code.length && !(code[i] === '"' && code[i + 1] !== '"')) i += code[i] === '"' ? 2 : 1
+    return i + 1
+  }
+  if (c === '"' || c === "'") {
+    i++
+    while (i < code.length && code[i] !== c && code[i] !== '\n') i += code[i] === '\\' ? 2 : 1
+    return i + 1
+  }
+  return -1
+}
+
+/** 把代码里的标识符 from 换成 to（整词，跳过字符串、字符和注释）：Form1_Load、"Form1" 都不动 */
+export function renameIdentifier(code: string, from: string, to: string): string {
+  const word = new RegExp(`(?<![\\p{L}\\p{N}_@])${from}(?![\\p{L}\\p{N}_])`, 'gu')
+  let out = ''
+  let start = 0
+  let i = 0
+  while (i < code.length) {
+    const skipped = skipLiteral(code, i)
+    if (skipped < 0) {
+      i++
+      continue
+    }
+    out += code.slice(start, i).replace(word, to) + code.slice(i, skipped)
+    start = i = skipped
+  }
+  return out + code.slice(start).replace(word, to)
 }

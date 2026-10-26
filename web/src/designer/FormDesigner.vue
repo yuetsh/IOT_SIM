@@ -35,6 +35,8 @@ const props = defineProps<{
   canRedo: boolean
   /** 项目资源（图片属性的选项） */
   resources?: { names: string[]; prefix: string }
+  /** 窗体改名时检查和工程里其他窗体、类有没有重名 */
+  checkFormName?: (name: string) => string | null
 }>()
 
 const emit = defineEmits<{
@@ -48,6 +50,8 @@ const emit = defineEmits<{
   redo: []
   /** 属性窗口里要添加项目资源 */
   addResource: []
+  /** 窗体本身改名（涉及多个文件，由实验页处理） */
+  renameForm: [to: string]
 }>()
 
 /** Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做；在属性窗口的输入框里打字时不拦截（输入框有自己的撤销） */
@@ -551,9 +555,11 @@ const noop = () => {}
       :doc="doc"
       :selected="selected"
       :resources="resources"
+      :check-form-name="checkFormName"
       @set-prop="onSetProp"
       @set-items="onSetItems"
       @rename="onRename"
+      @rename-form="emit('renameForm', $event)"
       @open-event="openEvent"
       @clear-event="clearEvent"
       @add-resource="emit('addResource')"

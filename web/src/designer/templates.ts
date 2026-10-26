@@ -1,6 +1,8 @@
-// 工程模板：新建窗体（与 VS 中文版新建窗体并保存一次后相同的两个文件），以及布置作业时学生的起点工程。
+// 工程模板：新建窗体（与 VS 中文版新建窗体并保存一次后相同的两个文件）、窗体改名，以及布置作业时学生的起点工程。
 import type { SourceFile } from '@iot/shared'
+import { renameIdentifier } from './code'
 import { generateDesigner, parseDesigner } from './document'
+import { renderValue } from './values'
 
 /** 工程的命名空间：取 Program.cs（没有就取任意 .cs）里的 namespace */
 export function projectNamespace(files: SourceFile[]): string {
@@ -169,6 +171,35 @@ export function assignmentTemplate(files: SourceFile[], mode: StartMode): Source
     result.push({ path: designer.path.replace(/\.Designer\.cs$/, '.cs'), content: code.content }, { path: designer.path, content: generateDesigner(doc) })
   }
   return result
+}
+
+/**
+ * 窗体改名（属性窗口里窗体的"名称"）：和 VS 一样，类名、构造函数和各文件里的 new X()、X 类型的变量都改，
+ * Designer.cs 里窗体的块头注释和 this.Name 也改；两个文件跟着改名。
+ * 事件处理方法名（如 Form1_Load）和字符串里的文字不动，VS 也不改。
+ */
+export function renameForm(files: SourceFile[], designerPath: string, to: string): SourceFile[] {
+  const designer = files.find((f) => f.path === designerPath)
+  if (!designer) return files
+  const from = parseDesigner(designer.content).className
+  const codePath = designerPath.replace(/\.Designer\.cs$/, '.cs')
+  const dir = designerPath.slice(0, designerPath.lastIndexOf('/') + 1)
+  return files.map((f) => {
+    if (!f.path.endsWith('.cs')) return f
+    const content = renameIdentifier(f.content, from, to)
+    if (f.path === codePath) return { path: `${dir}${to}.cs`, content }
+    if (f.path !== designerPath) return content === f.content ? f : { ...f, content }
+    const doc = parseDesigner(content)
+    const formBlock = doc.blocks.at(-1)
+    if (formBlock) {
+      formBlock.name = to
+      formBlock.stmts = formBlock.stmts.map((s) =>
+        s.kind === 'prop' && s.target === '' && s.path === 'Name' ? { ...s, value: renderValue({ kind: 'string', value: to }), text: undefined } : s,
+      )
+    }
+    doc.formName = to
+    return { path: `${dir}${to}.Designer.cs`, content: generateDesigner(doc) }
+  })
 }
 
 /** 窗体的 Designer.cs（Properties/ 下平台生成的 Resources.Designer.cs 不是窗体） */

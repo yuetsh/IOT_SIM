@@ -6,15 +6,18 @@ import { listSamples, loadSample, loadTask } from '../src/samples'
 function tableNames(task: string): string[] {
   const names: string[] = []
   let column = -1
+  let previous: string[] = []
   for (const line of task.split('\n')) {
     if (!line.trim().startsWith('|')) {
       column = -1
+      previous = []
       continue
     }
     const cells = line.trim().replace(/^\||\|$/g, '').split('|')
-    const header = cells.findIndex((c) => c.includes('名称'))
-    if (header >= 0) column = header
+    // 表头是分隔行（|---|）上面那一行；数据行里出现"名称"两个字不算表头
+    if (cells.every((c) => /^\s*:?-+:?\s*$/.test(c))) column = previous.findIndex((c) => c.includes('名称'))
     else if (column >= 0) names.push(...[...(cells[column] ?? '').matchAll(/`([^`]+)`/g)].map((m) => m[1]))
+    previous = cells
   }
   return names
 }
