@@ -324,17 +324,16 @@ function tableSuggestions(tables: ExplorerTable[], bracketOpen: boolean, rank: s
   return tables.map((table) => ({ label: table.name, kind: 'table', insert: nameText(table.name, bracketOpen), detail: '表', sort: rank + table.name }))
 }
 
-/** 所有表的列（同名的列只列一次）；语句里用到的表的列排在前面 */
+/** 查询窗口里用到的表（FROM / JOIN 等后面写了的）的列；还没写表名时列所有表的列。同名的列只列一次 */
 function columnSuggestions(tables: ExplorerTable[], refs: TableRef[], bracketOpen: boolean): SqlSuggestion[] {
   const used = new Set(refs.map((r) => r.table))
-  const ordered = [...tables.filter((t) => used.has(t)), ...tables.filter((t) => !used.has(t))]
   const columns = new Map<string, { column: ExplorerTable['columns'][number]; tables: string[]; sort: string }>()
-  for (const table of ordered) {
+  for (const table of used.size > 0 ? tables.filter((t) => used.has(t)) : tables) {
     for (const column of table.columns) {
       const key = column.name.toUpperCase()
       const existing = columns.get(key)
       if (existing) existing.tables.push(table.name)
-      else columns.set(key, { column, tables: [table.name], sort: `${used.has(table) ? 1 : 2}${pad(columns.size)}` })
+      else columns.set(key, { column, tables: [table.name], sort: `1${pad(columns.size)}` })
     }
   }
   return [...columns.values()].map(({ column, tables, sort }) => ({

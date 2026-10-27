@@ -87,12 +87,16 @@ function columnsTip(table: ExplorerTable) {
       <div v-for="db in databases" :key="db.name" class="db">
         <div class="row db-row" @click="toggle(db.name)" @contextmenu="databaseMenu($event, db.name)">
           <span class="arrow">{{ collapsed.has(db.name) ? '▸' : '▾' }}</span>
+          <svg class="icon db-icon" viewBox="0 0 16 16" aria-hidden="true">
+            <ellipse cx="8" cy="3.5" rx="5.5" ry="2" />
+            <path d="M2.5 3.5v9c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2v-9M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2" />
+          </svg>
           <span class="name">{{ db.name }}</span>
           <span class="count">{{ db.tables.length }} 张表</span>
           <button class="more" title="更多操作" @click="databaseMenu($event, db.name)">⋯</button>
         </div>
 
-        <template v-if="!collapsed.has(db.name)">
+        <div v-if="!collapsed.has(db.name)" class="tables">
           <div
             v-for="table in db.tables"
             :key="table.name"
@@ -101,11 +105,15 @@ function columnsTip(table: ExplorerTable) {
             @click="emit('action', { kind: 'editRows', database: db.name, table })"
             @contextmenu="tableMenu($event, db.name, table)"
           >
+            <svg class="icon table-icon" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="2" y="3" width="12" height="10" rx="1.5" />
+              <path d="M2 6.5h12M6.5 6.5V13" />
+            </svg>
             <span class="name">{{ table.name }}</span>
             <button class="more" title="更多操作" @click="tableMenu($event, db.name, table)">⋯</button>
           </div>
           <div class="row new-table" @click="emit('action', { kind: 'newTable', database: db.name })">+ 新建表</div>
-        </template>
+        </div>
       </div>
     </div>
 
@@ -171,7 +179,7 @@ function columnsTip(table: ExplorerTable) {
 }
 
 .db + .db {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .row {
@@ -206,18 +214,47 @@ function columnsTip(table: ExplorerTable) {
   font-weight: 600;
 }
 
+.icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.db-icon {
+  stroke: #2563eb;
+}
+
+.db-icon ellipse {
+  fill: #dbeafe;
+}
+
+.table-icon {
+  stroke: #6b7280;
+}
+
+.table-icon rect {
+  fill: #f9fafb;
+}
+
+/* 表挂在库下面：往里缩进，左边一条竖线对齐库图标 */
+.tables {
+  margin-left: 33px;
+  padding-left: 6px;
+  border-left: 1px solid #e5e7eb;
+}
+
 .count {
   font-size: 12px;
   color: #9ca3af;
 }
 
-.table-row,
-.new-table {
-  padding-left: 26px;
-}
-
 .new-table {
   color: #2563eb;
+  padding-left: 30px;
 }
 
 /* ⋯ 平时浅一点，鼠标移到这一行再变深 */

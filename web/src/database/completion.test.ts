@@ -44,9 +44,12 @@ describe('查询窗口的自动补全', () => {
     expect(sorted('SELECT * FROM 用户表, |')[0]).toBe('CampusEnvironment')
   })
 
-  test('语句里用到的表的列排在其他列前面', () => {
-    const columns = sorted('SELECT | FROM 用户表').filter((label) => ['姓名', 'light'].includes(label))
-    expect(columns).toEqual(['姓名', 'light'])
+  test('写了表名后只列用到的表的列，还没写时列所有表的列', () => {
+    expect(labels('SELECT | FROM 用户表')).toContain('姓名')
+    expect(labels('SELECT | FROM 用户表')).not.toContain('light')
+    expect(labels('SELECT | FROM 用户表 u JOIN CampusEnvironment e ON u.ID = e.ID')).toContain('light')
+    expect(labels('SELECT |')).toContain('light')
+    expect(labels('SELECT |')).toContain('姓名')
   })
 
   test('空格触发：只在要写表名的地方弹出', () => {

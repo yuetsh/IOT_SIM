@@ -677,7 +677,9 @@ const noop = () => {}
 }
 
 .actions {
+  container-type: inline-size;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   font-size: 12px;
@@ -713,12 +715,20 @@ const noop = () => {}
 }
 
 .tips {
+  /* 提示文字不占位置：画布窄时不显示（只留作空白把缩放推到右边），按钮放不下再折到第二行，不撑出横向滚动条 */
+  flex: 1 1 0;
   min-width: 0;
   margin-left: 8px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: #7a838e;
+}
+
+@container (max-width: 560px) {
+  .tips {
+    visibility: hidden;
+  }
 }
 
 .window {

@@ -296,13 +296,10 @@ onMounted(refresh)
   flex-direction: column;
 }
 
-.tabs :deep(.n-tabs-pane-wrapper) {
+/* 标签页内容直接是 .tabs 的子元素（display-directive="show"）：占标签栏下面剩下的高度，不能用 height: 100%，否则多出标签栏的高度，整页出滚动条 */
+.tabs :deep(.n-tab-pane) {
   flex: 1;
   min-height: 0;
-}
-
-.tabs :deep(.n-tab-pane) {
-  height: 100%;
   padding: 0;
   background: #fff;
 }
