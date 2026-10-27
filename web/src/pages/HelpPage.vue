@@ -35,6 +35,18 @@ import { currentUser } from '../auth'
             作业的起点有两种：<b>界面已做好</b>（只写事件和代码）、<b>空白工程</b>（从搭界面做起）。控件名照书上的写，自动评分按书上的控件名操作你的程序。
           </li>
         </ul>
+        <figure class="shot">
+          <a href="/help-img/assignments.webp" target="_blank" title="点击看原图"><img src="/help-img/assignments.webp" alt="" loading="lazy" /></a>
+          <figcaption>我的作业：点作业名开始做，右边是提交状态和得分</figcaption>
+        </figure>
+        <figure class="shot">
+          <a href="/help-img/overview.webp" target="_blank" title="点击看原图"><img src="/help-img/overview.webp" alt="" loading="lazy" /></a>
+          <figcaption>实验页：左边是设计器和代码，右边是运行区（学生程序的窗体）和虚拟实训台</figcaption>
+        </figure>
+        <figure class="shot">
+          <a href="/help-img/task.webp" target="_blank" title="点击看原图"><img src="/help-img/task.webp" alt="" loading="lazy" /></a>
+          <figcaption>任务面板：任务目标、控件名、实现步骤</figcaption>
+        </figure>
 
         <h3>3. 搭界面</h3>
         <ul>
@@ -49,6 +61,11 @@ import { currentUser } from '../auth'
           <li>撤销 Ctrl+Z，重做 Ctrl+Y，删除控件 Delete，方向键微调位置。</li>
         </ul>
 
+        <figure class="shot">
+          <a href="/help-img/designer.webp" target="_blank" title="点击看原图"><img src="/help-img/designer.webp" alt="" loading="lazy" /></a>
+          <figcaption>窗体设计器：左边工具箱，中间窗体，右边属性和事件（这里选中了"打开"按钮，它的单击事件是 btn_open_Click）</figcaption>
+        </figure>
+
         <h3>4. 写代码、运行</h3>
         <ul>
           <li><b>F5</b> 或 <b>▶ 运行</b>：编译并运行，窗体显示在右边的运行区；<b>Shift+F5</b> 或 <b>■ 停止</b> 结束程序。</li>
@@ -58,6 +75,11 @@ import { currentUser } from '../auth'
           <li>代码改了 1 秒后自动保存到服务器（工具栏显示"已保存"），换电脑登录也能接着做。</li>
           <li>窗体太大时运行区会按比例缩小；点运行区右上角的<b>放大</b>让运行区占满整个网页，放大后也可以点<b>停止</b>，Esc 或<b>还原</b>回来。</li>
         </ul>
+
+        <figure class="shot">
+          <a href="/help-img/error.webp" target="_blank" title="点击看原图"><img src="/help-img/error.webp" alt="" loading="lazy" /></a>
+          <figcaption>运行出错：窗体下面用中文说明原因和出错的行，点它跳到代码</figcaption>
+        </figure>
 
         <h3>5. 虚拟实训台</h3>
         <ul>
@@ -71,6 +93,11 @@ import { currentUser } from '../auth'
           <li><b>实训台复位</b>：关掉所有灯、清空 LED 屏，传感器回到默认值。<b>收起</b>：实训台缩成一行，给窗体腾地方。</li>
         </ul>
 
+        <figure class="shot">
+          <a href="/help-img/board.webp" target="_blank" title="点击看原图"><img src="/help-img/board.webp" alt="" loading="lazy" /></a>
+          <figcaption>虚拟实训台：程序打开了照明灯 2（ADAM-4150 DO1）；拖滑块调温湿度、光照，点卡片切换传感器</figcaption>
+        </figure>
+
         <h3>6. 自己检查、提交</h3>
         <ul>
           <li>
@@ -81,6 +108,15 @@ import { currentUser } from '../auth'
           <li>点工具栏上的分数，看每一项的得分；老师评阅后，这里能看到老师的打分和评语。</li>
         </ul>
 
+        <figure class="shot">
+          <a href="/help-img/check.webp" target="_blank" title="点击看原图"><img src="/help-img/check.webp" alt="" loading="lazy" /></a>
+          <figcaption>任务面板最下面的"自己检查"：逐项显示通过没有</figcaption>
+        </figure>
+        <figure class="shot">
+          <a href="/help-img/result.webp" target="_blank" title="点击看原图"><img src="/help-img/result.webp" alt="" loading="lazy" /></a>
+          <figcaption>提交后点工具栏上的分数看评分结果</figcaption>
+        </figure>
+
         <h3>7. 数据库（项目 6、8）</h3>
         <ul>
           <li>点右上角的<b>数据库</b>（在新标签页打开），代替书上的 SSMS：右键新建数据库、新建表，<b>新建查询</b>写 SQL，按 F5 执行。</li>
@@ -88,6 +124,10 @@ import { currentUser } from '../auth'
           <li>数据弄乱了：点<b>恢复实验初始数据</b>，选实验（默认是刚才做的实验），把这个实验用到的库换回初始数据（其他库不动）。</li>
           <li>点<b>← 返回实验</b>回到刚才做的实验。</li>
         </ul>
+        <figure class="shot">
+          <a href="/help-img/db.webp" target="_blank" title="点击看原图"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
+          <figcaption>数据库页面：左边是对象资源管理器，右边写 SQL、按 F5 执行，下面是结果</figcaption>
+        </figure>
       </section>
 
       <section v-if="currentUser?.role === 'teacher'" id="teacher">
@@ -103,12 +143,22 @@ import { currentUser } from '../auth'
           <li>导入后点<b>导出名单（含密码）</b>，打印或发给学生。学生忘了密码，在名单里点<b>重置密码</b>。</li>
         </ul>
 
+        <figure class="shot">
+          <a href="/help-img/students.webp" target="_blank" title="点击看原图"><img src="/help-img/students.webp" alt="" loading="lazy" /></a>
+          <figcaption>班级管理：导入名单后，用户名和密码都在这里，可以导出、重置密码</figcaption>
+        </figure>
+
         <h3>2. 布置作业</h3>
         <ul>
           <li><b>作业</b>标签页 → <b>布置作业</b>：选实验、起点（界面已做好 / 空白工程）、截止时间（可以不限）。</li>
           <li>自动评分项默认每项 10 分；老师评分项（界面、注释、命名）由你在评阅时打分，可以增删、改分值。</li>
           <li><b>任务说明</b>预填实验的说明，可以改写，比如在最前面加一段"这次只做前 3 步"；布置后也能在<b>修改</b>里改。</li>
         </ul>
+
+        <figure class="shot">
+          <a href="/help-img/assign.webp" target="_blank" title="点击看原图"><img src="/help-img/assign.webp" alt="" loading="lazy" /></a>
+          <figcaption>布置作业：选实验和起点，自动评分项、任务说明、老师评分项都可以改</figcaption>
+        </figure>
 
         <h3>3. 评阅、成绩</h3>
         <ul>
@@ -117,6 +167,15 @@ import { currentUser } from '../auth'
           <li>配置了 AI 评阅时，右边有<b>AI 建议</b>的分数和评语，点<b>采纳 AI 建议</b>填进表单，改好后<b>保存并看下一个</b>。</li>
           <li><b>成绩</b>标签页是全班 × 全部作业的总分，<b>导出成绩表（CSV）</b>用 Excel 打开不乱码。</li>
         </ul>
+
+        <figure class="shot">
+          <a href="/help-img/review.webp" target="_blank" title="点击看原图"><img src="/help-img/review.webp" alt="" loading="lazy" /></a>
+          <figcaption>评阅：左边是学生列表，中间看界面截图、运行程序、看代码，右边打分写评语</figcaption>
+        </figure>
+        <figure class="shot">
+          <a href="/help-img/grades.webp" target="_blank" title="点击看原图"><img src="/help-img/grades.webp" alt="" loading="lazy" /></a>
+          <figcaption>成绩：全班 × 全部作业的总分，"待评"表示老师还没打分</figcaption>
+        </figure>
 
         <h3>4. 上课前后</h3>
         <ul>
@@ -221,6 +280,26 @@ code {
   border-radius: 3px;
   background: #f3f4f6;
   font-size: 13px;
+}
+
+/* 截图：按原尺寸显示，比正文宽时缩小；点击看原图 */
+.shot {
+  margin: 12px 0 16px;
+}
+
+.shot img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+}
+
+.shot figcaption {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 dt {
