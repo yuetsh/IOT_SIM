@@ -196,6 +196,13 @@
 
 .wf-combobox-list li {
   padding: 1px 3px;
+  white-space: nowrap;
+}
+
+/* 串口后面的设备名提示：比列表文字淡，悬停变蓝底白字时也看得清 */
+.wf-combobox-hint {
+  margin-left: 1.5em;
+  opacity: 0.55;
 }
 
 .wf-combobox-list li:hover {

@@ -80,7 +80,7 @@ const latencies = await Promise.all(
     const form = instance.form!
     const id = (name: string) => findId(form, name)!
     send(instance, { type: 'action', id: id('com_Port'), action: 'dropDown' })
-    send(instance, { type: 'action', id: id('com_Port'), action: 'select', index: 4 })
+    send(instance, { type: 'action', id: id('com_Port'), action: 'select', index: 3 })
     send(instance, { type: 'action', id: id('btn_Open'), action: 'click' })
     send(instance, { type: 'action', id: id('txt_SendText'), action: 'text', value: '压力测试' })
     await Bun.sleep(200)

@@ -8,8 +8,8 @@ namespace System.IO.Ports;
 /// </summary>
 public class SerialPort : Component
 {
-    /// <summary>COM1 是电脑自带串口，COM2–COM5 对应实训台上的 4017、4150、ZigBee 协调器和 LED 屏</summary>
-    private static readonly string[] VirtualPorts = { "COM1", "COM2", "COM3", "COM4", "COM5" };
+    /// <summary>COM2–COM5 对应实训台上的 4017、4150、ZigBee 协调器和 LED 屏，不提供电脑自带的 COM1</summary>
+    private static readonly string[] VirtualPorts = { "COM2", "COM3", "COM4", "COM5" };
 
     public SerialPort() { }
 
@@ -19,7 +19,7 @@ public class SerialPort : Component
 
     public static string[] GetPortNames() => (string[])VirtualPorts.Clone();
 
-    public string PortName { get; set; } = "COM1";
+    public string PortName { get; set; } = "COM2";
     public int BaudRate { get; set; } = 9600;
     public int DataBits { get; set; } = 8;
     public int ReadTimeout { get; set; } = -1;

@@ -58,6 +58,8 @@ const items = computed(() => (p.value.Items as string[] | undefined) ?? [])
 const editable = computed(() => p.value.DropDownStyle !== 'DropDownList')
 const combo = ref<HTMLElement>()
 const listStyle = ref<CSSProperties>({})
+/** 串口列表里每个口后面用灰字标出实训台上接的设备，只是提示，下拉框的值还是 COM2 这样的串口名 */
+const portDevices: Record<string, string> = { COM2: 'ADAM-4017+', COM3: 'ADAM-4150', COM4: 'ZigBee 协调器', COM5: 'LED 屏' }
 
 function openDropDown() {
   if (!enabled.value) return
@@ -73,7 +75,7 @@ function openDropDown() {
   listStyle.value = {
     left: `${rect.left}px`,
     top: `${rect.bottom}px`,
-    width: `${el.offsetWidth}px`,
+    minWidth: `${el.offsetWidth}px`,
     transform: `scale(${rect.width / el.offsetWidth || 1})`,
     font: css.font,
     color: css.color,
@@ -177,7 +179,9 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
     <span class="wf-combobox-arrow" @mousedown.prevent="openDropDown">▾</span>
     <Teleport to="body">
       <ul v-if="dropDownOpen" class="wf-combobox-list" :style="listStyle">
-        <li v-for="(item, index) in items" :key="index" @mousedown.prevent="selectItem(index)">{{ item }}</li>
+        <li v-for="(item, index) in items" :key="index" @mousedown.prevent="selectItem(index)">
+          {{ item }}<span v-if="portDevices[item]" class="wf-combobox-hint">{{ portDevices[item] }}</span>
+        </li>
         <li v-if="items.length === 0" class="wf-combobox-empty">&nbsp;</li>
       </ul>
     </Teleport>

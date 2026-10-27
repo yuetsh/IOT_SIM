@@ -214,7 +214,7 @@ try {
       async (s) => {
         const window = s.window!
         window.action('com_lamp', { action: 'dropDown' })
-        window.action('com_lamp', { action: 'select', index: 3 })
+        window.action('com_lamp', { action: 'select', index: 2 })
         window.action('btn_open', { action: 'click' })
         await Bun.sleep(300)
         // 设备消息由服务器记进实训台状态，再以 board 消息推给浏览器

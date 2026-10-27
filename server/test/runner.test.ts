@@ -196,7 +196,7 @@ test('项目2 任务2：温度读数来自实训台，滑块变化后再次获�
   const { runner, id } = await startSample('p2-t2-模拟量采集')
   const port = id('com_port')
   // 串口列表在 Load 里就已填好
-  runner.send({ type: 'action', id: port, action: 'select', index: 1 })
+  runner.send({ type: 'action', id: port, action: 'select', index: 0 })
   runner.send({ type: 'action', id: id('btn_Open'), action: 'click' })
   const textOf = (name: string) =>
     runner
@@ -224,7 +224,7 @@ test('项目3 任务1：单选按钮切换，事件顺序与 WinForms 一致，�
   await runner.waitFor('patch', (m) => m.changes.some((c) => c.id === lamp && c.prop === 'IsOn' && c.value === true))
   expect(runner.messages.some((m) => m.type === 'device')).toBe(false)
 
-  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 3 })
+  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 2 })
   runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
 
   // 选"关"：先触发"开"的 CheckedChanged（又开一次），再触发"关"的 CheckedChanged，最终关灯
@@ -241,8 +241,8 @@ test('项目3 任务1：单选按钮切换，事件顺序与 WinForms 一致，�
 
 test('项目3 任务2：勾选人体开关后，有人经过时 5 秒内路灯打开', async () => {
   const { runner, id } = await startSample('p3-t2-人体红外ZigBee联动')
-  runner.send({ type: 'action', id: id('com_lamp'), action: 'select', index: 3 })
-  runner.send({ type: 'action', id: id('com_environment'), action: 'select', index: 2 })
+  runner.send({ type: 'action', id: id('com_lamp'), action: 'select', index: 2 })
+  runner.send({ type: 'action', id: id('com_environment'), action: 'select', index: 1 })
   runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
 
   // 复选框的 Click 里读取 Checked：此时 Checked 必须已经是 true
@@ -316,7 +316,7 @@ test('项目1 任务2：计算器（装箱拆箱）和多态', async () => {
 
 /** 选 COM3、点"开启"，等定时器读到实训台上的传感器 */
 async function openAdam4150(runner: Runner, id: (name: string) => string) {
-  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 2 })
+  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 1 })
   runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
 }
 

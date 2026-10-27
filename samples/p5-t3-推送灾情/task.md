@@ -37,7 +37,7 @@
 
 1. 点 **＋ 新建类**，建 `RecordClass`，写两个静态成员：`string[,] record = new string[50, 2]`（每条记录存时间和内容）、`int recoudeindex = 0`（下一条记录存在第几行）。
 2. Form1 的代码开头加上 `using System.IO.Ports;`、`using DeviceCtrlLibrary;`、`using DeviceCtrlLibrary.Model;`；全局变量：`ADAM4150ResModel ResModel;`、`bool IsOpen = false;`、`string LED_MSG = "";`。
-3. **Form1_Load**：清空两个下拉框，用 for 循环加串口号；遇到 `COM1`（电脑自带的串口）就 `continue` 跳过。
+3. **Form1_Load**：清空两个下拉框，用 for 循环加串口号；遇到 `COM1`（电脑自带的串口）就 `continue` 跳过。平台上没有 COM1，这段照书保留，在机房真机上才用得到。
 4. **btn_Open 的 Click**：打开时调用 `adam4150Helper.Open(com_environmentPort.Text)` 和 `ledHelper.OpenLedCom(com_ledPort.Text)`，按钮改成"关闭"；关闭时关闭 ADAM-4150 串口，按钮改回"开启"。
 5. **btn_get 的 Click**：
    - 用 `adam4150Helper.SetData()` 读出数据存进 `ResModel`，清空 `LED_MSG`，显示当前时间，火焰、烟雾两个框先写"正常"；
