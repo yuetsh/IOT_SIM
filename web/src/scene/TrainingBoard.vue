@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 虚拟实训台：按教材实训台布局图（顶棚 → LED 屏 → 传感器 → 采集模块）排列。
 // 传感器卡片上的滑块和开关调节环境（经服务器推给学生程序），灯和继电器的状态由学生程序控制。
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ANALOG_INFO, clockWall, type AnalogKey, type BoardState, type ClientMessage, type DigitalKey } from '@iot/shared'
 
 type BoardInput = Omit<Extract<ClientMessage, { type: 'boardInput' }>, 'type'>
@@ -63,11 +63,33 @@ function flush() {
   pending = {}
 }
 
+// 松开后继续显示本地值，等服务器回传了这个值再用服务器的：键盘方向键连按时每按一下都会触发 change，
+// 立刻换回服务器的旧值，下一下就从旧值开始加，看起来像丢了几步。服务器没回传同样的值（比如被截到范围内）时 1 秒后放弃
+const releasing = new Map<AnalogKey, ReturnType<typeof setTimeout>>()
+
 function release(key: AnalogKey) {
   flush()
+  clearTimeout(releasing.get(key))
+  releasing.set(
+    key,
+    setTimeout(() => drop(key), 1000),
+  )
+}
+
+function drop(key: AnalogKey) {
+  clearTimeout(releasing.get(key))
+  releasing.delete(key)
   const { [key]: _, ...rest } = dragging.value
   dragging.value = rest
 }
+
+watch(
+  () => props.board?.analog,
+  (values) => {
+    for (const key of [...releasing.keys()]) if (values?.[key] === dragging.value[key]) drop(key)
+  },
+)
+onBeforeUnmount(() => releasing.forEach((timer) => clearTimeout(timer)))
 
 function toggle(key: DigitalKey) {
   if (props.board) emit('set', { digital: { [key]: !props.board.digital[key] } })
@@ -77,6 +99,8 @@ const digital = computed(() => props.board?.digital ?? { bodyInfrared: false, fi
 const relays = computed(() => props.board?.relays ?? [])
 const streetLampOn = computed(() => props.board?.zigbee[1] === true)
 const alarmOn = computed(() => relays.value[0] === true)
+/** ADAM-4150 DO1 接的照明灯（教材项目 7 的智慧教室、寝室、会议室用它） */
+const roomLampOn = computed(() => relays.value[1] === true)
 const ledText = computed(() => props.board?.ledText ?? '')
 const camera = computed(() => props.board?.camera ?? { on: false, x: 3, y: 1 })
 // ---------- 虚拟时钟：显示学生程序看到的时间，可以拨时间、调倍速 ----------
@@ -122,6 +146,7 @@ const cameraTitle = computed(() =>
     <span class="board-name">虚拟实训台</span>
     <span class="io out warn" :class="{ lit: alarmOn }"><i />警示灯</span>
     <span class="io out" :class="{ lit: streetLampOn }"><i />照明灯 1</span>
+    <span class="io out" :class="{ lit: roomLampOn }"><i />照明灯 2</span>
     <span class="summary-readings">
       <span v-for="key in ['temperature', 'humidity', 'light'] as AnalogKey[]" :key="key">
         {{ ANALOG_INFO[key].label }} <b>{{ analog(key) }}{{ ANALOG_INFO[key].unit }}</b>
@@ -251,6 +276,12 @@ const cameraTitle = computed(() =>
         <div class="card-title">火焰传感器</div>
         <div class="card-note">{{ digital.fire ? '有火焰' : '正常' }}</div>
       </button>
+
+      <div class="card" title="照明灯 2：由 ADAM-4150 的 DO1 控制（教材项目 7 的教室、寝室、会议室照明）">
+        <div class="bulb" :class="{ on: roomLampOn }" />
+        <div class="card-title">照明灯 2</div>
+        <div class="card-note">ADAM-4150 DO1</div>
+      </div>
     </div>
 
     <!-- 采集模块与串口 -->
