@@ -7,7 +7,7 @@ import ChartDialog from './ChartDialog.vue'
 import type { DesignerDocument } from './document'
 import { checkName, getEventHandler, getItems, getPropText, typeOf } from './edit'
 import { resourceNameOf } from './resources'
-import { NAMED_COLORS, hexToRgb, parseValue, rgb, type Value } from './values'
+import { COLOR_LABELS, NAMED_COLORS, hexToRgb, parseValue, rgb, type Value } from './values'
 
 const props = defineProps<{
   doc: DesignerDocument
@@ -289,7 +289,7 @@ function renameHandler(event: string, value: string) {
             <i class="swatch" :style="{ background: color(prop)?.css ?? 'transparent' }" />
             <select :value="color(prop)?.name ?? (color(prop) ? 'custom' : '')" @change="setColor(prop, ($event.target as HTMLSelectElement).value)">
               <option value="">（默认）</option>
-              <option v-for="(_, name) in NAMED_COLORS" :key="name" :value="name">{{ name }}</option>
+              <option v-for="(_, name) in NAMED_COLORS" :key="name" :value="name" :title="name">{{ COLOR_LABELS[name] ?? name }}</option>
               <option v-if="color(prop) && !color(prop)!.name" value="custom" disabled>{{ color(prop)!.css }}</option>
             </select>
             <input

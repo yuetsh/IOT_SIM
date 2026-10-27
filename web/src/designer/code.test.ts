@@ -9,7 +9,7 @@ test('插入事件处理方法：放在类的最后，与上一个方法空一�
   const code = await Bun.file(FORM1).text()
   const { code: next, line } = ensureHandler(code, 'Form1', 'Form1_Load', 'EventArgs')
   const lines = next.split('\n')
-  expect(lines.slice(line - 4, line + 1)).toEqual(['', '        private void Form1_Load(object sender, EventArgs e)', '        {', '', '        }'])
+  expect(lines.slice(line - 4, line + 1)).toEqual(['', '        private void Form1_Load(object sender, EventArgs e)', '        {', '            ', '        }'])
   // 方法的 "}" 之后就是类的 "}"
   expect(lines[line + 1]).toBe('    }')
 })
@@ -25,7 +25,7 @@ test('类里还没有成员时不留多余空行', () => {
   const code = 'namespace A\n{\n    public partial class F : Form\n    {\n    }\n}\n'
   const { code: next, line } = ensureHandler(code, 'F', 'F_Load', 'EventArgs')
   expect(next).toBe(
-    'namespace A\n{\n    public partial class F : Form\n    {\n        private void F_Load(object sender, EventArgs e)\n        {\n\n        }\n    }\n}\n',
+    'namespace A\n{\n    public partial class F : Form\n    {\n        private void F_Load(object sender, EventArgs e)\n        {\n            \n        }\n    }\n}\n',
   )
   expect(line).toBe(7)
 })
@@ -33,5 +33,5 @@ test('类里还没有成员时不留多余空行', () => {
 test('字符串和注释里的大括号不影响查找类的结尾', () => {
   const code = 'class F\n{\n    string s = "}{";\n    // }\n    char c = \'}\';\n}\n'
   const { code: next } = ensureHandler(code, 'F', 'F_Load', 'EventArgs')
-  expect(next.endsWith("    char c = '}';\n\n    private void F_Load(object sender, EventArgs e)\n    {\n\n    }\n}\n")).toBe(true)
+  expect(next.endsWith("    char c = '}';\n\n    private void F_Load(object sender, EventArgs e)\n    {\n        \n    }\n}\n")).toBe(true)
 })

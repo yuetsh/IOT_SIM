@@ -134,12 +134,54 @@ public static class SimHost
     public static void ReportException(Exception ex)
     {
         while (ex is TargetInvocationException { InnerException: not null } wrapper) ex = wrapper.InnerException!;
-        Send(new JsonObject
+        var type = ex.GetType().FullName;
+        // 仿真库自己抛的异常信息已经是中文；.NET 自带的是英文，常见的几种配上中文说明，原文放在括号里
+        var message = HasChinese(ex.Message) ? $"{ex.Message}（{type}）"
+            : ExplainException(ex) is { } explained ? $"{explained}（{type}: {ex.Message}）"
+            : $"{type}: {ex.Message}";
+        var frame = StudentFrame(ex);
+        var result = new JsonObject
         {
             ["type"] = "exception",
-            ["message"] = $"{ex.GetType().FullName}: {ex.Message}",
-            ["detail"] = StudentStackTrace(ex),
-        });
+            ["message"] = message,
+            ["detail"] = frame is { } f ? $"出错位置：{f.File} 第 {f.Line} 行（{f.Method} 方法）" : StudentStackTrace(ex),
+        };
+        if (frame is { } at)
+        {
+            result["file"] = at.File;
+            result["line"] = at.Line;
+        }
+        Send(result);
+    }
+
+    private static bool HasChinese(string text) => text.Any(c => c >= '\u4e00' && c <= '\u9fff');
+
+    private static string? ExplainException(Exception ex) => ex switch
+    {
+        FormatException => "文字转换成数字或日期时格式不对，比如文本框是空的，或者里面不是数字",
+        NullReferenceException => "用到的对象是 null：变量还没有赋值，或者对象、窗体还没有 new 出来",
+        IndexOutOfRangeException => "数组的下标超出了范围：下标从 0 开始，最大是长度减 1",
+        ArgumentOutOfRangeException => "下标或参数超出了范围，比如列表、字符串的下标太大，或者下拉框还没有选中",
+        DivideByZeroException => "整数除以了 0",
+        OverflowException => "数字太大或太小，超出了这个类型能表示的范围",
+        InvalidCastException => "类型转换失败，这个对象不能转换成要求的类型",
+        KeyNotFoundException => "字典里没有这个键",
+        FileNotFoundException => "找不到这个文件",
+        DirectoryNotFoundException => "找不到这个文件夹",
+        _ => null,
+    };
+
+    /// <summary>堆栈里离出错点最近的一行学生代码：文件名、行号、方法名</summary>
+    private static (string File, int Line, string Method)? StudentFrame(Exception ex)
+    {
+        foreach (var frame in new System.Diagnostics.StackTrace(ex, true).GetFrames())
+        {
+            var file = frame.GetFileName();
+            var line = frame.GetFileLineNumber();
+            if (file == null || line <= 0 || file.Contains("/runtime/Sim.")) continue;
+            return (Path.GetFileName(file), line, frame.GetMethod()?.Name ?? "");
+        }
+        return null;
     }
 
     /// <summary>只保留学生代码的堆栈行，去掉仿真库内部的调用</summary>

@@ -373,15 +373,24 @@ function onDrop(event: DragEvent) {
   place(d, controlDef(type), x, y)
 }
 
-/** 双击工具箱：放在选中的容器（或窗体）左上角 */
+/** 双击工具箱：放在选中的容器（选中的是普通控件时放进它所在的容器）左上角，已有控件在那里就往右下错开 */
 function onToolDoubleClick(def: ControlDef) {
   const d = parsed.value.doc
   if (!d) return
-  // 直接放进选中的容器，不按坐标判断（左上角可能正好压在另一个分组框上）
-  const container = !def.component && selected.value && isContainerType(typeOf(d, selected.value) ?? '') ? selected.value : ''
-  const result = addControl(d, def, container, { x: 12, y: container ? 20 : 12 })
+  // 直接放进容器，不按坐标判断（左上角可能正好压在另一个分组框上）
+  let container = ''
+  if (!def.component && selected.value) {
+    container = isContainerType(typeOf(d, selected.value) ?? '') ? selected.value : (listControls(d).find((c) => c.name === selected.value)?.parent ?? '')
+  }
+  const location = { x: 12, y: container ? 20 : 12 }
+  const taken = childrenOf(d, container).map((child) => localRect(d, child))
+  while (taken.some((r) => r.x === location.x && r.y === location.y)) {
+    location.x += 12
+    location.y += 12
+  }
+  const result = addControl(d, def, container, location)
   selected.value = result.name
-  commit(result.doc)
+  commit(fitInside(result.doc, result.name, container))
 }
 
 function place(d: DesignerDocument, def: ControlDef, x: number, y: number) {
@@ -389,7 +398,15 @@ function place(d: DesignerDocument, def: ControlDef, x: number, y: number) {
   const origin = container ? absRect(d, container) : { x: 0, y: 0 }
   const result = addControl(d, def, container, { x: x - origin.x, y: y - origin.y })
   selected.value = result.name
-  commit(result.doc)
+  commit(def.component ? result.doc : fitInside(result.doc, result.name, container))
+}
+
+/** 新控件比容器宽（LED 显示屏默认 800 宽，新窗体只有 300）：按比例缩小到右边留出边距，不用学生再去改大小 */
+function fitInside(d: DesignerDocument, name: string, container: string): DesignerDocument {
+  const rect = localRect(d, name)
+  const room = (container ? localRect(d, container).width : clientSize.value.width) - rect.x - 12
+  if (rect.width <= room || room < 40) return d
+  return setProp(d, name, 'Size', { kind: 'size', width: room, height: Math.max(20, Math.round((rect.height * room) / rect.width)) })
 }
 
 // ---------- 属性窗口的回调 ----------
@@ -469,6 +486,7 @@ function onComponentDoubleClick(name: string) {
 }
 
 const formTitle = computed(() => String(tree.value?.props.Text ?? ''))
+const borderless = computed(() => tree.value?.props.FormBorderStyle === 'None')
 const formStyle = computed(() => ({
   width: `${clientSize.value.width}px`,
   height: `${clientSize.value.height}px`,
@@ -511,7 +529,9 @@ const noop = () => {}
       <div class="actions">
         <button :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</button>
         <button :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</button>
-        <span class="tips">拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span>
+        <span class="tips" title="拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除"
+          >拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span
+        >
         <select
           class="zoom"
           title="窗体显示的大小（不影响窗体的实际大小）"
@@ -524,8 +544,9 @@ const noop = () => {}
         </select>
         <button class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">查看生成的代码</button>
       </div>
-      <div class="window" :class="{ selected: selected === '' }" :style="zoom !== 1 ? { zoom } : undefined">
-        <div class="titlebar" @pointerdown="selected = ''">
+      <div class="window" :class="{ selected: selected === '', borderless }" :style="zoom !== 1 ? { zoom } : undefined">
+        <!-- 无边框窗体和 VS 设计器里一样不画标题栏，点窗体空白处选中窗体 -->
+        <div v-if="!borderless" class="titlebar" @pointerdown="selected = ''">
           <span class="title">{{ displayText(formTitle) }}</span>
           <span class="buttons">─ ☐ ✕</span>
         </div>
@@ -705,6 +726,10 @@ const noop = () => {}
   border: 1px solid #9aa3ad;
   background: #f0f0f0;
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.15);
+}
+
+.window.borderless {
+  border-color: transparent;
 }
 
 .window.selected {

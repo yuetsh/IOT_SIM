@@ -30,7 +30,7 @@ import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
 import TaskPanel from '../grading/TaskPanel.vue'
 import { captureForms } from '../grading/screenshots'
-import { renderSampleTag, sampleOptions } from '../samples'
+import { lastSample, rememberSample, renderSampleTag, sampleOptions } from '../samples'
 
 const props = defineProps<{ assignmentId?: string; submissionId?: string }>()
 
@@ -128,8 +128,8 @@ onMounted(async () => {
   }
   const list = await api<{ id: string; title: string }[]>('GET', '/api/samples')
   samples.value = sampleOptions(list)
-  // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生）
-  const initial = list.find((s) => s.id === route.query.sample) ?? list[0]
+  // 网址里带 ?sample=示例编号 时直接打开该示例（便于老师把链接发给学生），否则打开上次做的实验
+  const initial = list.find((s) => s.id === route.query.sample) ?? list.find((s) => s.id === lastSample()) ?? list[0]
   if (initial) await loadSample(initial.id)
 })
 
@@ -150,6 +150,7 @@ async function openProject(key: string, original: () => Promise<SourceFile[]>, d
 async function loadSample(id: string, discardWork = false) {
   sampleId.value = id
   void router.replace({ query: { sample: id } })
+  rememberSample(id)
   sampleChecks.value = []
   sampleTask.value = null
   void api<string[]>('GET', `/api/samples/${encodeURIComponent(id)}/checks`)
@@ -596,7 +597,7 @@ function run() {
       :before-start="flushSave"
     />
 
-    <main class="workspace" :class="{ designing: activeForm, 'run-collapsed': runCollapsed }">
+    <main class="workspace" :class="{ 'run-collapsed': runCollapsed }">
       <section class="editor">
         <div class="tab-row">
           <NTabs v-model:value="activeTab" type="card" size="small" class="file-tabs">
@@ -698,7 +699,7 @@ function run() {
 }
 
 .sample-select {
-  width: 240px;
+  width: 300px;
 }
 
 .metrics {
@@ -758,16 +759,12 @@ function run() {
   white-space: nowrap;
 }
 
+/* 设计页要放工具箱、窗体和属性窗口，代码页要放得下长代码行，左栏都放宽；切换标签页时布局不跳 */
 .workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(360px, 2fr) 14px 3fr;
-  min-height: 0;
-}
-
-/* 设计器需要工具箱、窗体和属性窗口，左栏放宽 */
-.workspace.designing {
   grid-template-columns: minmax(0, 3fr) 14px minmax(360px, 2fr);
+  min-height: 0;
 }
 
 .workspace.run-collapsed {
@@ -813,6 +810,11 @@ function run() {
 .file-tabs {
   flex: 1;
   min-width: 0;
+}
+
+/* 文件多时（项目 8 有十来个）标签换行显示，不藏在看不到滚动条的横向滚动里 */
+.file-tabs :deep(.n-tabs-wrapper) {
+  flex-wrap: wrap;
 }
 
 .new-form {

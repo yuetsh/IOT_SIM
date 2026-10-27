@@ -26,6 +26,7 @@ export async function login(username: string, password: string) {
   const result = await api<Tokens & { user: User }>('POST', '/api/login', { username, password })
   setTokens(result)
   currentUser.value = result.user
+  return result.user
 }
 
 export async function logout() {

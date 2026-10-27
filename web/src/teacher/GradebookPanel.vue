@@ -4,7 +4,7 @@ import { computed, h, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NDataTable, NEmpty, useMessage, type DataTableColumns } from 'naive-ui'
 import { api } from '../api'
-import { downloadCsv } from './csv'
+import { downloadCsv, textCell } from './csv'
 
 interface Cell {
   submitted: boolean
@@ -61,11 +61,14 @@ const columns = computed<DataTableColumns<Row>>(() => [
   { title: `合计（${fullMarks.value}）`, key: 'sum', width: 110, sorter: (a: Row, b: Row) => sum(a) - sum(b), render: (row: Row) => String(sum(row)) },
 ])
 
+/** 有 AI 建议分时才解释"AI 建议，待确认"（没配置 AI 评阅时不会出现） */
+const hasAi = computed(() => book.value.students.some((s) => Object.values(s.scores).some((c) => c.aiManual !== null)))
+
 function exportCsv() {
   downloadCsv(`${props.className}-成绩表.csv`, [
     ['用户名', ...book.value.assignments.map((a) => `${a.title}（${a.total}）`), `合计（${fullMarks.value}）`],
     ...book.value.students.map((s) => [
-      `\t${s.username}`,
+      textCell(s.username),
       ...book.value.assignments.map((a) => (s.scores[a.id]?.submitted ? s.scores[a.id].total : '未交')),
       sum(s),
     ]),
@@ -76,7 +79,10 @@ function exportCsv() {
 <template>
   <div>
     <div class="head">
-      <span class="tip">总分 = 最近一次提交的自动评分 + 老师评分；"AI 建议，待确认"是含 AI 建议分的总分，老师采纳后才算数；"待评"只含自动评分。</span>
+      <span class="tip"
+        >总分 = 最近一次提交的自动评分 + 老师评分；<template v-if="hasAi">"AI 建议，待确认"是含 AI 建议分的总分，老师采纳后才算数；</template
+        >"待评"只含自动评分。</span
+      >
       <NButton size="small" :disabled="book.students.length === 0" @click="exportCsv">导出成绩表（CSV）</NButton>
     </div>
     <NDataTable

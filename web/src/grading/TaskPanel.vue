@@ -77,6 +77,7 @@ const formatTime = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', { ho
     :show-mask="false"
     :trap-focus="false"
     :block-scroll="false"
+    class="task-drawer"
     @update:show="emit('update:show', $event)"
   >
     <NDrawerContent title="任务" closable>
@@ -116,6 +117,13 @@ const formatTime = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', { ho
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style>
+/* 从顶部工具栏下面开始，不挡住"我的作业""数据库""退出"等链接 */
+.n-drawer.task-drawer {
+  top: 49px;
+}
+</style>
 
 <style scoped>
 .task {

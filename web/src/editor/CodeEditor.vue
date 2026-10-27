@@ -124,6 +124,8 @@ onMounted(() => {
     tabSize: 4,
     insertSpaces: true,
     minimap: { enabled: false },
+    // 顶部不固定显示所在的类和方法：点报错跳到文件开头附近的行时，那一行会被它挡住
+    stickyScroll: { enabled: false },
     scrollBeyondLastLine: false,
     renderWhitespace: 'selection',
     unicodeHighlight: { ambiguousCharacters: false },

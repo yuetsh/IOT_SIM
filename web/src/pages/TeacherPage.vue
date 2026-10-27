@@ -7,7 +7,7 @@ import { api } from '../api'
 import { currentUser, logout } from '../auth'
 import AssignmentsPanel from '../teacher/AssignmentsPanel.vue'
 import GradebookPanel from '../teacher/GradebookPanel.vue'
-import { downloadCsv } from '../teacher/csv'
+import { downloadCsv, textCell } from '../teacher/csv'
 import { decodeCsv, parseCsv, toRoster, type RosterRow } from '../teacher/roster'
 
 interface ClassInfo {
@@ -177,7 +177,7 @@ async function confirmImport() {
 
 function exportRoster() {
   if (!selected.value) return
-  downloadCsv(`${selected.value.name}-名单.csv`, [['用户名', '密码'], ...students.value.map((s) => [`\t${s.username}`, `\t${s.password}`])])
+  downloadCsv(`${selected.value.name}-名单.csv`, [['用户名', '密码'], ...students.value.map((s) => [textCell(s.username), textCell(s.password)])])
 }
 
 function downloadTemplate() {

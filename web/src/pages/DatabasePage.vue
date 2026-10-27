@@ -10,7 +10,7 @@ import EditTab from '../database/EditTab.vue'
 import ObjectExplorer, { type ExplorerAction } from '../database/ObjectExplorer.vue'
 import QueryTab from '../database/QueryTab.vue'
 import { execute, loadExplorer, quoteName, type ExplorerDatabase, type ExplorerTable } from '../database/sql'
-import { renderSampleTag, sampleOptions } from '../samples'
+import { lastSample, renderSampleTag, sampleOptions } from '../samples'
 
 type Tab =
   | { key: string; kind: 'query'; title: string; database: string; sql?: string; run?: boolean }
@@ -148,7 +148,8 @@ const restoreBusy = ref(false)
 
 async function openRestore() {
   experiments.value = await api('GET', '/api/db/experiments')
-  restoring.value = experiments.value[0]?.id ?? null
+  // 默认选刚才做的实验
+  restoring.value = experiments.value.find((e) => e.id === lastSample())?.id ?? experiments.value[0]?.id ?? null
 }
 
 async function restore() {

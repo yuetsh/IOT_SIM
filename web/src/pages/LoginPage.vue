@@ -17,8 +17,10 @@ async function submit() {
   busy.value = true
   error.value = ''
   try {
-    await login(username.value.trim(), password.value)
-    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : '/'
+    const user = await login(username.value.trim(), password.value)
+    // 学生登录后先看作业列表，老师进实验页
+    const fallback = user.role === 'student' ? '/assignments' : '/'
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : fallback
     await router.replace(redirect)
   } catch (e) {
     error.value = (e as Error).message

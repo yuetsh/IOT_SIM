@@ -1,4 +1,4 @@
-// 实验下拉菜单：按教材的项目分组，组名是项目名，组里每项只写"任务N …"；选中后框里显示完整标题
+// 实验下拉菜单：按教材的项目分组，组名是项目名，组里每项只写"任务N …"；选中后框里显示完整标题。另外记住上次做的实验
 import { h } from 'vue'
 import type { SelectGroupOption, SelectOption, SelectRenderTag } from 'naive-ui'
 
@@ -32,3 +32,22 @@ export function sampleOptions(list: { id: string; title: string }[]): SelectGrou
 
 /** 选择框里显示完整标题（带项目号），下拉列表里仍是简短的"任务N …" */
 export const renderSampleTag: SelectRenderTag = ({ option }) => h('span', { title: option.title as string }, option.title as string)
+
+// 记住上次做的实验：从数据库页面返回、重新登录后回到这个实验，恢复数据时默认选它
+const LAST_SAMPLE_KEY = 'iot-sim:last-sample'
+
+export function lastSample() {
+  try {
+    return localStorage.getItem(LAST_SAMPLE_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function rememberSample(id: string) {
+  try {
+    localStorage.setItem(LAST_SAMPLE_KEY, id)
+  } catch {
+    // 浏览器禁用了本地存储：下次打开第一个实验
+  }
+}

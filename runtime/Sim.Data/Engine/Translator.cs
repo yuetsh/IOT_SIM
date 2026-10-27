@@ -802,9 +802,10 @@ internal sealed class Translator
         }
     }
 
-    /// <summary>DATEADD(day, ...) 的第一个参数是关键字，解析成列名</summary>
+    /// <summary>DATEADD(day, ...) 的第一个参数是关键字：ScriptDom 解析成 IdentifierLiteral（旧版本是列名）</summary>
     private static string DatePartName(ScalarExpression expression) => expression switch
     {
+        IdentifierLiteral i => i.Value,
         ColumnReferenceExpression c => c.MultiPartIdentifier.Identifiers[^1].Value,
         StringLiteral s => s.Value,
         _ => throw SqlException.NotSupported("这种 datepart 写法"),

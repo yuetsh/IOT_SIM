@@ -120,7 +120,8 @@ export type RunnerMessage =
   /** 学生程序操作了实训台输出：led/text、adam4150/do、zigbee/relay、camera/on、camera/pan，data 见 DeviceCtrlHelper.cs、IPCameraHelper.cs */
   | { type: 'device'; device: string; action: string; data: unknown }
   | { type: 'console'; text: string }
-  | { type: 'exception'; message: string; detail: string }
+  /** 学生程序没有处理的异常；file、line 是出错的那行学生代码（找得到时才有），网页上点击可以跳过去 */
+  | { type: 'exception'; message: string; detail: string; file?: string; line?: number }
   | { type: 'exited'; code: number }
 
 /**

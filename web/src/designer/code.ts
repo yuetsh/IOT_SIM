@@ -20,7 +20,9 @@ export function ensureHandler(code: string, className: string, handler: string, 
   // 类里已有成员时，与上一个成员之间空一行
   const before = code.slice(0, lineStart)
   const hasMembers = !/\{\s*$/.test(before)
-  const method = [...(hasMembers ? [''] : []), `${indent}private void ${handler}(object sender, ${args} e)`, `${indent}{`, '', `${indent}}`].join(eol)
+  // 方法体的空行带好缩进（和 VS 一样），光标跳过去就在缩进后面，学生的代码不会顶格写
+  const body = `${indent}    `
+  const method = [...(hasMembers ? [''] : []), `${indent}private void ${handler}(object sender, ${args} e)`, `${indent}{`, body, `${indent}}`].join(eol)
   const next = `${before}${method}${eol}${code.slice(lineStart)}`
   return { code: next, line: lineOf(next, before.length) + (hasMembers ? 3 : 2) }
 }

@@ -8,6 +8,12 @@ export interface OpenForm {
 }
 
 /** 学生程序保存的图片（如摄像头照片），path 相对程序所在目录 */
+export interface RunError {
+  text: string
+  file?: string
+  line?: number
+}
+
 export interface SavedImage {
   path: string
   image: string
@@ -27,7 +33,8 @@ export function createRunSession() {
     status: 'idle' as 'idle' | 'compiling' | 'running' | 'stopped',
     diagnostics: [] as Diagnostic[],
     console: '',
-    errors: [] as string[],
+    /** 运行出错、连接断开等提示；运行时异常带着出错的文件和行号，点击跳过去 */
+    errors: [] as RunError[],
     forms: [] as OpenForm[],
     messageBoxes: [] as PendingMessageBox[],
     /** 虚拟实训台，由服务器推送；连接建立前为 null */
@@ -103,7 +110,7 @@ export function createRunSession() {
           ws.onclose = () => {
             // 服务器那边的程序随连接一起结束了；窗体留在页面上只会"点了没反应"
             if (!closed && (state.forms.length > 0 || state.status === 'compiling' || state.status === 'running')) {
-              state.errors.push('与服务器的连接断开了（网络不稳或服务器正在更新），程序已经结束。连上之后请重新运行。')
+              state.errors.push({ text: '与服务器的连接断开了（网络不稳或服务器正在更新），程序已经结束。连上之后请重新运行。' })
             }
             stopAudio()
             state.forms = []
@@ -131,7 +138,7 @@ export function createRunSession() {
   async function run(files: SourceFile[], sampleId?: string) {
     await connect()
     if (socket?.readyState !== WebSocket.OPEN) {
-      state.errors = ['连不上服务器，请检查网络，稍后再点"运行"。']
+      state.errors = [{ text: '连不上服务器，请检查网络，稍后再点"运行"。' }]
       return
     }
     state.connection = 'open'
@@ -194,6 +201,12 @@ export function createRunSession() {
     switch (message.type) {
       case 'status':
         state.status = message.state
+        // 点"停止"时服务器直接结束进程，不再发 exited；窗体留着只会"点了没反应"
+        if (message.state === 'stopped') {
+          stopAudio()
+          state.forms = []
+          state.messageBoxes = []
+        }
         break
       case 'compiled':
         state.diagnostics = message.diagnostics
@@ -259,10 +272,10 @@ export function createRunSession() {
         state.console += message.text
         break
       case 'exception':
-        state.errors.push(`${message.message}\n${message.detail}`)
+        state.errors.push({ text: `运行出错：${message.message}\n${message.detail}`, file: message.file, line: message.line })
         break
       case 'serverError':
-        state.errors.push(message.message)
+        state.errors.push({ text: message.message })
         break
       case 'exited':
         stopAudio()

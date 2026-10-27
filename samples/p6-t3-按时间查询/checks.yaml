@@ -1,7 +1,7 @@
 # 评分规则：书上评价表的功能项。每项单独启动一次程序（使用 database.sql 建的初始数据库），按步骤操作，核对结果。
 # 初始数据有 3 行：2024-01-16 09:00、2024-01-18 14:30、2024-01-23 08:15
 # 格式说明见 server/src/grading/checks.ts
-- title: 能实现按日期查询灾情数据
+- title: 能实现按日期查询环境数据
   steps:
     - pick: { control: StartTime, value: '2024-01-15' }
     - pick: { control: EndTime, value: '2024-01-20' }

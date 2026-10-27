@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 按控件类型渲染一个 WinForms 控件及其子控件。
 // 用户操作只通过 act() 上报，由运行器按真实 WinForms 的顺序触发事件。
-import { computed, inject, provide, ref, type CSSProperties } from 'vue'
+import { computed, inject, onBeforeUnmount, provide, ref, watch, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
 import { AMBIENT_BACK_COLOR, AMBIENT_BACK_TYPES, boxCss, DEFAULT_BACK_COLOR, displayText } from './format'
 import { backgroundCss, imageSources, RUN_IMAGES, srcset, type ImageValue } from './images'
@@ -49,10 +49,12 @@ const passwordChar = computed(() => {
   return ch && ch !== '\0' ? ch : ''
 })
 
-// ComboBox
+// ComboBox：下拉列表挂到页面最外层（和真实 WinForms 一样可以伸出窗体），按控件在屏幕上的位置和缩放摆放
 const dropDownOpen = ref(false)
 const items = computed(() => (p.value.Items as string[] | undefined) ?? [])
 const editable = computed(() => p.value.DropDownStyle !== 'DropDownList')
+const combo = ref<HTMLElement>()
+const listStyle = ref<CSSProperties>({})
 
 function openDropDown() {
   if (!enabled.value) return
@@ -60,10 +62,36 @@ function openDropDown() {
     dropDownOpen.value = false
     return
   }
+  const el = combo.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  listStyle.value = {
+    left: `${rect.left}px`,
+    top: `${rect.bottom}px`,
+    width: `${el.offsetWidth}px`,
+    transform: `scale(${rect.width / el.offsetWidth || 1})`,
+    font: getComputedStyle(el).font,
+  }
   // 先触发 Click（教材在 Click 里填充串口列表），列表随后按最新的 Items 显示
   act({ action: 'dropDown' })
   dropDownOpen.value = true
 }
+
+/** 点列表以外的地方、滚动页面时收起列表 */
+function closeOnOutside(event: Event) {
+  const target = event.target as Node
+  if (combo.value?.contains(target) || (target instanceof Element && target.closest('.wf-combobox-list'))) return
+  dropDownOpen.value = false
+}
+watch(dropDownOpen, (open) => {
+  const method = open ? 'addEventListener' : 'removeEventListener'
+  window[method]('mousedown', closeOnOutside, true)
+  window[method]('scroll', closeOnOutside, true)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('mousedown', closeOnOutside, true)
+  window.removeEventListener('scroll', closeOnOutside, true)
+})
 
 function selectItem(index: number) {
   dropDownOpen.value = false
@@ -130,7 +158,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   </div>
 
   <!-- ComboBox -->
-  <div v-else-if="node.type === 'ComboBox'" class="wf-control wf-combobox" :style="style">
+  <div v-else-if="node.type === 'ComboBox'" ref="combo" class="wf-control wf-combobox" :style="style">
     <input
       :value="String(p.Text ?? '')"
       :readonly="!editable"
@@ -139,10 +167,12 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
       @input="act({ action: 'text', value: ($event.target as HTMLInputElement).value })"
     />
     <span class="wf-combobox-arrow" @mousedown.prevent="openDropDown">▾</span>
-    <ul v-if="dropDownOpen" class="wf-combobox-list">
-      <li v-for="(item, index) in items" :key="index" @mousedown.prevent="selectItem(index)">{{ item }}</li>
-      <li v-if="items.length === 0" class="wf-combobox-empty">&nbsp;</li>
-    </ul>
+    <Teleport to="body">
+      <ul v-if="dropDownOpen" class="wf-combobox-list" :style="listStyle">
+        <li v-for="(item, index) in items" :key="index" @mousedown.prevent="selectItem(index)">{{ item }}</li>
+        <li v-if="items.length === 0" class="wf-combobox-empty">&nbsp;</li>
+      </ul>
+    </Teleport>
   </div>
 
   <!-- ListBox：点空白处只触发 Click，点某一项先选中再触发 Click -->

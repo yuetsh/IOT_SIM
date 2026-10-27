@@ -134,6 +134,30 @@ export const NAMED_COLORS: Record<string, string> = {
   Cyan: '#00ffff',
 }
 
+/** 属性窗口里颜色的中文名，英文名放在悬停提示里 */
+export const COLOR_LABELS: Record<string, string> = {
+  Transparent: '透明',
+  Black: '黑色',
+  White: '白色',
+  Red: '红色',
+  Green: '绿色',
+  Blue: '蓝色',
+  Yellow: '黄色',
+  Orange: '橙色',
+  Gray: '灰色',
+  DimGray: '暗灰色',
+  Silver: '银色',
+  LightGray: '浅灰色',
+  DarkBlue: '深蓝色',
+  SkyBlue: '天蓝色',
+  LightGreen: '浅绿色',
+  Lime: '亮绿色',
+  Purple: '紫色',
+  Brown: '棕色',
+  Pink: '粉红色',
+  Cyan: '青色',
+}
+
 /** 系统颜色（System.Drawing.SystemColors），按 Windows 10 默认主题取值 */
 const SYSTEM_COLORS: Record<string, string> = {
   Control: '#f0f0f0',

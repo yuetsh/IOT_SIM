@@ -806,3 +806,44 @@ test.skipIf(config.sandbox === 'none')(
   },
   30000,
 )
+
+test('运行时异常：常见的 .NET 异常配中文说明，带出错的文件、行号和方法', async () => {
+  const { runner } = await runMain(
+    'exception',
+    `
+        Console.WriteLine("start");
+        int n = int.Parse("abc");`,
+  )
+  const error = await runner.next('exception')
+  expect(error.message).toStartWith('文字转换成数字或日期时格式不对')
+  expect(error.message).toContain('System.FormatException')
+  expect(error).toMatchObject({ file: 'Program.cs', line: 11 })
+  expect(error.detail).toBe('出错位置：Program.cs 第 11 行（Main 方法）')
+}, 30000)
+
+test('数据库：DATEADD、DATEDIFF、DATEPART 的日期单位写成关键字（day、hour）', async () => {
+  const dbDir = resolve(ROOT, '.runs', 'test-dateadd-db')
+  await rm(dbDir, { recursive: true, force: true })
+  await mkdir(dbDir, { recursive: true })
+  const { runner } = await runMain(
+    'dateadd',
+    `
+        var master = new SqlConnection("Data Source=.;User ID=sa");
+        master.Open();
+        new SqlCommand("CREATE DATABASE T", master).ExecuteNonQuery();
+        var conn = new SqlConnection("Data Source=.;Initial Catalog=T");
+        conn.Open();
+        foreach (var sql in new[] {
+            "SELECT DATEADD(hour, 8, DATEADD(day, -7, '2024-01-16'))",
+            "SELECT DATEDIFF(day, '2024-01-01 23:00', '2024-01-02 01:00')",
+            "SELECT DATEPART(hh, '2024-01-16 09:05:03')",
+        })
+            Console.WriteLine("result=" + new SqlCommand(sql, conn).ExecuteScalar());`,
+    'using System.Data.SqlClient;',
+    dbDir,
+  )
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(runner.messages.filter((m) => m.type === 'exception')).toEqual([])
+  expect(output).toBe('result=2024/1/9 8:00:00\nresult=1\nresult=9\n')
+}, 30000)

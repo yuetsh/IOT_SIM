@@ -11,7 +11,9 @@ import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
 import type { RunSession } from './session'
 
 const props = defineProps<{ session: RunSession }>()
-const emit = defineEmits<{ diagnostic: [file: string, line: number, column: number] }>()
+const emit = defineEmits<{
+  diagnostic: [file: string, line: number, column: number]
+}>()
 
 const state = props.session.state
 provide(RUN_IMAGES, props.session.images)
@@ -26,7 +28,10 @@ const maximized = ref(false)
 const desktop = ref<HTMLElement>()
 const desktopSize = ref({ width: 0, height: 0 })
 const observer = new ResizeObserver(([entry]) => {
-  desktopSize.value = { width: entry.contentRect.width, height: entry.contentRect.height }
+  desktopSize.value = {
+    width: entry.contentRect.width,
+    height: entry.contentRect.height,
+  }
 })
 onMounted(() => observer.observe(desktop.value!))
 onBeforeUnmount(() => observer.disconnect())
@@ -39,7 +44,10 @@ const scale = computed(() => {
   state.forms.forEach((form, index) => {
     const p = form.root.props
     if (p.Visible === false) return
-    const client = (p.ClientSize as SizeValue | undefined) ?? { width: 300, height: 300 }
+    const client = (p.ClientSize as SizeValue | undefined) ?? {
+      width: 300,
+      height: 300,
+    }
     const start = WINDOW_MARGIN + index * WINDOW_STEP
     width = Math.max(width, start + client.width + 2 + WINDOW_MARGIN)
     height = Math.max(height, start + client.height + 2 + (p.FormBorderStyle === 'None' ? 0 : TITLEBAR) + WINDOW_MARGIN)
@@ -58,53 +66,54 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <template>
   <section class="run-area" :class="{ maximized }">
-    <div ref="desktop" class="desktop">
-      <div class="desktop-canvas" :style="scale < 1 ? { transform: `scale(${scale})`, width: `${100 / scale}%`, height: `${100 / scale}%` } : undefined">
-        <FormWindow
-          v-for="(form, index) in state.forms"
-          :key="form.root.id"
-          :form="form.root"
-          :modal="form.modal"
-          :offset="index"
-          :scale="scale"
-          :act="session.act"
-        />
-      </div>
-      <MessageBoxDialog v-for="box in state.messageBoxes" :key="box.requestId" :box="box" @reply="session.replyMessageBox(box.requestId, $event)" />
-      <div v-if="state.connection === 'lost'" class="desktop-hint lost">与服务器的连接断开了，正在重新连接…</div>
-      <div v-else-if="state.connection === 'restored' && state.forms.length === 0" class="desktop-hint lost">
-        连接已恢复。刚才的程序随连接断开已经结束，请重新运行
-      </div>
-      <div v-else-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
+    <div class="stage">
       <div class="desktop-tools">
-        <span v-if="scale < 1" class="desktop-scale" title='窗体比运行区大，按比例缩小显示；点"放大"可以看得更清楚'> 缩放 {{ Math.round(scale * 100) }}% </span>
+        <span v-if="scale < 1" class="desktop-scale" title='窗体比运行区大，按比例缩小显示；点"放大"可以看得更清楚'>缩放 {{ Math.round(scale * 100) }}%</span>
+        <button
+          v-if="maximized && (state.status === 'compiling' || state.status === 'running')"
+          type="button"
+          title="结束正在运行的程序（Shift+F5）"
+          @click="session.stop()"
+        >
+          ■ 停止
+        </button>
         <button type="button" :title="maximized ? '还原（Esc）' : '运行区占满整个网页'" @click="maximized = !maximized">
           {{ maximized ? '还原' : '放大' }}
         </button>
       </div>
-    </div>
-    <TrainingBoard :board="state.board" :playing="state.playing" @set="session.setBoard" @reset="session.resetBoard" />
-    <div v-if="state.savedImages.length" class="photos">
-      <div class="photos-title">程序保存的图片（{{ state.savedImages.length }}）<span>只在这次运行中保留</span></div>
-      <div class="photos-list">
-        <figure
-          v-for="(photo, i) in state.savedImages"
-          :key="i"
-          :title="`${photo.path}（点击查看大图）`"
-          @click="viewing = { path: photo.path, url: session.images.get(photo.image) ?? '' }"
+      <div ref="desktop" class="desktop">
+        <div
+          class="desktop-canvas"
+          :style="
+            scale < 1
+              ? {
+                  transform: `scale(${scale})`,
+                  width: `${100 / scale}%`,
+                  height: `${100 / scale}%`,
+                }
+              : undefined
+          "
         >
-          <img :src="session.images.get(photo.image)" alt="" />
-          <figcaption>{{ photo.path }}</figcaption>
-        </figure>
+          <FormWindow
+            v-for="(form, index) in state.forms"
+            :key="form.root.id"
+            :form="form.root"
+            :modal="form.modal"
+            :offset="index"
+            :scale="scale"
+            :act="session.act"
+          />
+        </div>
+        <MessageBoxDialog v-for="box in state.messageBoxes" :key="box.requestId" :box="box" @reply="session.replyMessageBox(box.requestId, $event)" />
+        <div v-if="state.connection === 'lost'" class="desktop-hint lost">与服务器的连接断开了，正在重新连接…</div>
+        <div v-else-if="state.connection === 'restored' && state.forms.length === 0" class="desktop-hint lost">
+          连接已恢复。刚才的程序随连接断开已经结束，请重新运行
+        </div>
+        <div v-else-if="state.forms.length === 0" class="desktop-hint">点击"运行"后，学生程序的窗体会显示在这里</div>
       </div>
     </div>
-    <div v-if="viewing" class="photo-viewer" @click="viewing = null">
-      <figure>
-        <img :src="viewing.url" alt="" />
-        <figcaption>{{ viewing.path }}（点击任意处关闭）</figcaption>
-      </figure>
-    </div>
-    <div class="output">
+    <!-- 编译错误、异常、控制台输出和保存的图片紧跟在桌面下面，不会被很高的实训台挤到看不见的地方 -->
+    <div v-if="state.diagnostics.length || state.errors.length || state.console" class="output">
       <div
         v-for="(d, i) in state.diagnostics"
         :key="`d${i}`"
@@ -115,8 +124,40 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
         <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>
       </div>
-      <pre v-for="(e, i) in state.errors" :key="`e${i}`" class="error">{{ e }}</pre>
+      <pre
+        v-for="(e, i) in state.errors"
+        :key="`e${i}`"
+        :class="['error', { jump: e.file && e.line }]"
+        :title="e.file && e.line ? '点击跳到出错的代码' : undefined"
+        @click="e.file && e.line && emit('diagnostic', e.file, e.line, 1)"
+        >{{ e.text }}</pre>
       <pre v-if="state.console" class="console">{{ state.console }}</pre>
+    </div>
+    <div v-if="state.savedImages.length" class="photos">
+      <div class="photos-title">程序保存的图片（{{ state.savedImages.length }}）<span>只在这次运行中保留</span></div>
+      <div class="photos-list">
+        <figure
+          v-for="(photo, i) in state.savedImages"
+          :key="i"
+          :title="`${photo.path}（点击查看大图）`"
+          @click="
+            viewing = {
+              path: photo.path,
+              url: session.images.get(photo.image) ?? '',
+            }
+          "
+        >
+          <img :src="session.images.get(photo.image)" alt="" />
+          <figcaption>{{ photo.path }}</figcaption>
+        </figure>
+      </div>
+    </div>
+    <TrainingBoard :board="state.board" :playing="state.playing" @set="session.setBoard" @reset="session.resetBoard" />
+    <div v-if="viewing" class="photo-viewer" @click="viewing = null">
+      <figure>
+        <img :src="viewing.url" alt="" />
+        <figcaption>{{ viewing.path }}（点击任意处关闭）</figcaption>
+      </figure>
     </div>
   </section>
 </template>
@@ -129,6 +170,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   padding: 8px;
   min-width: 0;
   overflow: auto;
+}
+
+/* 运行区内容超出高度时整体滚动，除了桌面都不被压缩 */
+.run-area > :not(.stage) {
+  flex-shrink: 0;
+}
+
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .desktop {
@@ -151,36 +204,31 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   transform-origin: 0 0;
 }
 
+/* 放在桌面上方，不压住学生窗体的标题栏按钮 */
 .desktop-tools {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 100001;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   font-size: 12px;
 }
 
 .desktop-scale {
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: rgb(0 0 0 / 0.35);
-  color: #fff;
+  color: #6b7280;
 }
 
 .desktop-tools button {
-  padding: 2px 10px;
-  border: 1px solid rgb(255 255 255 / 0.6);
+  padding: 1px 10px;
+  border: 1px solid #d1d5db;
   border-radius: 3px;
-  background: rgb(0 0 0 / 0.35);
-  color: #fff;
+  background: #fff;
+  color: #374151;
   font-size: 12px;
   cursor: pointer;
 }
 
 .desktop-tools button:hover {
-  background: rgb(0 0 0 / 0.55);
+  border-color: #9ca3af;
 }
 
 /* 放大：桌面在左边占满高度，实训台、图片列表和输出在右边一栏 */
@@ -195,13 +243,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   background: #f3f4f6;
 }
 
-.run-area.maximized .desktop {
+.run-area.maximized .stage {
   grid-column: 1;
   grid-row: 1 / span 20;
   height: calc(100vh - 16px);
 }
 
-.run-area.maximized > :not(.desktop) {
+.run-area.maximized > :not(.stage) {
   grid-column: 2;
 }
 
@@ -293,11 +341,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   font-size: 12px;
 }
 
-.diag {
+/* 长的报错和输出折行显示，不用左右滚动 */
+.output pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diag,
+.error.jump {
   cursor: pointer;
 }
 
-.diag:hover {
+.diag:hover,
+.error.jump:hover {
   text-decoration: underline;
 }
 

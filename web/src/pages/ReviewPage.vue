@@ -15,7 +15,7 @@ import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
 import { conventionHints } from '@iot/shared'
-import { downloadCsv } from '../teacher/csv'
+import { downloadCsv, textCell } from '../teacher/csv'
 
 interface Row {
   userId: number
@@ -270,7 +270,7 @@ function exportCsv() {
       '评语',
     ],
     ...rows.value.map((r) => [
-      `\t${r.username}`,
+      textCell(r.username),
       r.status ? (r.autoScore ?? '') : '未提交',
       ...a.scoring.manual.map((_, i) => r.review?.scores[i] ?? ''),
       r.status ? (r.autoScore ?? 0) + (r.manualScore ?? 0) : '',
@@ -293,7 +293,8 @@ async function signOut() {
       <strong>{{ assignment?.title }}</strong>
       <span class="muted">{{ assignment?.className }}</span>
       <span class="muted">已提交 {{ rows.filter((r) => r.status).length }} / {{ rows.length }} 人</span>
-      <NButton size="small" @click="adoptAll">全部采纳 AI 建议</NButton>
+      <!-- 没配置 AI 评阅时不会有 AI 建议，不显示这个按钮 -->
+      <NButton v-if="rows.some((r) => r.aiStatus)" size="small" @click="adoptAll">全部采纳 AI 建议</NButton>
       <NButton size="small" @click="exportCsv">导出成绩</NButton>
       <span class="spacer" />
       <span class="user">{{ currentUser?.name }}</span>
