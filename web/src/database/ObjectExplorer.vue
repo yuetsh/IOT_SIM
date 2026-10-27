@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 对象资源管理器（仿 SSMS）：数据库 → 库 → 表 → 列。右键菜单里的操作交给页面处理。
+// 对象资源管理器：只有“库 → 表”两层。点表名打开编辑数据，其他操作在 ⋯ 里（右键也是同一个菜单，照书上右键操作也行）。
 import { NDropdown, type DropdownOption } from 'naive-ui'
 import { nextTick, reactive, ref } from 'vue'
 import type { ExplorerDatabase, ExplorerTable } from './sql'
@@ -18,22 +18,25 @@ export type ExplorerAction =
 defineProps<{ databases: ExplorerDatabase[] }>()
 const emit = defineEmits<{ action: [action: ExplorerAction] }>()
 
-/** 展开的节点：root、db:库名、tables:库名、table:库名/表名、columns:库名/表名 */
-const expanded = reactive(new Set<string>(['root']))
-const toggle = (key: string) => (expanded.has(key) ? expanded.delete(key) : expanded.add(key))
+/** 收起的库（默认都展开，学生的库不多） */
+const collapsed = reactive(new Set<string>())
+const toggle = (name: string) => (collapsed.has(name) ? collapsed.delete(name) : collapsed.add(name))
 
-// ---------- 右键菜单 ----------
+// ---------- 菜单（⋯ 按钮和右键共用） ----------
 const menu = ref<{ x: number; y: number; options: DropdownOption[]; actions: Map<string, ExplorerAction> } | null>(null)
 
-function openMenu(event: MouseEvent, items: [string, ExplorerAction][]) {
+function openMenu(event: MouseEvent, items: [string, ExplorerAction | null][]) {
   event.preventDefault()
+  event.stopPropagation()
+  // 右键：菜单出在鼠标处；点 ⋯（也可能是键盘按的，没有鼠标坐标）：出在按钮下面
+  const anchor = event.type === 'contextmenu' ? null : (event.currentTarget as HTMLElement).getBoundingClientRect()
   menu.value = null
   void nextTick(() => {
     menu.value = {
-      x: event.clientX,
-      y: event.clientY,
-      options: items.map(([label], i) => (label === '-' ? { type: 'divider', key: `d${i}` } : { label, key: String(i) })),
-      actions: new Map(items.map(([, action], i) => [String(i), action])),
+      x: anchor ? anchor.left : event.clientX,
+      y: anchor ? anchor.bottom : event.clientY,
+      options: items.map(([label, action], i) => (action ? { label, key: String(i) } : { type: 'divider', key: `d${i}` })),
+      actions: new Map(items.flatMap(([, action], i) => (action ? [[String(i), action] as const] : []))),
     }
   })
 }
@@ -44,107 +47,68 @@ function choose(key: string) {
   if (action) emit('action', action)
 }
 
-const REFRESH: ExplorerAction = { kind: 'refresh' }
-
-function rootMenu(event: MouseEvent) {
-  openMenu(event, [
-    ['新建数据库…', { kind: 'newDatabase' }],
-    ['-', REFRESH],
-    ['刷新', REFRESH],
-  ])
-}
-
 function databaseMenu(event: MouseEvent, database: string) {
   openMenu(event, [
+    ['新建表', { kind: 'newTable', database }],
     ['新建查询', { kind: 'newQuery', database }],
-    ['新建表…', { kind: 'newTable', database }],
-    ['-', REFRESH],
-    ['删除', { kind: 'dropDatabase', database }],
-    ['刷新', REFRESH],
-  ])
-}
-
-function tablesMenu(event: MouseEvent, database: string) {
-  openMenu(event, [
-    ['新建表…', { kind: 'newTable', database }],
-    ['-', REFRESH],
-    ['刷新', REFRESH],
+    ['-', null],
+    ['删除数据库', { kind: 'dropDatabase', database }],
   ])
 }
 
 function tableMenu(event: MouseEvent, database: string, table: ExplorerTable) {
   openMenu(event, [
-    ['新建表…', { kind: 'newTable', database }],
-    ['设计', { kind: 'design', database, table }],
-    ['选择前 1000 行', { kind: 'selectRows', database, table }],
-    ['编辑前 200 行', { kind: 'editRows', database, table }],
-    ['-', REFRESH],
-    ['删除', { kind: 'dropTable', database, table }],
-    ['刷新', REFRESH],
+    ['编辑数据（前 200 行）', { kind: 'editRows', database, table }],
+    ['查询数据（前 1000 行）', { kind: 'selectRows', database, table }],
+    ['设计表结构', { kind: 'design', database, table }],
+    ['-', null],
+    ['删除表', { kind: 'dropTable', database, table }],
   ])
 }
 
-function columnText(column: ExplorerTable['columns'][number]) {
-  const flags = [column.primaryKey ? 'PK' : '', column.type, column.nullable ? 'null' : 'not null'].filter(Boolean)
-  return `${column.name} (${flags.join(', ')})`
+/** 鼠标停在表名上显示的列：每列一行“列名  类型  主键 / 可空” */
+function columnsTip(table: ExplorerTable) {
+  const lines = table.columns.map((c) => [c.name, c.type, c.primaryKey ? '主键' : '', c.nullable ? '可空' : ''].filter(Boolean).join('  '))
+  return `点一下编辑数据\n\n${lines.join('\n')}`
 }
 </script>
 
 <template>
   <div class="explorer">
-    <div class="title">对象资源管理器</div>
-    <ul class="tree">
-      <li>
-        <div class="node" @click="toggle('root')" @contextmenu="rootMenu">
-          <span class="arrow">{{ expanded.has('root') ? '▾' : '▸' }}</span
-          >📁 数据库
+    <div class="head">
+      <span class="title">数据库</span>
+      <button class="head-btn" title="刷新" @click="emit('action', { kind: 'refresh' })">↻</button>
+      <button class="head-btn add" @click="emit('action', { kind: 'newDatabase' })">+ 新建库</button>
+    </div>
+
+    <div class="tree">
+      <p v-if="databases.length === 0" class="empty">还没有数据库。点上面的“+ 新建库”，或者在页面顶部“恢复实验初始数据”。</p>
+
+      <div v-for="db in databases" :key="db.name" class="db">
+        <div class="row db-row" @click="toggle(db.name)" @contextmenu="databaseMenu($event, db.name)">
+          <span class="arrow">{{ collapsed.has(db.name) ? '▸' : '▾' }}</span>
+          <span class="name">{{ db.name }}</span>
+          <span class="count">{{ db.tables.length }} 张表</span>
+          <button class="more" title="更多操作" @click="databaseMenu($event, db.name)">⋯</button>
         </div>
-        <ul v-if="expanded.has('root')">
-          <li v-if="databases.length === 0" class="empty">（还没有数据库：右键"数据库"新建，或在上方恢复实验初始数据）</li>
-          <li v-for="db in databases" :key="db.name">
-            <div class="node" @click="toggle(`db:${db.name}`)" @contextmenu="databaseMenu($event, db.name)">
-              <span class="arrow">{{ expanded.has(`db:${db.name}`) ? '▾' : '▸' }}</span
-              >🛢 {{ db.name }}
-            </div>
-            <ul v-if="expanded.has(`db:${db.name}`)">
-              <li>
-                <div class="node" @click="toggle(`tables:${db.name}`)" @contextmenu="tablesMenu($event, db.name)">
-                  <span class="arrow">{{ expanded.has(`tables:${db.name}`) ? '▾' : '▸' }}</span
-                  >📁 表
-                </div>
-                <ul v-if="expanded.has(`tables:${db.name}`)">
-                  <li v-if="db.tables.length === 0" class="empty">（没有表）</li>
-                  <li v-for="table in db.tables" :key="table.name">
-                    <div
-                      class="node"
-                      title="右键：编辑前 200 行、设计、删除"
-                      @click="toggle(`table:${db.name}/${table.name}`)"
-                      @contextmenu="tableMenu($event, db.name, table)"
-                    >
-                      <span class="arrow">{{ expanded.has(`table:${db.name}/${table.name}`) ? '▾' : '▸' }}</span
-                      >▦ dbo.{{ table.name }}
-                    </div>
-                    <ul v-if="expanded.has(`table:${db.name}/${table.name}`)">
-                      <li>
-                        <div class="node" @click="toggle(`columns:${db.name}/${table.name}`)">
-                          <span class="arrow">{{ expanded.has(`columns:${db.name}/${table.name}`) ? '▾' : '▸' }}</span
-                          >📁 列
-                        </div>
-                        <ul v-if="expanded.has(`columns:${db.name}/${table.name}`)">
-                          <li v-for="column in table.columns" :key="column.name" class="node leaf">
-                            {{ column.primaryKey ? '🔑' : '▫' }} {{ columnText(column) }}
-                          </li>
-                        </ul>
-                      </li>
-                    </ul>
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </li>
-    </ul>
+
+        <template v-if="!collapsed.has(db.name)">
+          <div
+            v-for="table in db.tables"
+            :key="table.name"
+            class="row table-row"
+            :title="columnsTip(table)"
+            @click="emit('action', { kind: 'editRows', database: db.name, table })"
+            @contextmenu="tableMenu($event, db.name, table)"
+          >
+            <span class="name">{{ table.name }}</span>
+            <button class="more" title="更多操作" @click="tableMenu($event, db.name, table)">⋯</button>
+          </div>
+          <div class="row new-table" @click="emit('action', { kind: 'newTable', database: db.name })">+ 新建表</div>
+        </template>
+      </div>
+    </div>
+
     <NDropdown
       v-if="menu"
       show
@@ -169,54 +133,116 @@ function columnText(column: ExplorerTable['columns'][number]) {
   background: #fff;
 }
 
-.title {
-  padding: 6px 8px;
-  font-weight: 600;
+.head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 6px 12px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.tree,
-.tree ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.head-btn {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #4b5563;
+  font: inherit;
+  cursor: pointer;
+}
+
+.head-btn:hover {
+  background: #f3f4f6;
+}
+
+.head-btn.add {
+  color: #2563eb;
 }
 
 .tree {
   flex: 1;
   overflow: auto;
-  padding: 4px 0;
+  padding: 6px;
 }
 
-.tree ul {
-  padding-left: 16px;
+.db + .db {
+  margin-top: 4px;
 }
 
-.node {
-  padding: 2px 6px;
-  white-space: nowrap;
-  cursor: default;
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 4px 0 8px;
+  border-radius: 4px;
+  cursor: pointer;
   user-select: none;
 }
 
-.node:hover {
-  background: #e5f1fb;
-}
-
-.leaf {
-  padding-left: 20px;
-  color: #374151;
+.row:hover {
+  background: #eff6ff;
 }
 
 .arrow {
-  display: inline-block;
-  width: 14px;
+  width: 12px;
   color: #6b7280;
 }
 
-.empty {
-  padding: 2px 6px 2px 22px;
+.name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-row .name {
+  font-weight: 600;
+}
+
+.count {
+  font-size: 12px;
   color: #9ca3af;
-  white-space: normal;
+}
+
+.table-row,
+.new-table {
+  padding-left: 26px;
+}
+
+.new-table {
+  color: #2563eb;
+}
+
+/* ⋯ 平时浅一点，鼠标移到这一行再变深 */
+.more {
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #c0c4cc;
+  font: inherit;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.row:hover .more {
+  color: #4b5563;
+}
+
+.more:hover {
+  background: #dbeafe;
+}
+
+.empty {
+  margin: 8px 6px;
+  color: #9ca3af;
+  line-height: 1.6;
 }
 </style>

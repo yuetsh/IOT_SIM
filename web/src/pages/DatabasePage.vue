@@ -76,9 +76,16 @@ async function onAction(action: ExplorerAction) {
     case 'design':
       open({ kind: 'design', title: `${action.database} - dbo.${action.table.name}`, database: action.database, table: action.table })
       break
-    case 'editRows':
+    case 'editRows': {
+      // 点表名打开编辑数据；这张表已经开着就切过去
+      const opened = tabs.value.find((t) => t.kind === 'edit' && t.database === action.database && t.table.name === action.table.name)
+      if (opened) {
+        active.value = opened.key
+        break
+      }
       open({ kind: 'edit', title: `${action.database} - dbo.${action.table.name}`, database: action.database, table: action.table })
       break
+    }
     case 'selectRows': {
       // 和 SSMS 生成的语句格式一样
       const columns = action.table.columns.map((c) => quoteName(c.name)).join('\n      ,')
@@ -177,7 +184,6 @@ onMounted(refresh)
       <RouterLink to="/" class="nav-link">← 返回实验</RouterLink>
       <strong>数据库</strong>
       <NButton size="small" type="primary" @click="newQuery()">新建查询</NButton>
-      <NButton size="small" @click="creatingDatabase = ''">新建数据库</NButton>
       <NButton size="small" @click="openRestore">恢复实验初始数据</NButton>
       <span class="spacer" />
       <span class="user">{{ currentUser?.name }}的数据库（只有自己能看到）</span>
@@ -200,7 +206,7 @@ onMounted(refresh)
           </NTabPane>
         </NTabs>
         <div v-else class="empty">
-          <p>右键左边的"数据库"新建数据库；右键表可以编辑数据、设计表结构。</p>
+          <p>左边是你的数据库：点“+ 新建库”“+ 新建表”建库建表，点表名编辑表里的数据，表右边的 ⋯ 里还能查询、设计表结构、删除。</p>
           <p>也可以点"新建查询"，用 SQL 语句建库、建表、增删改查。</p>
           <p>运行要用数据库的实验（教材项目 6 的任务 2、3，项目 8）时，平台会自动建好需要的库；把实验库恢复成初始数据，点"恢复实验初始数据"。</p>
         </div>

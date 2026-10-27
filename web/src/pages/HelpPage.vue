@@ -141,14 +141,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
         <h3>7. 数据库（项目 6、8）</h3>
         <ul>
-          <li>点右上角的<b>数据库</b>（在新标签页打开），代替书上的 SSMS：右键新建数据库、新建表，<b>新建查询</b>写 SQL（输入时会提示关键字、表名和列名，写"表名."或"别名."列出这张表的列），按 F5 执行。</li>
+          <li>点右上角的<b>数据库</b>（在新标签页打开），代替书上的 SSMS：左边点“+ 新建库”“+ 新建表”，点表名编辑表里的数据，表右边的 ⋯（或右键）里能查询、设计表结构、删除；<b>新建查询</b>写 SQL（输入时会提示关键字、表名和列名，写"表名."或"别名."列出这张表的列），按 F5 执行。</li>
           <li>每个人有自己的一套数据库，只有自己能看到，一直保留。程序里的连接字符串只看数据库名，服务器名、账号密码照书上写就行。</li>
           <li>数据弄乱了：点<b>恢复实验初始数据</b>，选实验（默认是刚才做的实验），把这个实验用到的库换回初始数据（其他库不动）。</li>
           <li>点<b>← 返回实验</b>回到刚才做的实验。</li>
         </ul>
         <figure class="shot">
           <a href="/help-img/db.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
-          <figcaption>数据库页面：左边是对象资源管理器，右边写 SQL、按 F5 执行，下面是结果</figcaption>
+          <figcaption>数据库页面：左边是你的库和表（点表名编辑数据），右边写 SQL、按 F5 执行，下面是结果</figcaption>
         </figure>
       </section>
 
