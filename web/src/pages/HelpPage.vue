@@ -1,7 +1,29 @@
 <script setup lang="ts">
 // 使用说明：学生部分谁都能看（登录页也有入口），老师登录后多出老师部分。从各页顶栏在新标签页打开，不打断正在做的事。
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { currentUser } from '../auth'
+
+/** 点截图在页面上放大看，点任意处或按 Esc 关闭 */
+const zoomed = ref<{ src: string; caption: string } | null>(null)
+
+function zoom(event: MouseEvent) {
+  const link = event.currentTarget as HTMLAnchorElement
+  zoomed.value = { src: link.href, caption: link.closest('figure')?.querySelector('figcaption')?.textContent ?? '' }
+}
+
+/** 按窗口大小放大到放得下，小截图最多放大 2 倍（再大就糊了） */
+function fit(event: Event) {
+  const img = event.target as HTMLImageElement
+  const scale = Math.min(2, (window.innerWidth - 32) / img.naturalWidth, (window.innerHeight - 72) / img.naturalHeight)
+  img.style.width = `${Math.round(img.naturalWidth * scale)}px`
+}
+
+function onKey(event: KeyboardEvent) {
+  if (event.key === 'Escape') zoomed.value = null
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
@@ -36,15 +58,15 @@ import { currentUser } from '../auth'
           </li>
         </ul>
         <figure class="shot">
-          <a href="/help-img/assignments.webp" target="_blank" title="点击看原图"><img src="/help-img/assignments.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/assignments.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/assignments.webp" alt="" loading="lazy" /></a>
           <figcaption>我的作业：点作业名开始做，右边是提交状态和得分</figcaption>
         </figure>
         <figure class="shot">
-          <a href="/help-img/overview.webp" target="_blank" title="点击看原图"><img src="/help-img/overview.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/overview.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/overview.webp" alt="" loading="lazy" /></a>
           <figcaption>实验页：左边是设计器和代码，右边是运行区（学生程序的窗体）和虚拟实训台</figcaption>
         </figure>
         <figure class="shot">
-          <a href="/help-img/task.webp" target="_blank" title="点击看原图"><img src="/help-img/task.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/task.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/task.webp" alt="" loading="lazy" /></a>
           <figcaption>任务面板：任务目标、控件名、实现步骤</figcaption>
         </figure>
 
@@ -62,7 +84,7 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/designer.webp" target="_blank" title="点击看原图"><img src="/help-img/designer.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/designer.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/designer.webp" alt="" loading="lazy" /></a>
           <figcaption>窗体设计器：左边工具箱，中间窗体，右边属性和事件（这里选中了"打开"按钮，它的单击事件是 btn_open_Click）</figcaption>
         </figure>
 
@@ -77,7 +99,7 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/error.webp" target="_blank" title="点击看原图"><img src="/help-img/error.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/error.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/error.webp" alt="" loading="lazy" /></a>
           <figcaption>运行出错：窗体下面用中文说明原因和出错的行，点它跳到代码</figcaption>
         </figure>
 
@@ -94,7 +116,7 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/board.webp" target="_blank" title="点击看原图"><img src="/help-img/board.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/board.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/board.webp" alt="" loading="lazy" /></a>
           <figcaption>虚拟实训台：程序打开了照明灯 2（ADAM-4150 DO1）；拖滑块调温湿度、光照，点卡片切换传感器</figcaption>
         </figure>
 
@@ -109,11 +131,11 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/check.webp" target="_blank" title="点击看原图"><img src="/help-img/check.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/check.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/check.webp" alt="" loading="lazy" /></a>
           <figcaption>任务面板最下面的"自己检查"：逐项显示通过没有</figcaption>
         </figure>
         <figure class="shot">
-          <a href="/help-img/result.webp" target="_blank" title="点击看原图"><img src="/help-img/result.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/result.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/result.webp" alt="" loading="lazy" /></a>
           <figcaption>提交后点工具栏上的分数看评分结果</figcaption>
         </figure>
 
@@ -125,7 +147,7 @@ import { currentUser } from '../auth'
           <li>点<b>← 返回实验</b>回到刚才做的实验。</li>
         </ul>
         <figure class="shot">
-          <a href="/help-img/db.webp" target="_blank" title="点击看原图"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/db.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
           <figcaption>数据库页面：左边是对象资源管理器，右边写 SQL、按 F5 执行，下面是结果</figcaption>
         </figure>
       </section>
@@ -144,7 +166,7 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/students.webp" target="_blank" title="点击看原图"><img src="/help-img/students.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/students.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/students.webp" alt="" loading="lazy" /></a>
           <figcaption>班级管理：导入名单后，用户名和密码都在这里，可以导出、重置密码</figcaption>
         </figure>
 
@@ -156,7 +178,7 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/assign.webp" target="_blank" title="点击看原图"><img src="/help-img/assign.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/assign.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/assign.webp" alt="" loading="lazy" /></a>
           <figcaption>布置作业：选实验和起点，自动评分项、任务说明、老师评分项都可以改</figcaption>
         </figure>
 
@@ -169,11 +191,11 @@ import { currentUser } from '../auth'
         </ul>
 
         <figure class="shot">
-          <a href="/help-img/review.webp" target="_blank" title="点击看原图"><img src="/help-img/review.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/review.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/review.webp" alt="" loading="lazy" /></a>
           <figcaption>评阅：左边是学生列表，中间看界面截图、运行程序、看代码，右边打分写评语</figcaption>
         </figure>
         <figure class="shot">
-          <a href="/help-img/grades.webp" target="_blank" title="点击看原图"><img src="/help-img/grades.webp" alt="" loading="lazy" /></a>
+          <a href="/help-img/grades.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/grades.webp" alt="" loading="lazy" /></a>
           <figcaption>成绩：全班 × 全部作业的总分，"待评"表示老师还没打分</figcaption>
         </figure>
 
@@ -204,6 +226,11 @@ import { currentUser } from '../auth'
         </dl>
       </section>
     </main>
+
+    <div v-if="zoomed" class="zoom" @click="zoomed = null">
+      <img :src="zoomed.src" alt="" @load="fit" />
+      <div class="zoom-caption">{{ zoomed.caption }}（点任意处或按 Esc 关闭）</div>
+    </div>
   </div>
 </template>
 
@@ -282,7 +309,7 @@ code {
   font-size: 13px;
 }
 
-/* 截图：按原尺寸显示，比正文宽时缩小；点击看原图 */
+/* 截图：按原尺寸显示，比正文宽时缩小；点击在页面上放大 */
 .shot {
   margin: 12px 0 16px;
 }
@@ -294,6 +321,35 @@ code {
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+}
+
+.shot a {
+  cursor: zoom-in;
+}
+
+.zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.88);
+  cursor: zoom-out;
+}
+
+.zoom img {
+  max-width: 100%;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.zoom-caption {
+  color: #fff;
+  font-size: 14px;
 }
 
 .shot figcaption {
