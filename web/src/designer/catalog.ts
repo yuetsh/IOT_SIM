@@ -22,6 +22,9 @@ export interface PropDef {
   category: '外观' | '行为' | '布局' | '数据'
 }
 
+/** BackColor 不能选透明的控件（WinForms 里设透明会报"控件不支持透明的背景色"，VS 的属性窗口也不让选） */
+export const NO_TRANSPARENT_BACK_COLOR = new Set(['Form', 'TextBox', 'ComboBox', 'ListBox', 'DateTimePicker', 'DataGridView'])
+
 export interface EventDef {
   /** WinForms 的事件名，事件处理方法的名字也用它（如 button1_Click） */
   name: string

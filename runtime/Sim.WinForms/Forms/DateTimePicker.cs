@@ -22,6 +22,10 @@ public class DateTimePicker : Control
 
     protected override Size DefaultSize => new(200, 21);
 
+    private protected override Color? OwnBackColor => SystemColors.Window;
+    private protected override Color? OwnForeColor => SystemColors.WindowText;
+    private protected override bool SupportsTransparentBackColor => false;
+
     public DateTime Value
     {
         get => _value;

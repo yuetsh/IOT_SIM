@@ -3,7 +3,7 @@
 // 用户操作只通过 act() 上报，由运行器按真实 WinForms 的顺序触发事件。
 import { computed, inject, onBeforeUnmount, provide, ref, watch, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
-import { AMBIENT_BACK_COLOR, AMBIENT_BACK_TYPES, boxCss, DEFAULT_BACK_COLOR, displayText } from './format'
+import { AMBIENT_BACK_COLOR, AMBIENT_BACK_TYPES, boxCss, contentAlignCss, DEFAULT_BACK_COLOR, displayText, PARENT_ENABLED } from './format'
 import { backgroundCss, imageSources, RUN_IMAGES, srcset, type ImageValue } from './images'
 import ChartControl from './ChartControl.vue'
 import DataGridViewControl from './DataGridViewControl.vue'
@@ -19,7 +19,10 @@ const props = defineProps<{
 const p = computed(() => props.node.props)
 // WinForms 中先加入 Controls 的控件在最上层，所以倒序渲染（后渲染的 DOM 元素在上面）
 const childrenTopLast = computed(() => [...props.node.children].reverse())
-const enabled = computed(() => p.value.Enabled !== false)
+const parentEnabled = inject(PARENT_ENABLED, ref(true))
+/** 实际是否可用：自己和所有父控件都可用（和 WinForms 一样，运行器也按这个规则忽略禁用控件上的操作） */
+const enabled = computed(() => p.value.Enabled !== false && parentEnabled.value)
+provide(PARENT_ENABLED, enabled)
 const runImages = inject(RUN_IMAGES, new Map<string, string>())
 const ambient = inject(AMBIENT_BACK_COLOR, ref(DEFAULT_BACK_COLOR))
 /** 这个控件实际的背景色，子控件没设置背景色时沿用 */
@@ -65,12 +68,16 @@ function openDropDown() {
   const el = combo.value
   if (!el) return
   const rect = el.getBoundingClientRect()
+  // 列表挂在页面最外层，字体、颜色从下拉框本身取（和 WinForms 一样跟着下拉框的 Font、ForeColor、BackColor）
+  const css = getComputedStyle(el)
   listStyle.value = {
     left: `${rect.left}px`,
     top: `${rect.bottom}px`,
     width: `${el.offsetWidth}px`,
     transform: `scale(${rect.width / el.offsetWidth || 1})`,
-    font: getComputedStyle(el).font,
+    font: css.font,
+    color: css.color,
+    backgroundColor: css.backgroundColor,
   }
   // 先触发 Click（教材在 Click 里填充串口列表），列表随后按最新的 Items 显示
   act({ action: 'dropDown' })
@@ -131,8 +138,8 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   <div
     v-else-if="node.type === 'Label'"
     class="wf-control wf-label"
-    :class="{ 'wf-autosize': p.AutoSize === true, 'wf-disabled': !enabled }"
-    :style="style"
+    :class="[`wf-border-${p.BorderStyle ?? 'None'}`, { 'wf-autosize': p.AutoSize === true, 'wf-disabled': !enabled }]"
+    :style="[style, p.AutoSize === true ? {} : contentAlignCss(p.TextAlign)]"
     @click="act({ action: 'click' })"
   >
     {{ displayText(p.Text) }}
@@ -142,6 +149,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   <div v-else-if="node.type === 'TextBox'" class="wf-control wf-textbox" :style="style">
     <textarea
       v-if="p.Multiline"
+      :class="`wf-scrollbars-${p.ScrollBars ?? 'None'}`"
       :value="String(p.Text ?? '')"
       :readonly="p.ReadOnly === true"
       :disabled="!enabled"
@@ -232,7 +240,11 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
     :style="style"
     @click="act({ action: 'click' })"
   >
-    <span :class="node.type === 'CheckBox' ? 'wf-checkbox-box' : 'wf-radio-dot'" :data-checked="p.Checked === true" />
+    <span
+      :class="node.type === 'CheckBox' ? 'wf-checkbox-box' : 'wf-radio-dot'"
+      :data-checked="p.Checked === true && p.CheckState !== 'Indeterminate'"
+      :data-indeterminate="p.CheckState === 'Indeterminate'"
+    />
     <span class="wf-check-text">{{ displayText(p.Text) }}</span>
   </div>
 
@@ -245,7 +257,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   </div>
 
   <!-- GroupBox -->
-  <div v-else-if="node.type === 'GroupBox'" class="wf-control wf-groupbox" :style="style">
+  <div v-else-if="node.type === 'GroupBox'" class="wf-control wf-groupbox" :class="{ 'wf-disabled': !enabled }" :style="style">
     <!-- 标题处的边框断开、透出底下的背景（教材项目 8 的分组框放在背景图上，白色标题） -->
     <fieldset class="wf-groupbox-frame">
       <legend v-if="p.Text" class="wf-groupbox-caption">{{ displayText(p.Text) }}</legend>

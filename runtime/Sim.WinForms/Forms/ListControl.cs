@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 
 namespace System.Windows.Forms;
@@ -9,6 +10,10 @@ public abstract class ListControl : Control
 {
     /// <summary>选中项的序号。列表项增删时直接调整（和 WinForms 一样不触发 SelectedIndexChanged）</summary>
     private protected int SelectedIndexValue = -1;
+
+    private protected override Color? OwnBackColor => SystemColors.Window;
+    private protected override Color? OwnForeColor => SystemColors.WindowText;
+    private protected override bool SupportsTransparentBackColor => false;
 
     public abstract int SelectedIndex { get; set; }
 

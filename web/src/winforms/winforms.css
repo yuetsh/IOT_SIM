@@ -74,14 +74,37 @@
   border-color: #005499;
 }
 
+/*
+ * 文本框、下拉框、列表框、日期选择的文字默认是黑色（SystemColors.WindowText），不沿用父控件的 ForeColor：
+ * 教材里分组框设成白字时，里面白底的文本框还是黑字。控件自己设了 ForeColor 时写在 style 上，优先于这里。
+ * 数据表格不在这里：它的单元格文字和 WinForms 一样跟着 ForeColor 走（没设置时沿用父控件）。
+ */
+.wf-textbox,
+.wf-combobox,
+.wf-listbox,
+.wf-dtp {
+  color: #000;
+}
+
+/* 禁用的控件不管设了什么 ForeColor 都画成灰字（WinForms 画禁用文字用系统灰色），所以要压过 style 上的颜色 */
 .wf-button:disabled,
 .wf-disabled {
-  color: #a0a0a0;
+  color: #a0a0a0 !important;
 }
 
 .wf-label {
   white-space: pre;
   overflow: hidden;
+}
+
+/* Label 的 BorderStyle：单线是黑色细边框，立体是凹下去的边框 */
+.wf-label.wf-border-FixedSingle {
+  border: 1px solid #000;
+}
+
+.wf-label.wf-border-Fixed3D {
+  border: 1px solid;
+  border-color: #a0a0a0 #fff #fff #a0a0a0;
 }
 
 .wf-textbox input,
@@ -105,8 +128,9 @@
   border-color: #0078d7;
 }
 
-/* 文本框的背景色画在外层（控件的 BackColor 写在外层的 style 上），输入框本身透明 */
-.wf-textbox {
+/* 文本框、下拉框的背景色画在外层（控件的 BackColor 写在外层的 style 上），输入框本身透明 */
+.wf-textbox,
+.wf-combobox {
   background: #fff;
 }
 
@@ -114,8 +138,28 @@
   background: #f0f0f0;
 }
 
+/* 禁用时和 WinForms 一样灰字（设了 ForeColor 也是灰字）；没设背景色时是灰底 */
+.wf-textbox:has(> :disabled),
+.wf-combobox:has(> :disabled) {
+  background: #f0f0f0;
+  color: #6d6d6d !important;
+}
+
+/* 多行文本框的滚动条和 WinForms 一样由 ScrollBars 决定：默认没有，Vertical / Both 一直显示竖直滚动条（自动换行时没有水平滚动条） */
+.wf-textbox textarea.wf-scrollbars-None,
+.wf-textbox textarea.wf-scrollbars-Horizontal {
+  overflow: hidden;
+}
+
+.wf-textbox textarea.wf-scrollbars-Vertical,
+.wf-textbox textarea.wf-scrollbars-Both {
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+
 .wf-textbox input,
-.wf-textbox textarea {
+.wf-textbox textarea,
+.wf-combobox input {
   background: transparent;
 }
 
@@ -133,10 +177,9 @@
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  background: #fff;
 }
 
-/* 挂在 body 下，位置、宽度、缩放和字体由 ControlView.vue 按下拉框算好 */
+/* 挂在 body 下，位置、宽度、缩放、字体和颜色由 ControlView.vue 按下拉框算好 */
 .wf-combobox-list {
   position: fixed;
   z-index: 2000;
@@ -462,6 +505,12 @@
   font: bold 11px/11px sans-serif;
   text-align: center;
   color: #333;
+}
+
+/* 不确定状态（CheckState.Indeterminate）：框里一个实心小方块 */
+.wf-checkbox-box[data-indeterminate='true'] {
+  background: #333;
+  box-shadow: inset 0 0 0 2px #fff;
 }
 
 .wf-radio-dot[data-checked='true'] {

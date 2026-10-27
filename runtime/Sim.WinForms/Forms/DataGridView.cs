@@ -468,6 +468,8 @@ public class DataGridView : Control, ISupportInitialize
     private bool _initializing;
     private bool _rowsDirty;
 
+    private protected override bool SupportsTransparentBackColor => false;
+
     public DataGridView()
     {
         Columns = new DataGridViewColumnCollection(this);

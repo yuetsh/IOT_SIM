@@ -672,6 +672,87 @@ test('虚拟时钟：拨时间、倍速后 DateTime.Now / Today 跟着走，恢�
   expect(runner.messages.some((m) => m.type === 'console' && m.text.includes('today=2024-01-16'))).toBe(true)
 }, 30000)
 
+test('颜色：分组框设成白字时，里面的标签沿用白字，文本框、列表框、下拉框还是白底黑字；只发显式设置的颜色', async () => {
+  const { runner } = await runMain(
+    'colors',
+    `
+        var form = new Form();
+        var group = new GroupBox { ForeColor = Color.White, BackColor = Color.Navy };
+        var label = new Label();
+        var text = new TextBox { Name = "text" };
+        var readOnly = new TextBox { ReadOnly = true };
+        var list = new ListBox();
+        var combo = new ComboBox();
+        var red = new TextBox { Name = "red", ForeColor = Color.Red };
+        group.Controls.AddRange(new Control[] { label, text, readOnly, list, combo, red });
+        form.Controls.Add(group);
+        Console.WriteLine(string.Join(",", new Control[] { label, text, list, combo, red }.Select(c => c.ForeColor.Name)));
+        Console.WriteLine(string.Join(",", new Control[] { label, text, readOnly, list, combo }.Select(c => c.BackColor.Name)));
+        Application.Run(form);`,
+    'using System.Drawing;\nusing System.Windows.Forms;',
+  )
+  const { form } = await runner.waitFor('formShown')
+  expect(findByName(form, 'text').props.ForeColor).toBeNull()
+  expect(findByName(form, 'red').props.ForeColor).toBe('#ff0000')
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(output).toBe('White,WindowText,WindowText,WindowText,Red\nNavy,Window,Control,Window,Window\n')
+}, 30000)
+
+test('禁用：分组框禁用后里面的控件 Enabled 读出 false、触发 EnabledChanged、点击不响应；重新启用后恢复', async () => {
+  const { runner } = await runMain(
+    'enabled',
+    `
+        var form = new Form();
+        var group = new GroupBox { Name = "group" };
+        var button = new Button { Name = "button" };
+        var off = new Button { Enabled = false };
+        group.Controls.Add(button);
+        group.Controls.Add(off);
+        form.Controls.Add(group);
+        button.EnabledChanged += (s, e) => Console.WriteLine("button changed=" + button.Enabled);
+        off.EnabledChanged += (s, e) => Console.WriteLine("off changed");
+        button.Click += (s, e) => Console.WriteLine("click");
+        var toggle = new Button { Name = "toggle" };
+        toggle.Click += (s, e) => { group.Enabled = !group.Enabled; Console.WriteLine("group=" + group.Enabled + " button=" + button.Enabled + " off=" + off.Enabled); };
+        form.Controls.Add(toggle);
+        Application.Run(form);`,
+    'using System.Windows.Forms;',
+  )
+  const { form } = await runner.waitFor('formShown')
+  const click = (name: string) => runner.send({ type: 'action', id: findByName(form, name).id, action: 'click' })
+  click('toggle')
+  await runner.waitFor('console', (m) => m.text.startsWith('group=False'))
+  click('button')
+  click('toggle')
+  await runner.waitFor('console', (m) => m.text.startsWith('group=True'))
+  click('button')
+  await runner.waitFor('console', (m) => m.text === 'click\n')
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  // 浏览器只收到分组框自己的 Enabled，子控件按父控件画成禁用
+  expect(findByName(form, 'button').props.Enabled).toBe(true)
+  expect(output).toBe(
+    'button changed=False\ngroup=False button=False off=False\nbutton changed=True\ngroup=True button=True off=False\nclick\n',
+  )
+}, 30000)
+
+test('透明背景：文本框、窗体等设透明背景色和 WinForms 一样报错，标签、面板可以', async () => {
+  const { runner } = await runMain(
+    'transparent',
+    `
+        foreach (var control in new Control[] { new TextBox(), new ComboBox(), new ListBox(), new Form(), new Label(), new Panel() })
+        {
+            try { control.BackColor = Color.Transparent; Console.WriteLine(control.GetType().Name + " ok"); }
+            catch (ArgumentException ex) { Console.WriteLine(control.GetType().Name + " " + ex.Message); }
+        }`,
+    'using System.Drawing;\nusing System.Windows.Forms;',
+  )
+  await runner.finished()
+  const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
+  expect(output).toBe(
+    'TextBox 控件不支持透明的背景色。\nComboBox 控件不支持透明的背景色。\nListBox 控件不支持透明的背景色。\nForm 控件不支持透明的背景色。\nLabel ok\nPanel ok\n',
+  )
+}, 30000)
+
 test('TrackBar：拖动时先 ValueChanged 再 Scroll，超出范围的值截到两端；代码设超出范围的 Value 报错', async () => {
   const { runner } = await runMain(
     'trackbar',

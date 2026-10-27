@@ -69,9 +69,12 @@ function close() {
   >
     <div v-if="!borderless" class="wf-titlebar" @pointerdown="startDrag" @pointermove="drag" @pointerup="dragStart = undefined">
       <span class="wf-title">{{ displayText(p.Text) }}</span>
-      <span v-if="p.MinimizeBox !== false" class="wf-titlebar-button">─</span>
-      <span v-if="p.MaximizeBox !== false" class="wf-titlebar-button">☐</span>
-      <span class="wf-titlebar-button wf-titlebar-close" @pointerdown.stop @click="close">✕</span>
+      <!-- ControlBox = false 时标题栏右边的三个按钮都不显示（和 WinForms 一样） -->
+      <template v-if="p.ControlBox !== false">
+        <span v-if="p.MinimizeBox !== false" class="wf-titlebar-button">─</span>
+        <span v-if="p.MaximizeBox !== false" class="wf-titlebar-button">☐</span>
+        <span class="wf-titlebar-button wf-titlebar-close" @pointerdown.stop @click="close">✕</span>
+      </template>
     </div>
     <div
       class="wf-client"

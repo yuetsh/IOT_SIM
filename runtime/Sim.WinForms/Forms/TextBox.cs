@@ -10,6 +10,10 @@ public abstract class TextBoxBase : Control
     private bool _readOnly;
     private BorderStyle _borderStyle = BorderStyle.Fixed3D;
 
+    private protected override Color? OwnBackColor => _readOnly ? SystemColors.Control : SystemColors.Window;
+    private protected override Color? OwnForeColor => SystemColors.WindowText;
+    private protected override bool SupportsTransparentBackColor => false;
+
     public bool Multiline
     {
         get => _multiline;

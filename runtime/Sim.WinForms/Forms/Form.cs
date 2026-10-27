@@ -23,6 +23,8 @@ public class Form : ContainerControl
     private bool _modal;
     private DialogResult _dialogResult;
 
+    private protected override bool SupportsTransparentBackColor => false;
+
     public Form()
     {
         base.Visible = false;

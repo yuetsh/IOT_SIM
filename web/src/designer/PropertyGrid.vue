@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 属性窗口和事件窗口（仿 VS）：显示选中控件的常用属性；改动立即写回 Designer.cs。
 import { computed, ref, watch } from 'vue'
-import { type ControlDef, FORM_DEF, type PropDef, controlDef } from './catalog'
+import { type ControlDef, FORM_DEF, NO_TRANSPARENT_BACK_COLOR, type PropDef, controlDef } from './catalog'
 import { type ChartModel, readChart } from './chart'
 import ChartDialog from './ChartDialog.vue'
 import type { DesignerDocument } from './document'
@@ -45,6 +45,13 @@ const title = computed(() => `${props.selected || props.doc.formName}（${def.va
 function current(prop: PropDef): Value | undefined {
   const text = getPropText(props.doc, props.selected, prop.name)
   return text === undefined ? prop.default : parseValue(text)
+}
+
+/** 颜色下拉框的选项：文本框等的背景色没有"透明"（已经设成透明的旧窗体照样显示出来） */
+function colorChoices(prop: PropDef) {
+  const names = Object.keys(NAMED_COLORS)
+  if (prop.name !== 'BackColor' || !NO_TRANSPARENT_BACK_COLOR.has(typeName.value) || color(prop)?.name === 'Transparent') return names
+  return names.filter((name) => name !== 'Transparent')
 }
 
 /** 设成默认值时删除这条属性语句（VS 不写默认值） */
@@ -289,7 +296,7 @@ function renameHandler(event: string, value: string) {
             <i class="swatch" :style="{ background: color(prop)?.css ?? 'transparent' }" />
             <select :value="color(prop)?.name ?? (color(prop) ? 'custom' : '')" @change="setColor(prop, ($event.target as HTMLSelectElement).value)">
               <option value="">（默认）</option>
-              <option v-for="(_, name) in NAMED_COLORS" :key="name" :value="name" :title="name">{{ COLOR_LABELS[name] ?? name }}</option>
+              <option v-for="name in colorChoices(prop)" :key="name" :value="name" :title="name">{{ COLOR_LABELS[name] ?? name }}</option>
               <option v-if="color(prop) && !color(prop)!.name" value="custom" disabled>{{ color(prop)!.css }}</option>
             </select>
             <input

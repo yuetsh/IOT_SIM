@@ -11,7 +11,7 @@ namespace System.Windows.Forms;
 
 /// <summary>
 /// 仿真控件的基类。属性保存在本进程里；控件所在窗体显示后，属性变化以 patch 消息发给浏览器渲染。
-/// Font、BackColor、ForeColor 是"环境属性"：没有显式设置时沿用父控件的值，只把显式设置的值发给浏览器。
+/// Font、BackColor、ForeColor 是"环境属性"：没有显式设置时沿用父控件的值（文本框等的颜色除外，见 OwnBackColor），只把显式设置的值发给浏览器。
 /// </summary>
 public class Control : Component, IWin32Window
 {
@@ -178,24 +178,42 @@ public class Control : Component, IWin32Window
         }
     }
 
+    /// <summary>和 WinForms 一样：父控件（分组框、面板）禁用时子控件也是禁用的，读出 false、不响应操作；浏览器按同样的规则画成灰色</summary>
     public bool Enabled
     {
-        get => _enabled;
+        get => _enabled && (_parent?.Enabled ?? true);
         set
         {
-            if (SetProp(ref _enabled, value, nameof(Enabled))) OnEnabledChanged(EventArgs.Empty);
+            var old = Enabled;
+            SetProp(ref _enabled, value, nameof(Enabled));
+            if (Enabled != old) OnEnabledChanged(EventArgs.Empty);
         }
     }
 
+    /// <summary>
+    /// 没有显式设置时控件自己的颜色；null 表示沿用父控件。文本框、列表框、下拉框、日期选择是白底黑字（SystemColors.Window / WindowText），
+    /// 不沿用父控件：分组框设成白字时，里面的文本框还是黑字。
+    /// </summary>
+    private protected virtual Color? OwnBackColor => null;
+
+    private protected virtual Color? OwnForeColor => null;
+
+    /// <summary>能不能把 BackColor 设成透明（含半透明）：窗体、文本框、列表框、下拉框、日期选择、数据表格不行，和 WinForms 一样报错</summary>
+    private protected virtual bool SupportsTransparentBackColor => true;
+
     public virtual Color BackColor
     {
-        get => !_backColor.IsEmpty ? _backColor : _parent?.BackColor ?? DefaultBackColor;
-        set => SetProp(ref _backColor, value, nameof(BackColor));
+        get => !_backColor.IsEmpty ? _backColor : OwnBackColor ?? _parent?.BackColor ?? DefaultBackColor;
+        set
+        {
+            if (!value.IsEmpty && value.A < 255 && !SupportsTransparentBackColor) throw new ArgumentException("控件不支持透明的背景色。");
+            SetProp(ref _backColor, value, nameof(BackColor));
+        }
     }
 
     public virtual Color ForeColor
     {
-        get => !_foreColor.IsEmpty ? _foreColor : _parent?.ForeColor ?? DefaultForeColor;
+        get => !_foreColor.IsEmpty ? _foreColor : OwnForeColor ?? _parent?.ForeColor ?? DefaultForeColor;
         set => SetProp(ref _foreColor, value, nameof(ForeColor));
     }
 
@@ -302,7 +320,14 @@ public class Control : Component, IWin32Window
     protected virtual void OnMouseLeave(EventArgs e) => MouseLeave?.Invoke(this, e);
     protected virtual void OnTextChanged(EventArgs e) => TextChanged?.Invoke(this, e);
     protected virtual void OnVisibleChanged(EventArgs e) => VisibleChanged?.Invoke(this, e);
-    protected virtual void OnEnabledChanged(EventArgs e) => EnabledChanged?.Invoke(this, e);
+    protected virtual void OnEnabledChanged(EventArgs e)
+    {
+        EnabledChanged?.Invoke(this, e);
+        // 自己没被禁用的子控件实际状态也跟着变，同样触发 EnabledChanged（WinForms 的 OnParentEnabledChanged）
+        for (var i = 0; i < Controls.Count; i++)
+            if (Controls[i]._enabled) Controls[i].OnEnabledChanged(e);
+    }
+
     protected virtual void OnGotFocus(EventArgs e) => GotFocus?.Invoke(this, e);
     protected virtual void OnLostFocus(EventArgs e) => LostFocus?.Invoke(this, e);
     protected virtual void OnPaint(PaintEventArgs e) => Paint?.Invoke(this, e);

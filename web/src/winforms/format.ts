@@ -53,6 +53,18 @@ export function fontCss(font: FontValue | null | undefined): CSSProperties {
 export const AMBIENT_BACK_COLOR: InjectionKey<Readonly<Ref<string>>> = Symbol('ambientBackColor')
 export const DEFAULT_BACK_COLOR = '#f0f0f0'
 
+/** 父控件实际是否可用：分组框、面板禁用时里面的控件也是禁用的（变灰、不响应操作），和 WinForms 一样 */
+export const PARENT_ENABLED: InjectionKey<Readonly<Ref<boolean>>> = Symbol('parentEnabled')
+
+/** Label 的 TextAlign（ContentAlignment，如 MiddleCenter）对应的 CSS：AutoSize 为 false 时文字在控件里的位置 */
+export function contentAlignCss(align: unknown): CSSProperties {
+  const match = /^(Top|Middle|Bottom)(Left|Center|Right)$/.exec(String(align ?? ''))
+  if (!match || align === 'TopLeft') return {}
+  const flex = { Top: 'flex-start', Middle: 'center', Bottom: 'flex-end', Left: 'flex-start', Center: 'center', Right: 'flex-end' } as const
+  const [, vertical, horizontal] = match as unknown as [string, keyof typeof flex, keyof typeof flex]
+  return { display: 'flex', alignItems: flex[vertical], justifyContent: flex[horizontal], textAlign: horizontal.toLowerCase() as 'left' | 'center' | 'right' }
+}
+
 /** 背景色沿用父控件的控件（按钮、文本框等有自己的默认底色） */
 export const AMBIENT_BACK_TYPES = new Set(['Label', 'Panel', 'GroupBox', 'CheckBox', 'RadioButton', 'PictureBox', 'TrackBar'])
 
