@@ -190,7 +190,7 @@ onMounted(refresh)
             <QueryTab
               v-if="tab.kind === 'query'"
               v-model:database="tab.database"
-              :databases="databaseNames"
+              :databases="databases"
               :initial-sql="tab.sql"
               :run-on-open="tab.run"
               @changed="refresh"

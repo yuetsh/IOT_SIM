@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // 查询窗口（仿 SSMS）：选数据库、写 T-SQL、F5 执行（选中一部分时只执行选中的），下面是结果和消息。
-// USE 语句会切换当前数据库，和 SSMS 一样执行后下拉框跟着变。
+// USE 语句会切换当前数据库，和 SSMS 一样执行后下拉框跟着变。自动补全见 completion.ts。
 import { NButton, NSelect, NTab, NTabs } from 'naive-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { monaco } from '../editor/monaco'
 import ResultGrid from './ResultGrid.vue'
-import { messages, runQuery, type QueryReply } from './sql'
+import { setSqlSchema } from './sql-language'
+import { messages, runQuery, type ExplorerDatabase, type QueryReply } from './sql'
 
-const props = defineProps<{ databases: string[]; initialSql?: string; runOnOpen?: boolean }>()
+const props = defineProps<{ databases: ExplorerDatabase[]; initialSql?: string; runOnOpen?: boolean }>()
 const database = defineModel<string>('database', { required: true })
 const emit = defineEmits<{ changed: [] }>()
 
@@ -16,8 +17,10 @@ const editor = shallowRef<monaco.editor.IStandaloneCodeEditor>()
 const reply = ref<QueryReply | null>(null)
 const running = ref(false)
 const view = ref<'results' | 'messages'>('results')
+let removeSchema: (() => void) | undefined
 
-const options = computed(() => ['master', ...props.databases].map((name) => ({ label: name, value: name })))
+const names = computed(() => ['master', ...props.databases.map((d) => d.name)])
+const options = computed(() => names.value.map((name) => ({ label: name, value: name })))
 const messageLines = computed(() => (reply.value ? messages(reply.value) : []))
 
 async function execute() {
@@ -64,12 +67,18 @@ onMounted(() => {
     tabSize: 4,
   })
   editor.value.addCommand(monaco.KeyCode.F5, () => void execute())
+  // 自动补全：当前数据库（下拉框选的）的表和列
+  removeSchema = setSqlSchema(editor.value.getModel()!, () => ({
+    databases: names.value,
+    tables: props.databases.find((d) => d.name === database.value)?.tables ?? [],
+  }))
   editor.value.focus()
   if (props.runOnOpen) void execute()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', f5)
+  removeSchema?.()
   editor.value?.getModel()?.dispose()
   editor.value?.dispose()
 })
