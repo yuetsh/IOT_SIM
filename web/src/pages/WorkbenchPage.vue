@@ -676,7 +676,7 @@ function run() {
       </section>
 
       <button class="run-toggle" :title="runCollapsed ? '展开运行区' : '收起运行区（左边的代码和设计器占满宽度，运行时自动展开）'" @click="toggleRunArea()">
-        {{ runCollapsed ? '◂' : '▸' }}
+        {{ runCollapsed ? '展开运行区' : '收起运行区' }}
       </button>
       <RunArea v-show="!runCollapsed" :session="session" @diagnostic="showDiagnostic" />
     </main>
@@ -763,22 +763,25 @@ function run() {
 .workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 3fr) 14px minmax(360px, 2fr);
+  grid-template-columns: minmax(0, 3fr) 22px minmax(360px, 2fr);
   min-height: 0;
 }
 
 .workspace.run-collapsed {
-  grid-template-columns: minmax(0, 1fr) 14px;
+  grid-template-columns: minmax(0, 1fr) 22px;
 }
 
-/* 编辑区和运行区之间的竖条：点一下收起、展开运行区 */
+/* 编辑区和运行区之间的竖条：点一下收起、展开运行区（写着"收起运行区""展开运行区"，比只有箭头好找） */
 .run-toggle {
   padding: 0;
   border: none;
   border-right: 1px solid #e5e7eb;
   background: #f3f4f6;
-  color: #6b7280;
-  font-size: 10px;
+  color: #4b5563;
+  font-size: 12px;
+  /* 竖排文字，整根竖条都能点 */
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
   cursor: pointer;
 }
 
