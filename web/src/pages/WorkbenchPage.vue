@@ -22,6 +22,7 @@ import {
   startupForm,
 } from '../designer/templates'
 import CodeEditor from '../editor/CodeEditor.vue'
+import { checkProject } from '../editor/language'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
 import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
@@ -136,6 +137,8 @@ onMounted(async () => {
 /** 打开一个工程：服务器上有保存的作品就用作品，没有就用原始代码；discardWork 表示丢弃作品恢复原始代码 */
 async function openProject(key: string, original: () => Promise<SourceFile[]>, discardWork: boolean) {
   await flushSave()
+  // 换了工程：之前安排的自动重新运行作废
+  clearTimeout(rerunTimer)
   workKey.value = key
   designerHistory.clear()
   if (discardWork) await deleteWork(key).catch(() => {})
@@ -331,6 +334,7 @@ function updateFile(path: string, content: string) {
 
 function filesChanged() {
   modified.value = true
+  scheduleRerun()
   // 老师试运行学生的提交时没有保存位置，不保存
   if (workKey.value) scheduleSave()
 }
@@ -501,11 +505,50 @@ function toggleRunArea(collapsed = !runCollapsed.value) {
 function run() {
   if (running.value) return
   toggleRunArea(false)
+  start()
+}
+
+function start() {
+  clearTimeout(rerunTimer)
+  rerunBlocked.value = false
   session.run(
     files.value.map((f) => ({ ...f })),
     props.assignmentId ? assignment.value?.sampleId : sampleId.value,
   )
 }
+
+// ---------- 运行中改了代码或窗体：自动重新运行，不用再按 F5 ----------
+/** 停止修改多久后重新运行 */
+const RERUN_DELAY_MS = 1500
+let rerunTimer: ReturnType<typeof setTimeout> | undefined
+/** 每次修改都递增，用来判断检查期间是否又改了 */
+let editCount = 0
+/** 改出了编译错误：原来的程序继续运行，改好后再重新运行 */
+const rerunBlocked = ref(false)
+
+function scheduleRerun() {
+  editCount++
+  if (!running.value) return
+  clearTimeout(rerunTimer)
+  rerunTimer = setTimeout(() => void rerun(), RERUN_DELAY_MS)
+}
+
+async function rerun() {
+  // 上一次还在编译：等它运行起来再说
+  if (state.status === 'compiling') {
+    rerunTimer = setTimeout(() => void rerun(), RERUN_DELAY_MS)
+    return
+  }
+  if (state.status !== 'running') return
+  const edit = editCount
+  // 先检查一遍：有错误就不重启，免得正在运行的程序被换成一堆报错（错误照常用波浪线标在代码里）
+  const diagnostics = await checkProject()
+  // 检查期间又改了（会再安排一次）、程序已经停了，或者检查失败：这次不重新运行
+  if (edit !== editCount || state.status !== 'running' || !diagnostics) return
+  rerunBlocked.value = diagnostics.some((d) => d.severity === 'error')
+  if (!rerunBlocked.value) start()
+}
+onBeforeUnmount(() => clearTimeout(rerunTimer))
 </script>
 
 <template>
@@ -561,6 +604,7 @@ function run() {
       </NPopconfirm>
       <span v-if="!viewing" class="save-state" :class="saveState">{{ SAVE_TEXT[saveState] }}</span>
       <NTag :type="statusType">{{ STATUS_TEXT[state.status] }}</NTag>
+      <span v-if="rerunBlocked && state.status === 'running'" class="rerun-blocked">代码有错误，改好后自动重新运行</span>
       <span v-if="!assignmentId && !viewing && currentUser?.role === 'teacher'" class="metrics">
         编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返 {{ state.metrics.lastRoundTripMs }} ms
       </span>
@@ -744,6 +788,12 @@ function run() {
 
 .save-state.error {
   color: #dc2626;
+}
+
+.rerun-blocked {
+  color: #b45309;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .user {
