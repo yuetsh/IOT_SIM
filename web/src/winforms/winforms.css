@@ -365,6 +365,26 @@
   padding: 0;
 }
 
+/* 日期框透明地盖在下拉按钮上，日历图标撑满整个按钮，点它就由浏览器弹出选择框（见 DateTimePickerControl.vue） */
+.wf-dtp-native.wf-dtp-overlay {
+  left: auto;
+  right: 0;
+  top: 0;
+  width: 17px;
+  height: auto;
+  pointer-events: auto;
+}
+
+.wf-dtp-overlay::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 /* TrackBar：灰色轨道、刻度、蓝色滑块（Windows 10 样式） */
 .wf-trackbar {
   outline: none;

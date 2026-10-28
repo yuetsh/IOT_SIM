@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // 日期时间选择器：文字由运行器按 Format 生成（如 2024年1月16日），点下拉按钮弹出浏览器的日期 / 时间选择框，
 // 选好后把完整的日期时间发给运行器（只选日期时保留原来的时间，和 WinForms 一样）。
-import { computed, ref, type CSSProperties } from 'vue'
+// 下拉按钮上透明地盖着浏览器的日期框（日历图标撑满按钮），点按钮其实点的是日期框自己的图标，由浏览器弹出选择框。
+// 不用 showPicker()：它 Chrome 99 才正式有，机房 Chrome 94 的原型上虽然有这个方法，调用却没有反应。
+import { computed, type CSSProperties } from 'vue'
 import type { ControlNode, UserAction } from '@iot/shared'
 
 const props = defineProps<{
@@ -20,12 +22,9 @@ const nativeValue = computed(() => {
   const [date, time] = value.value.split('T')
   return inputType.value === 'date' ? date : inputType.value === 'time' ? time : value.value
 })
-const picker = ref<HTMLInputElement>()
-
-function open() {
-  if (!props.enabled) return
-  props.act({ action: 'dropDown' })
-  picker.value?.showPicker?.()
+/** 点的是盖在按钮上的日期框：告诉运行器"展开了"（触发 DropDown），弹出由浏览器负责 */
+function nativeDown() {
+  if (props.enabled) props.act({ action: 'dropDown' })
 }
 
 function pick(event: Event) {
@@ -58,7 +57,18 @@ function step(delta: number) {
       <span @mousedown.prevent="step(1)">▴</span>
       <span @mousedown.prevent="step(-1)">▾</span>
     </span>
-    <span v-else class="wf-dtp-button" title="选择日期" @mousedown.prevent="open">▾</span>
-    <input ref="picker" class="wf-dtp-native" :type="inputType" step="1" :value="nativeValue" tabindex="-1" @change="pick" />
+    <span v-else class="wf-dtp-button">▾</span>
+    <input
+      class="wf-dtp-native"
+      :class="{ 'wf-dtp-overlay': !p.ShowUpDown }"
+      title="选择日期"
+      :type="inputType"
+      step="1"
+      :value="nativeValue"
+      :disabled="!enabled"
+      tabindex="-1"
+      @mousedown="nativeDown"
+      @change="pick"
+    />
   </div>
 </template>

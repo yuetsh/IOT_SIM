@@ -28,10 +28,13 @@ internal static class StudentProgramHost
         Console.SetIn(TextReader.Null); // 标准输入用于协议，学生的 Console.ReadLine 读不到内容
 
         // 和中文 Windows 一致：DateTime.ToString() 等按 zh-CN 格式输出。
-        // Linux 上的区域数据把时间写成 09:05:03，中文 Windows 是 9:05:03（书上的截图也是），这里改成 Windows 的写法
+        // Linux 上的区域数据把时间写成 09:05:03，中文 Windows 是 9:05:03（书上的截图也是）；长日期后面多了星期（2024年1月16日星期二），
+        // 中文 Windows 的长日期不带星期（日期选择框的长日期格式窄，带上星期会被截掉）。这里都改成 Windows 的写法
         var zhCN = (CultureInfo)CultureInfo.GetCultureInfo("zh-CN").Clone();
         zhCN.DateTimeFormat.LongTimePattern = "H:mm:ss";
         zhCN.DateTimeFormat.ShortTimePattern = "H:mm";
+        zhCN.DateTimeFormat.LongDatePattern = "yyyy'年'M'月'd'日'";
+        zhCN.DateTimeFormat.FullDateTimePattern = "yyyy'年'M'月'd'日' H:mm:ss";
         zhCN = CultureInfo.ReadOnly(zhCN);
         CultureInfo.DefaultThreadCurrentCulture = zhCN;
         CultureInfo.DefaultThreadCurrentUICulture = zhCN;
