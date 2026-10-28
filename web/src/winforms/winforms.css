@@ -128,6 +128,11 @@
   border-color: #0078d7;
 }
 
+/* 密码字符：用普通文本框遮住字符（见 ControlView.vue 里的 textSecurity） */
+.wf-textbox input.wf-masked {
+  -webkit-text-security: disc;
+}
+
 /* 文本框、下拉框的背景色画在外层（控件的 BackColor 写在外层的 style 上），输入框本身透明 */
 .wf-textbox,
 .wf-combobox {

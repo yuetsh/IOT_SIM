@@ -159,6 +159,7 @@ function columnStyle(column: Column): CSSProperties {
               ref="editor"
               v-model="editing.value"
               class="wf-dgv-editor"
+              autocomplete="off"
               @keydown.enter.stop.prevent="commit"
               @keydown.esc.stop.prevent="cancel"
               @keydown.stop

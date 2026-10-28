@@ -51,6 +51,9 @@ const passwordChar = computed(() => {
   const ch = p.value.PasswordChar as string | undefined
   return ch && ch !== '\0' ? ch : ''
 })
+// 不用 type="password"：浏览器见到密码框会把平台登录时保存的用户名、密码自动填进学生窗体，autocomplete="off" 也拦不住。
+// 改用普通文本框加 -webkit-text-security 遮住字符，浏览器不认它是登录表单；不支持这个属性的浏览器才退回密码框，并标成 new-password 不让填
+const textSecurity = typeof CSS !== 'undefined' && CSS.supports('-webkit-text-security', 'disc')
 
 // ComboBox：下拉列表挂到页面最外层（和真实 WinForms 一样可以伸出窗体），按控件在屏幕上的位置和缩放摆放
 const dropDownOpen = ref(false)
@@ -159,7 +162,9 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
     />
     <input
       v-else
-      :type="passwordChar ? 'password' : 'text'"
+      :type="passwordChar && !textSecurity ? 'password' : 'text'"
+      :class="{ 'wf-masked': passwordChar && textSecurity }"
+      :autocomplete="passwordChar ? 'new-password' : 'off'"
       :value="String(p.Text ?? '')"
       :readonly="p.ReadOnly === true"
       :disabled="!enabled"
@@ -171,6 +176,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   <div v-else-if="node.type === 'ComboBox'" ref="combo" class="wf-control wf-combobox" :style="style">
     <input
       :value="String(p.Text ?? '')"
+      autocomplete="off"
       :readonly="!editable"
       :disabled="!enabled"
       @mousedown="!editable && openDropDown()"
