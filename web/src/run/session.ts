@@ -61,6 +61,8 @@ export function createRunSession() {
   /** 离开页面时主动断开，不再重连 */
   let closed = false
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+  /** 当前实验（服务器按它给实训台接线）；重连后重新告诉服务器 */
+  let experiment: string | undefined
   /** 连续重连失败的次数，等待时间随之加长（最长 RECONNECT_MAX_MS） */
   let reconnectFailures = 0
   const RECONNECT_MAX_MS = 10_000
@@ -105,6 +107,7 @@ export function createRunSession() {
           ws.onopen = () => {
             state.connection = state.connection === 'lost' ? 'restored' : 'open'
             reconnectFailures = 0
+            send({ type: 'experiment', sampleId: experiment })
             resolve()
           }
           ws.onclose = () => {
@@ -153,6 +156,14 @@ export function createRunSession() {
     for (const url of images.values()) URL.revokeObjectURL(url)
     images.clear()
     send({ type: 'run', files, sampleId })
+  }
+
+  /** 打开了哪个实验：实训台换成它的接线 */
+  function setExperiment(sampleId: string | undefined) {
+    if (sampleId === experiment) return
+    experiment = sampleId
+    // 还在连接时不能发，连上后 onopen 会发
+    if (socket?.readyState === WebSocket.OPEN) send({ type: 'experiment', sampleId })
   }
 
   /** 调节实训台环境（滑块、传感器开关） */
@@ -292,7 +303,7 @@ export function createRunSession() {
     socket?.close()
   }
 
-  return { state, images, connect, run, stop, act, replyMessageBox, setBoard, resetBoard, close }
+  return { state, images, connect, run, stop, act, replyMessageBox, setExperiment, setBoard, resetBoard, close }
 }
 
 export type RunSession = ReturnType<typeof createRunSession>

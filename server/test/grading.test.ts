@@ -78,7 +78,7 @@ describe('改坏的代码', () => {
     const result = await grade(dir, await checksOf(id), id)
     const realtime = result.results.find((r) => r.title === '能实时显示入侵数据')!
     expect(realtime.passed).toBe(false)
-    expect(realtime.message).toBe('期望6 秒内 txt_even 的文字包含"发现入侵"，实际是"正常"')
+    expect(realtime.message).toBe('期望 6 秒内 txt_even 的文字包含"发现入侵"，实际是"正常"')
     // 开关按钮的两项不受影响
     expect(result.results.filter((r) => r.passed).length).toBe(2)
   }, 60000)
@@ -135,7 +135,11 @@ describe('改坏的代码', () => {
 `),
     ]
     const result = await grade(dir, checks, id)
-    expect(result.results.at(-1)).toMatchObject({ passed: false, message: '期望窗体上的 lamp 点开关后灯亮，实际是灭的' })
+    // 这一项没有先打开串口，程序控制 4150 时串口没开，说明后面附上提示
+    expect(result.results.at(-1)).toMatchObject({
+      passed: false,
+      message: '期望窗体上的 lamp 点开关后灯亮，实际是灭的。注意：ADAM-4150 的串口没有打开，程序却在读写它（它接在 COM2）',
+    })
   }, 60000)
 
   test('关闭时忘了挂起线程', async () => {
@@ -163,7 +167,7 @@ describe('改坏的代码', () => {
     })
     const result = await grade(dir, await checksOf(id), id)
     const fire = result.results.find((r) => r.title === '能自动推送火情到 LED 屏')!
-    expect(fire).toMatchObject({ passed: false, message: '期望8 秒内实训台 LED 屏显示"发现火情"（勾选"自动推送火情"后有火焰），实际什么也没显示' })
+    expect(fire).toMatchObject({ passed: false, message: '期望 8 秒内实训台 LED 屏显示"发现火情"（勾选"自动推送火情"后有火焰），实际什么也没显示' })
     expect(result.results.filter((r) => !r.passed)).toHaveLength(1)
   }, 60000)
 
@@ -188,6 +192,20 @@ describe('改坏的代码', () => {
     })
     const result = await grade(dir, await checksOf(id), id)
     expect(result.results[0]).toMatchObject({ passed: false, message: '期望实训台的报警灯（ADAM-4150 DO0）打开，实际是关闭的' })
+  }, 60000)
+
+  test('串口写死成 COM2：4150 收不到命令，说明里指出接在 COM3', async () => {
+    const id = 'p4-t3-报警灯'
+    const dir = await prepare(id, 'port', {
+      file: 'Form1.cs',
+      from: 'DeviceCtrlHelper.adam4150Helper.Open(com_port.Text);',
+      to: 'DeviceCtrlHelper.adam4150Helper.Open("COM2");',
+    })
+    const result = await grade(dir, await checksOf(id), id)
+    expect(result.results[0]).toMatchObject({
+      passed: false,
+      message: '期望实训台的报警灯（ADAM-4150 DO0）打开，实际是关闭的。注意：程序在 COM2 上打开 ADAM-4150，它接在 COM3',
+    })
   }, 60000)
 })
 

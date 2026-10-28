@@ -10,6 +10,7 @@ import DataGridViewControl from './DataGridViewControl.vue'
 import DateTimePickerControl from './DateTimePickerControl.vue'
 import LedControl from './LedControl.vue'
 import TrackBarControl from './TrackBarControl.vue'
+import { PORT_LABELS, portLabels } from '../scene/wiring'
 
 const props = defineProps<{
   node: ControlNode
@@ -61,8 +62,8 @@ const items = computed(() => (p.value.Items as string[] | undefined) ?? [])
 const editable = computed(() => p.value.DropDownStyle !== 'DropDownList')
 const combo = ref<HTMLElement>()
 const listStyle = ref<CSSProperties>({})
-/** 串口列表里每个口后面用灰字标出实训台上接的设备，只是提示，下拉框的值还是 COM2 这样的串口名 */
-const portDevices: Record<string, string> = { COM2: 'ADAM-4017+', COM3: 'ADAM-4150', COM4: 'ZigBee 协调器', COM5: 'LED 屏' }
+/** 串口列表里每个口后面用灰字标出实训台上接的设备（按当前实验的接线），只是提示，下拉框的值还是 COM2 这样的串口名 */
+const portDevices = inject(PORT_LABELS, ref(portLabels()))
 
 function openDropDown() {
   if (!enabled.value) return

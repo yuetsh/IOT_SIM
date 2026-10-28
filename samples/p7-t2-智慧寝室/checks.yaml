@@ -25,6 +25,7 @@
     - expect: { control: trb_curtain, value: 0, desc: 上课模式窗帘全开 }
     - clock: '21:30:00'
     - expect: { control: lbl_mode, contains: 回寝模式, within: 5s, desc: 21:30 是回寝模式 }
+    - expect: { relay: 1, on: true, desc: 回寝模式打开灯光 }
     - expect: { control: trb_curtain, value: 10, desc: 回寝模式关窗帘 }
     - clock: '23:00:00'
     - expect: { control: lbl_mode, contains: 熄灯模式, within: 5s, desc: 23:00 是熄灯模式 }

@@ -13,6 +13,8 @@
 | 按钮   | `btn_lampOpen`    | 开（手动开灯）                                 |
 | 按钮   | `btn_lampClose`   | 关（手动关灯）                                 |
 | 分组框 | `groupBox1`       | 配置                                           |
+| 标签   | `lbl_lamp`        | 路灯                                           |
+| 标签   | `lbl_environment` | 环境采集                                       |
 | 下拉框 | `com_lamp`        | 路灯（ZigBee 协调器）的串口                    |
 | 下拉框 | `com_environment` | 环境采集（ADAM-4150）的串口                    |
 | 复选框 | `ch_bodyInfrared` | 人体开关                                       |
@@ -33,7 +35,7 @@
    - 取消时：关闭串口，停止 `timer1`，两个按钮恢复可用。
 7. **timer1 的 Tick**：读 `adam4150Helper.SetData().bodyInfraredValue`，是 `true`（有人）就开灯，否则关灯。
 
-> 书上第 15 步说"进入 Click 事件"，定时器的事件其实是 **Tick**：在设计器里双击 timer1 就会生成 `timer1_Tick`。
+> 书上第 15 步说"进入 Click 事件"，定时器的事件其实是 **Tick**（事件窗口里叫"计时到"）：在设计器里双击 timer1 就会生成 `timer1_Tick`。
 
 ## 在平台上怎么试
 

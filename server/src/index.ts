@@ -9,7 +9,7 @@ import { config } from './config'
 import { openDatabase } from './db'
 import { createGradingQueue } from './grading/queue'
 import { restoreExperimentDatabases, userDatabaseDir } from './databases'
-import { listSamples } from './samples'
+import { knownSample, sampleWiring } from './samples'
 import { cleanupStaleRuns, RunSession } from './run-session'
 import { sqlService } from './sql-service'
 import { checkSandbox, sandboxError } from './sandbox'
@@ -78,15 +78,18 @@ const server = Bun.serve({
       if (!session) return
       if (message.type === 'run') {
         try {
-          const { sampleId } = message
-          if (typeof sampleId === 'string' && (await listSamples()).some((s) => s.id === sampleId)) {
+          const sampleId = await knownSample(message.sampleId)
+          if (sampleId) {
             // 建库失败不影响运行（程序连不上库时会报出来）
             await restoreExperimentDatabases(ws.data.userId!, sampleId, true).catch((error) => console.error('自动建实验数据库失败', error))
           }
+          session.setWiring(await sampleWiring(sampleId))
           await session.start(message.files)
         } catch (error) {
           ws.send(JSON.stringify({ type: 'serverError', message: String(error) } satisfies ServerMessage))
         }
+      } else if (message.type === 'experiment') {
+        session.setWiring(await sampleWiring(await knownSample(message.sampleId)))
       } else if (message.type === 'stop') {
         await session.stop()
       } else if (message.type === 'boardInput') {

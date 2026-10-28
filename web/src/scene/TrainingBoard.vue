@@ -2,7 +2,21 @@
 // 虚拟实训台：按教材实训台布局图（顶棚 → LED 屏 → 传感器 → 采集模块）排列。
 // 传感器卡片上的滑块和开关调节环境（经服务器推给学生程序），灯和继电器的状态由学生程序控制。
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ANALOG_INFO, clockWall, type AnalogKey, type BoardState, type ClientMessage, type DigitalKey } from '@iot/shared'
+import {
+  ANALOG_INFO,
+  BOARD_PORTS,
+  clockWall,
+  DEFAULT_WIRING,
+  describePortProblem,
+  PORT_DEVICE_NAMES,
+  portProblems,
+  type AnalogKey,
+  type BoardState,
+  type ClientMessage,
+  type DigitalKey,
+  type PortDevice,
+} from '@iot/shared'
+import { devicesOn } from './wiring'
 
 type BoardInput = Omit<Extract<ClientMessage, { type: 'boardInput' }>, 'type'>
 
@@ -145,6 +159,57 @@ function setSpeed(speed: number) {
   emit('set', { clock: { speed } })
 }
 
+// ---------- 接线：鼠标移到设备上，高亮它接的通道、模块和串口，并写出整条线路（只看，不能改） ----------
+interface Link {
+  label: string
+  module: PortDevice | null
+  /** 接在模块的哪个通道上 */
+  channels?: string[]
+  /** 没有模块通道时的线路说明 */
+  route?: string
+}
+const LINKS: Record<string, Link> = {
+  infrared: { label: '红外对射', module: 'adam4150', channels: ['DI3'] },
+  alarm: { label: '警示灯', module: 'adam4150', channels: ['DO0'] },
+  camera: { label: '网络摄像头', module: null, route: '网线 → 路由器（按 IP 地址访问，不经过串口）' },
+  led: { label: 'LED 显示屏', module: 'led' },
+  streetLamp: { label: '照明灯 1', module: 'zigbee', route: 'ZigBee 继电器节点 1 → 无线 → ZigBee 协调器' },
+  bodyInfrared: { label: '人体红外', module: 'adam4150', channels: ['DI0'] },
+  humiture: { label: '温湿度传感器', module: 'adam4017', channels: ['Vin0', 'Vin1'] },
+  light: { label: '光照传感器', module: 'adam4017', channels: ['Vin2'] },
+  speaker: { label: '广播', module: null, route: '电脑的声卡（Windows Media Player 播放）' },
+  smoke: { label: '烟雾传感器', module: 'adam4150', channels: ['DI2'] },
+  fire: { label: '火焰传感器', module: 'adam4150', channels: ['DI1'] },
+  roomLamp: { label: '照明灯 2', module: 'adam4150', channels: ['DO1'] },
+}
+const hovered = ref<string | null>(null)
+const wiring = computed(() => props.board?.wiring ?? DEFAULT_WIRING)
+const link = computed(() => (hovered.value ? LINKS[hovered.value] : undefined))
+
+/** 如"人体红外 → ADAM-4150 DI0 → 串口服务器 COM3" */
+const linkPath = computed(() => {
+  const l = link.value
+  if (!l) return ''
+  const steps = [l.label]
+  if (l.route) steps.push(l.route)
+  if (l.module && l.channels) steps.push(`${PORT_DEVICE_NAMES[l.module]} ${l.channels.join('、')}`)
+  if (l.module) steps.push(`串口服务器 ${wiring.value[l.module]}`)
+  return steps.join(' → ')
+})
+
+const linkedChannel = (module: PortDevice, channel: string) => link.value?.module === module && link.value.channels?.includes(channel) === true
+const linkedModule = (module: PortDevice) => link.value?.module === module
+const linkedPort = (port: string) => !!link.value?.module && wiring.value[link.value.module] === port
+
+/** 学生程序打开了这个串口（不管上面接的是不是它要的设备） */
+const portOpen = (port: string) => Object.values(props.board?.opened ?? {}).some((opened) => opened?.trim().toUpperCase() === port)
+const portDevices = (port: string) =>
+  devicesOn(wiring.value, port)
+    .map((device) => PORT_DEVICE_NAMES[device])
+    .join('、') || '空'
+/** 串口打开错了、或没打开就读写的设备：设备没有反应，提示学生 */
+const problems = computed(() => (props.board ? portProblems(props.board) : []))
+
 const cameraTitle = computed(() =>
   camera.value.on ? `网络摄像头：正在传送画面（云台左右 ${camera.value.x + 1}/7，上下 ${camera.value.y + 1}/3）` : '网络摄像头（项目 4 使用）：未开启',
 )
@@ -175,6 +240,7 @@ const cameraTitle = computed(() =>
     </button>
     <span v-if="ledText" class="summary-led" :title="ledText">LED：{{ ledText }}</span>
     <span v-if="clock" class="summary-clock" title="虚拟时钟：学生程序里的 DateTime.Now">🕒 {{ wall.slice(11) }}（{{ clock.speed }}×）</span>
+    <span v-for="p in problems" :key="p.device" class="port-warning">⚠ {{ describePortProblem(p) }}</span>
     <button class="link expand" @click="setCollapsed(false)">展开 ▾</button>
   </div>
 
@@ -186,39 +252,72 @@ const cameraTitle = computed(() =>
   >
     <div class="board-header">
       <span class="board-name">虚拟实训台</span>
+      <span class="wiring-path" :class="{ active: link }" :title="linkPath">{{ linkPath || '鼠标移到设备上，看它接在哪个通道、哪个串口' }}</span>
       <button class="link" title="收起后只显示一行状态，给窗体留出更多地方" @click="setCollapsed(true)">收起 ▴</button>
+    </div>
+
+    <!-- 串口问题放在最上面，不用往下滚就能看到 -->
+    <div v-if="problems.length" class="port-warnings">
+      <div v-for="p in problems" :key="p.device" class="port-warning">⚠ {{ describePortProblem(p) }}，设备收不到命令</div>
     </div>
 
     <!-- 顶棚：红外对射、警示灯（DO0）、摄像头 -->
     <div class="ceiling">
-      <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">红外对射</button>
+      <button
+        class="device beam-end"
+        :class="{ active: digital.infrared }"
+        title="点击遮挡/恢复光束"
+        @click="toggle('infrared')"
+        @mouseenter="hovered = 'infrared'"
+        @mouseleave="hovered = null"
+      >
+        红外对射
+      </button>
       <div class="beam" :class="{ broken: digital.infrared }" @click="toggle('infrared')">
         <span v-if="digital.infrared" class="beam-tag">有人闯入</span>
       </div>
-      <div class="device warning-light" :class="{ on: alarmOn }" title="警示灯（ADAM-4150 DO0）">警示灯</div>
+      <div class="device warning-light" :class="{ on: alarmOn }" title="警示灯（ADAM-4150 DO0）" @mouseenter="hovered = 'alarm'" @mouseleave="hovered = null">
+        警示灯
+      </div>
       <div class="beam" :class="{ broken: digital.infrared }" @click="toggle('infrared')" />
-      <div class="device camera" :class="{ on: camera.on }" :title="cameraTitle">
+      <div class="device camera" :class="{ on: camera.on }" :title="cameraTitle" @mouseenter="hovered = 'camera'" @mouseleave="hovered = null">
         <svg viewBox="0 0 24 24" width="22" height="22">
           <path fill="currentColor" d="M4 7h11a2 2 0 0 1 2 2v1.5l3.5-2.5v8L17 13.5V15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" />
         </svg>
       </div>
-      <button class="device beam-end" :class="{ active: digital.infrared }" title="点击遮挡/恢复光束" @click="toggle('infrared')">红外对射</button>
+      <button
+        class="device beam-end"
+        :class="{ active: digital.infrared }"
+        title="点击遮挡/恢复光束"
+        @click="toggle('infrared')"
+        @mouseenter="hovered = 'infrared'"
+        @mouseleave="hovered = null"
+      >
+        红外对射
+      </button>
     </div>
 
     <!-- LED 显示屏 -->
-    <div class="led-screen" title="LED 显示屏">
+    <div class="led-screen" title="LED 显示屏" @mouseenter="hovered = 'led'" @mouseleave="hovered = null">
       <span v-if="ledText" :key="ledText" class="led-text">{{ ledText }}</span>
     </div>
 
     <!-- 传感器与执行器 -->
     <div class="sensors">
-      <div class="card" title="照明灯 1：由 ZigBee 继电器节点 1 控制（教材项目 3 的路灯）">
+      <div class="card" title="照明灯 1：由 ZigBee 继电器节点 1 控制（教材项目 3 的路灯）" @mouseenter="hovered = 'streetLamp'" @mouseleave="hovered = null">
         <div class="bulb" :class="{ on: streetLampOn }" />
         <div class="card-title">照明灯 1</div>
         <div class="card-note">ZigBee 节点 1</div>
       </div>
 
-      <button class="card toggle" :class="{ active: digital.bodyInfrared }" title="点击切换：有人 / 无人" @click="toggle('bodyInfrared')">
+      <button
+        class="card toggle"
+        :class="{ active: digital.bodyInfrared }"
+        title="点击切换：有人 / 无人"
+        @click="toggle('bodyInfrared')"
+        @mouseenter="hovered = 'bodyInfrared'"
+        @mouseleave="hovered = null"
+      >
         <svg viewBox="0 0 24 24" width="30" height="30" class="icon">
           <circle cx="12" cy="5" r="2.6" fill="currentColor" />
           <path fill="currentColor" d="M9 9h6l1.5 6h-2l-.8 7h-3.4l-.8-7h-2z" />
@@ -227,7 +326,7 @@ const cameraTitle = computed(() =>
         <div class="card-note">{{ digital.bodyInfrared ? '有人' : '无人' }}</div>
       </button>
 
-      <div class="card wide">
+      <div class="card wide" @mouseenter="hovered = 'humiture'" @mouseleave="hovered = null">
         <div class="card-title">温湿度传感器</div>
         <label v-for="key in ['temperature', 'humidity'] as AnalogKey[]" :key="key" class="slider">
           <span>{{ ANALOG_INFO[key].label }}</span>
@@ -244,7 +343,7 @@ const cameraTitle = computed(() =>
         </label>
       </div>
 
-      <div class="card wide">
+      <div class="card wide" @mouseenter="hovered = 'light'" @mouseleave="hovered = null">
         <div class="card-title">光照传感器</div>
         <label class="slider">
           <span>光照</span>
@@ -262,7 +361,12 @@ const cameraTitle = computed(() =>
         </label>
       </div>
 
-      <div class="card" :title="playing ? `广播正在播放 ${playing.name}` : '广播（教材项目 7 用 Windows Media Player 播放铃声）'">
+      <div
+        class="card"
+        :title="playing ? `广播正在播放 ${playing.name}` : '广播（教材项目 7 用 Windows Media Player 播放铃声）'"
+        @mouseenter="hovered = 'speaker'"
+        @mouseleave="hovered = null"
+      >
         <svg viewBox="0 0 24 24" width="30" height="30" class="icon speaker" :class="{ on: playing }">
           <path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z" />
           <path
@@ -278,13 +382,27 @@ const cameraTitle = computed(() =>
         <div class="card-note">{{ playing ? `播放 ${playing.name}` : '静音' }}</div>
       </div>
 
-      <button class="card toggle" :class="{ active: digital.smoke }" title="点击切换：有烟雾 / 正常" @click="toggle('smoke')">
+      <button
+        class="card toggle"
+        :class="{ active: digital.smoke }"
+        title="点击切换：有烟雾 / 正常"
+        @click="toggle('smoke')"
+        @mouseenter="hovered = 'smoke'"
+        @mouseleave="hovered = null"
+      >
         <div class="smoke" :class="{ on: digital.smoke }"><i /><i /><i /></div>
         <div class="card-title">烟雾传感器</div>
         <div class="card-note">{{ digital.smoke ? '有烟雾' : '正常' }}</div>
       </button>
 
-      <button class="card toggle" :class="{ active: digital.fire }" title="点击切换：有火焰 / 正常" @click="toggle('fire')">
+      <button
+        class="card toggle"
+        :class="{ active: digital.fire }"
+        title="点击切换：有火焰 / 正常"
+        @click="toggle('fire')"
+        @mouseenter="hovered = 'fire'"
+        @mouseleave="hovered = null"
+      >
         <svg viewBox="0 0 24 24" width="30" height="30" class="icon flame" :class="{ on: digital.fire }">
           <path fill="currentColor" d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-3 1.5-4.5 2.5-6 .5 2 1.5 3 2.5 3-1-3 0-6 0-8z" />
         </svg>
@@ -292,7 +410,12 @@ const cameraTitle = computed(() =>
         <div class="card-note">{{ digital.fire ? '有火焰' : '正常' }}</div>
       </button>
 
-      <div class="card" title="照明灯 2：由 ADAM-4150 的 DO1 控制（教材项目 7 的教室、寝室、会议室照明）">
+      <div
+        class="card"
+        title="照明灯 2：由 ADAM-4150 的 DO1 控制（教材项目 7 的教室、寝室、会议室照明）"
+        @mouseenter="hovered = 'roomLamp'"
+        @mouseleave="hovered = null"
+      >
         <div class="bulb" :class="{ on: roomLampOn }" />
         <div class="card-title">照明灯 2</div>
         <div class="card-note">ADAM-4150 DO1</div>
@@ -301,10 +424,10 @@ const cameraTitle = computed(() =>
 
     <!-- 采集模块与串口 -->
     <div class="modules">
-      <div class="module">
+      <div class="module" :class="{ linked: linkedModule('adam4017') }">
         <div class="module-title">ADAM-4017+ 模拟量（地址 2）</div>
         <div class="readings">
-          <span v-for="(key, i) in ['temperature', 'humidity', 'light'] as AnalogKey[]" :key="key">
+          <span v-for="(key, i) in ['temperature', 'humidity', 'light'] as AnalogKey[]" :key="key" :class="{ linked: linkedChannel('adam4017', `Vin${i}`) }">
             Vin{{ i }} {{ ANALOG_INFO[key].label }} <b>{{ board?.analog[key] ?? '-' }}</b>
           </span>
           <button class="link" @click="showMore = !showMore">{{ showMore ? '收起' : 'Vin3–6 更多传感器' }}</button>
@@ -326,19 +449,32 @@ const cameraTitle = computed(() =>
         </div>
       </div>
 
-      <div class="module">
+      <div class="module" :class="{ linked: linkedModule('adam4150') }">
         <div class="module-title">ADAM-4150 数字量（地址 1）</div>
         <div class="io-row">
-          <span v-for="(input, i) in DIGITAL_INPUTS" :key="input.key" class="io" :class="{ lit: digital[input.key] }"> <i />DI{{ i }} {{ input.label }} </span>
+          <span
+            v-for="(input, i) in DIGITAL_INPUTS"
+            :key="input.key"
+            class="io"
+            :class="{ lit: digital[input.key], linked: linkedChannel('adam4150', `DI${i}`) }"
+          >
+            <i />DI{{ i }} {{ input.label }}
+          </span>
         </div>
         <div class="io-row">
-          <span v-for="(label, i) in RELAYS" :key="label" class="io out" :class="{ lit: relays[i] }"> <i />DO{{ i }} {{ label }} </span>
+          <span v-for="(label, i) in RELAYS" :key="label" class="io out" :class="{ lit: relays[i], linked: linkedChannel('adam4150', `DO${i}`) }">
+            <i />DO{{ i }} {{ label }}
+          </span>
         </div>
       </div>
 
       <div class="module ports">
         <div class="module-title">串口服务器</div>
-        <div class="port-list"><span>COM2 → 4017</span><span>COM3 → 4150</span><span>COM4 → ZigBee 协调器</span><span>COM5 → LED 屏</span></div>
+        <div class="port-list" title="绿点：程序打开了这个串口">
+          <span v-for="port in BOARD_PORTS" :key="port" class="io out" :class="{ lit: portOpen(port), linked: linkedPort(port) }">
+            <i />{{ port }} → {{ portDevices(port) }}
+          </span>
+        </div>
         <button class="reset" :disabled="!board" @click="emit('reset')">实训台复位</button>
       </div>
     </div>
@@ -858,6 +994,42 @@ button {
 .port-list {
   flex-direction: column;
   color: var(--muted);
+}
+
+.port-warning {
+  color: #ff8a80;
+}
+
+.port-warnings {
+  padding: 4px 8px;
+  background: #4a2f35;
+  border-radius: 4px;
+}
+
+/* 接线：鼠标所在设备接的模块、通道和串口 */
+.wiring-path {
+  flex: 1;
+  min-width: 0;
+  margin: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #6c7889;
+}
+
+.wiring-path.active {
+  color: #9fd3ff;
+}
+
+.module.linked {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.readings .linked,
+.io.linked {
+  color: #9fd3ff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .link {

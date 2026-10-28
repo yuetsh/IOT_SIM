@@ -160,7 +160,7 @@ test('项目2 任务1：选串口、打开、推送文字到 LED 屏', async () 
   runner.send({ type: 'action', id: id('btn_Open'), action: 'click' })
   runner.send({ type: 'action', id: id('btn_Send'), action: 'click' })
 
-  const device = await runner.waitFor('device', (m) => m.device === 'led')
+  const device = await runner.waitFor('device', (m) => m.device === 'led' && m.action === 'text')
   expect(device.data).toBe('欢迎学习物联网')
   const led = id('led')
   const ledPatch = await runner.waitFor('patch', (m) => m.changes.some((c) => c.id === led && c.prop === 'LedText'))
@@ -219,10 +219,11 @@ test('项目3 任务1：单选按钮切换，事件顺序与 WinForms 一致，�
   const { runner, id } = await startSample('p3-t1-ZigBee路灯')
   const lamp = id('lamp1')
 
-  // 串口没打开时控制无效：没有继电器动作，但界面上的灯照样会亮（学生能看出两者不一致）
+  // 串口没打开时控制无效：没有继电器动作（实训台提示串口没打开），但界面上的灯照样会亮（学生能看出两者不一致）
   runner.send({ type: 'action', id: id('rb_Open'), action: 'click' })
   await runner.waitFor('patch', (m) => m.changes.some((c) => c.id === lamp && c.prop === 'IsOn' && c.value === true))
-  expect(runner.messages.some((m) => m.type === 'device')).toBe(false)
+  await runner.waitFor('device', (m) => m.device === 'zigbee' && m.action === 'unopened')
+  expect(runner.messages.some((m) => m.type === 'device' && m.action === 'relay')).toBe(false)
 
   runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 2 })
   runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
@@ -232,7 +233,7 @@ test('项目3 任务1：单选按钮切换，事件顺序与 WinForms 一致，�
   runner.send({ type: 'action', id: id('rb_Close'), action: 'click' })
   const devices: unknown[] = []
   await relayOff
-  for (const m of runner.messages) if (m.type === 'device') devices.push(m.data)
+  for (const m of runner.messages) if (m.type === 'device' && m.action === 'relay') devices.push(m.data)
   expect(devices).toEqual([
     [1, 1],
     [1, 0],
@@ -329,6 +330,27 @@ test('项目4 任务1：红外对射被遮挡时显示"发现入侵"', async () 
   await even('发现入侵')
 }, 30000)
 
+test('串口要选对：4150 接在 COM3，在 COM2 上打开读不到传感器；换成项目 7 的接线（并到 COM2）就能读到', async () => {
+  const { runner, id } = await startSample('p4-t1-红外对射')
+  const even = (value: string) => runner.next('patch', (m) => m.changes.some((c) => c.id === id('txt_even') && c.value === value), 5000)
+  runner.send({ type: 'board', analog: ANALOG_DEFAULT, digital: [false, false, false, true] })
+  const opened = runner.next('device', (m) => m.device === 'adam4150' && m.action === 'open')
+  runner.send({ type: 'action', id: id('com_port'), action: 'select', index: 0 })
+  runner.send({ type: 'action', id: id('btn_open'), action: 'click' })
+  // 实训台据此提示"程序在 COM2 上打开 ADAM-4150"；收不到回应，和真机一样读到的全是 false
+  expect((await opened).data).toBe('COM2')
+  await even('正常')
+
+  const intrusion = even('发现入侵')
+  runner.send({
+    type: 'board',
+    analog: ANALOG_DEFAULT,
+    digital: [false, false, false, true],
+    wiring: { adam4017: 'COM2', adam4150: 'COM2', zigbee: 'COM4', led: 'COM5' },
+  })
+  await intrusion
+}, 30000)
+
 test('项目4 任务2：打开摄像机显示画面，转动后画面变化，有人翻墙时画面变化，拍照保存到 Camera 文件夹', async () => {
   const { runner, id } = await startSample('p4-t2-网络摄像机')
   const pictures = () => runner.next('patch', (m) => m.changes.some((c) => c.id === id('pictureBox1') && c.prop === 'Image'), 5000)
@@ -367,7 +389,7 @@ test('项目4 任务2：打开摄像机显示画面，转动后画面变化，�
 test('项目4 任务3：开报警灯——实训台 DO0 动作，窗体上的报警灯亮', async () => {
   const { runner, id } = await startSample('p4-t3-报警灯')
   await openAdam4150(runner, id)
-  const relay = runner.next('device', (m) => m.device === 'adam4150')
+  const relay = runner.next('device', (m) => m.device === 'adam4150' && m.action === 'do')
   const lamp = runner.next('patch', (m) => m.changes.some((c) => c.id === id('alarm1') && c.prop === 'IsOn' && c.value === true))
   runner.send({ type: 'action', id: id('btn_alarmOpen'), action: 'click' })
   expect((await relay).data).toEqual([0, 1])
@@ -730,9 +752,7 @@ test('禁用：分组框禁用后里面的控件 Enabled 读出 false、触发 E
   const output = runner.messages.flatMap((m) => (m.type === 'console' ? [m.text] : [])).join('')
   // 浏览器只收到分组框自己的 Enabled，子控件按父控件画成禁用
   expect(findByName(form, 'button').props.Enabled).toBe(true)
-  expect(output).toBe(
-    'button changed=False\ngroup=False button=False off=False\nbutton changed=True\ngroup=True button=True off=False\nclick\n',
-  )
+  expect(output).toBe('button changed=False\ngroup=False button=False off=False\nbutton changed=True\ngroup=True button=True off=False\nclick\n')
 }, 30000)
 
 test('透明背景：文本框、窗体等设透明背景色和 WinForms 一样报错，标签、面板可以', async () => {

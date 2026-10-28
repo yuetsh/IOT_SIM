@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { dirname, join, normalize, resolve } from 'node:path'
 import type { Subprocess } from 'bun'
-import type { ClientMessage, RunnerInput, RunnerMessage, ServerMessage, SourceFile } from '@iot/shared'
+import type { ClientMessage, RunnerInput, RunnerMessage, ServerMessage, SourceFile, Wiring } from '@iot/shared'
 import { Board } from './board'
 import { compileService } from './compile-service'
 import { config } from './config'
@@ -125,6 +125,13 @@ export class RunSession {
   /** 浏览器调节实训台环境：更新状态，推给浏览器和正在运行的学生程序 */
   boardInput(message: Extract<ClientMessage, { type: 'boardInput' }>) {
     if (!this.board.applyInput(message)) return
+    this.sendBoard()
+    this.input(this.board.runnerInputs())
+  }
+
+  /** 换成实验的接线（打开实验、运行时） */
+  setWiring(wiring: Wiring) {
+    if (!this.board.setWiring(wiring)) return
     this.sendBoard()
     this.input(this.board.runnerInputs())
   }

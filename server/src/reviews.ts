@@ -75,8 +75,8 @@ export function studentDetail(db: Database, assignmentId: number, userId: number
 /** 一份提交的代码和它属于谁（老师在实验页里运行学生的程序时用） */
 export function submissionFiles(db: Database, submissionId: number) {
   const row = db
-    .query<{ files: string; assignment_id: number; title: string; name: string; username: string }, [number]>(
-      `SELECT s.files, s.assignment_id, a.title, u.name, u.username
+    .query<{ files: string; assignment_id: number; sample_id: string; title: string; name: string; username: string }, [number]>(
+      `SELECT s.files, s.assignment_id, a.sample_id, a.title, u.name, u.username
        FROM submissions s JOIN assignments a ON a.id = s.assignment_id JOIN users u ON u.id = s.user_id WHERE s.id = ?`,
     )
     .get(submissionId)
@@ -84,6 +84,8 @@ export function submissionFiles(db: Database, submissionId: number) {
   return {
     files: JSON.parse(row.files) as SourceFile[],
     assignmentId: row.assignment_id,
+    /** 作业基于的实验：运行时按它给实训台接线、建实验数据库 */
+    sampleId: row.sample_id,
     assignmentTitle: row.title,
     studentName: row.name,
     username: row.username,

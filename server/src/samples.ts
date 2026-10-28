@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
-import type { SourceFile } from '@iot/shared'
+import { BOARD_PORTS, DEFAULT_WIRING, PORT_DEVICES, type SourceFile, type Wiring } from '@iot/shared'
 import { config } from './config'
 
 const SAMPLES_DIR = config.samplesDir
@@ -20,6 +20,30 @@ export async function listSamples(): Promise<SampleInfo[]> {
     samples.push({ id: entry.name, title: meta.title })
   }
   return samples.sort((a, b) => a.id.localeCompare(b.id))
+}
+
+/** 浏览器传来的实验编号：是已有的示例才返回 */
+export async function knownSample(id: unknown): Promise<string | undefined> {
+  return typeof id === 'string' && (await listSamples()).some((s) => s.id === id) ? id : undefined
+}
+
+/**
+ * 实验的实训台接线：meta.json 的 wiring 只写和默认接线不同的设备，如项目 7 的 { "adam4150": "COM2" }。
+ * 没有这个实验（或没给 id）时用默认接线
+ */
+export async function sampleWiring(id?: string): Promise<Wiring> {
+  const wiring = { ...DEFAULT_WIRING }
+  if (!id) return wiring
+  const path = resolve(SAMPLES_DIR, id, 'meta.json')
+  if (!path.startsWith(`${SAMPLES_DIR}/`)) return wiring
+  const file = Bun.file(path)
+  if (!(await file.exists())) return wiring
+  const custom = ((await file.json()) as { wiring?: Partial<Wiring> }).wiring ?? {}
+  for (const device of PORT_DEVICES) {
+    const port = custom[device]
+    if (port !== undefined && BOARD_PORTS.includes(port)) wiring[device] = port
+  }
+  return wiring
 }
 
 export async function loadSample(id: string): Promise<SourceFile[] | null> {

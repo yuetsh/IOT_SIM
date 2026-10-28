@@ -4,9 +4,13 @@ import {
   ANALOG_INFO,
   type BoardState,
   type ClientMessage,
+  DEFAULT_WIRING,
   DIGITAL_CHANNELS,
+  PORT_DEVICES,
+  type PortDevice,
   type RunnerInput,
   type RunnerMessage,
+  type Wiring,
 } from '@iot/shared'
 import { config } from './config'
 
@@ -19,7 +23,14 @@ export function defaultBoardState(): BoardState {
     ledText: '',
     camera: { on: false, x: 3, y: 1 },
     clock: null,
+    wiring: { ...DEFAULT_WIRING },
+    opened: closedPorts(),
+    usedUnopened: [],
   }
+}
+
+function closedPorts(): BoardState['opened'] {
+  return { adam4017: null, adam4150: null, zigbee: null, led: null }
 }
 
 /** 一个浏览器会话的虚拟实训台。多次运行之间保留状态，和真实实训台断电前继电器保持原状一样 */
@@ -33,7 +44,15 @@ export class Board {
       analog: ANALOG_CHANNELS.map((key) => this.state.analog[key]),
       digital: DIGITAL_CHANNELS.map((key) => this.state.digital[key]),
       clock: this.state.clock,
+      wiring: this.state.wiring,
     }
+  }
+
+  /** 换成某个实验的接线；返回 true 表示有变化 */
+  setWiring(wiring: Wiring) {
+    if (PORT_DEVICES.every((device) => this.state.wiring[device] === wiring[device])) return false
+    this.state.wiring = { ...wiring }
+    return true
   }
 
   /** 浏览器调节环境；返回 true 表示传感器读数有变化 */
@@ -81,6 +100,17 @@ export class Board {
 
   /** 学生程序控制了输出设备；返回 true 表示实训台状态有变化 */
   applyDevice(message: Extract<RunnerMessage, { type: 'device' }>) {
+    const device = message.device as PortDevice
+    if (PORT_DEVICES.includes(device) && (message.action === 'open' || message.action === 'close')) {
+      this.state.opened[device] = message.action === 'open' ? String(message.data ?? '') : null
+      if (message.action === 'open') this.state.usedUnopened = this.state.usedUnopened.filter((d) => d !== device)
+      return true
+    }
+    if (PORT_DEVICES.includes(device) && message.action === 'unopened') {
+      if (this.state.usedUnopened.includes(device)) return false
+      this.state.usedUnopened = [...this.state.usedUnopened, device]
+      return true
+    }
     switch (`${message.device}/${message.action}`) {
       case 'led/text':
         this.state.ledText = String(message.data ?? '')
@@ -111,13 +141,16 @@ export class Board {
     }
   }
 
-  /** 学生程序结束：摄像头不再传画面，云台回到正中（下次运行的程序从正中开始） */
+  /** 学生程序结束：摄像头不再传画面，云台回到正中（下次运行的程序从正中开始）；打开的串口随程序关闭 */
   programExited() {
     this.state.camera = { on: false, x: 3, y: 1 }
+    this.state.opened = closedPorts()
+    this.state.usedUnopened = []
   }
 
+  /** 复位不改接线（接线跟着实验走），也不动正在运行的程序打开的串口 */
   reset() {
-    this.state = defaultBoardState()
+    this.state = { ...defaultBoardState(), wiring: this.state.wiring, opened: this.state.opened, usedUnopened: this.state.usedUnopened }
   }
 }
 

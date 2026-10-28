@@ -1,11 +1,12 @@
 // 自动评分：编译一次学生工程，每个检查项各启动一次程序，按步骤操作并核对结果。
 // 检查大部分时间在等定时器，CPU 主要花在编译和启动程序上；全站同时跑 config.gradeConcurrency 个检查，其余排队。
-import type { CheckResult, ControlNode, GradeResult } from '@iot/shared'
+import { describePortProblem, portProblems, type CheckResult, type ControlNode, type GradeResult } from '@iot/shared'
 import { rm } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { config } from '../config'
 import { compileService } from '../compile-service'
 import { gradingDatabaseDir } from '../databases'
+import { sampleWiring } from '../samples'
 import type { Check, Expectation, Step } from './checks'
 import { ProgramDriver } from './driver'
 
@@ -56,6 +57,7 @@ class Failure extends Error {}
 
 async function runCheck(dir: string, check: Check, sampleId?: string): Promise<CheckResult> {
   const driver = new ProgramDriver()
+  driver.board.setWiring(await sampleWiring(sampleId))
   const dbDir = sampleId ? await gradingDatabaseDir(sampleId) : undefined
   try {
     driver.start(dir, dbDir)
@@ -237,7 +239,7 @@ async function expectStep(driver: ProgramDriver, step: Extract<Step, { kind: 'ex
     key = found
   }
   const ok = await driver.waitFor(() => satisfied(driver, e, key), within)
-  if (!ok) throw new Failure(describeFailure(driver, e, step.desc, wait))
+  if (!ok) throw new Failure(describeFailure(driver, e, step.desc, wait) + portNote(driver))
 }
 
 /** 列表框的 Text 只是选中的那一项，检查"包含"时看所有列表项 */
@@ -303,8 +305,15 @@ function chartSeries(node: ControlNode | undefined): { name: string; points: unk
   return (node?.props.Chart as { series?: { name: string; points: unknown[] }[] } | undefined)?.series ?? []
 }
 
+/** 串口打开错了或没打开时，设备没反应的原因多半在这里，附在不通过的说明后面 */
+function portNote(driver: ProgramDriver) {
+  const problems = portProblems(driver.board.state)
+  return problems.length ? `。注意：${problems.map(describePortProblem).join('；')}` : ''
+}
+
 function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 'unchanged' }>, desc: string | undefined, wait: string): string {
-  const prefix = wait ? `${wait}` : ''
+  // "期望 6 秒内……"：数字前空一格
+  const prefix = wait ? ` ${wait}` : ''
   const onOff = (on: boolean) => (on ? '打开' : '关闭')
   switch (e.kind) {
     case 'prop': {
@@ -333,7 +342,7 @@ function describeFailure(driver: ProgramDriver, e: Exclude<Expectation, { kind: 
     case 'relay':
       return `期望${prefix}实训台的${RELAY_NAMES[e.index] ?? `DO${e.index}`}（ADAM-4150 DO${e.index}）${desc ?? onOff(e.on)}，实际是${onOff(driver.board.state.relays[e.index])}的`
     case 'zigbee':
-      return `期望${prefix}实训台的${ZIGBEE_NAMES[e.index] ?? `ZigBee 继电器 ${e.index}`}${desc ?? onOff(e.on)}，实际是${onOff(driver.board.state.zigbee[e.index])}的`
+      return `期望${prefix}实训台的${ZIGBEE_NAMES[e.index] ?? `ZigBee 继电器 ${e.index}`} ${desc ?? onOff(e.on)}，实际是${onOff(driver.board.state.zigbee[e.index])}的`
     case 'messageBox': {
       const shown = driver.messageBoxes.map((b) => `"${b.text}"`).join('、')
       return `期望${prefix}弹出${desc ?? `包含"${e.text}"的提示框`}，${shown ? `实际弹出的是 ${shown}` : '实际没有弹出提示框'}`

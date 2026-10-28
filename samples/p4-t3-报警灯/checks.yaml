@@ -13,6 +13,7 @@
     - select: { control: com_port, item: COM3 }
     - click: btn_open
     - click: btn_alarmOpen
+    - expect: { relay: 0, on: true, desc: 先打开 }
     - click: btn_alarmClose
     - expect: { relay: 0, on: false }
     - expect: { control: alarm1, on: false }

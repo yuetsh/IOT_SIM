@@ -14,6 +14,7 @@
 | 文本框 | `txt_light`、`txt_temperature`、`txt_humidity` | 显示光照度、温度、湿度的值 |
 | 按钮   | `btn_get`                                      | 获取                       |
 | 分组框 | `grp_config`                                   | 配置                       |
+| 标签   | `lbl_port`                                     | 串口                       |
 | 下拉框 | `com_port`                                     | 串口                       |
 | 按钮   | `btn_Open`                                     | 开启（打开后变成"关闭"）   |
 

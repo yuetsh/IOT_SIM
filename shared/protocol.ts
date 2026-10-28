@@ -66,6 +66,55 @@ export interface BoardState {
   camera: { on: boolean; x: number; y: number }
   /** 虚拟时钟；null 表示真实时间 */
   clock: VirtualClock | null
+  /** 接线：每台串口设备接在哪个串口，随实验而定（示例 meta.json 的 wiring） */
+  wiring: Wiring
+  /** 学生程序在哪个串口上打开了各设备（Open / OpenLedCom）；没打开或已 Close 为 null，程序结束时清空 */
+  opened: Record<PortDevice, string | null>
+  /** 串口没打开（或已关闭）时程序还在读写的设备（读数据、控制继电器、推送文字）；打开后、程序结束时清除 */
+  usedUnopened: PortDevice[]
+}
+
+/** 实训台上经串口服务器连到电脑的设备 */
+export type PortDevice = 'adam4017' | 'adam4150' | 'zigbee' | 'led'
+export const PORT_DEVICES: PortDevice[] = ['adam4017', 'adam4150', 'zigbee', 'led']
+export const PORT_DEVICE_NAMES: Record<PortDevice, string> = { adam4017: 'ADAM-4017+', adam4150: 'ADAM-4150', zigbee: 'ZigBee 协调器', led: 'LED 屏' }
+/** 串口服务器的四个口（电脑自带的 COM1 不接设备，GetPortNames 也不返回） */
+export const BOARD_PORTS = ['COM2', 'COM3', 'COM4', 'COM5']
+
+export type Wiring = Record<PortDevice, string>
+
+/**
+ * 教材实训台布局图的接线：ADAM-4017+、ADAM-4150 各经一个 485/232 转换器接串口服务器，ZigBee 协调器、LED 屏直接接（项目 8 的 AppSet 也是这样）。
+ * 485 是总线，两个模块地址不同（4150 为 1、4017+ 为 2），也可以并在同一个口上：项目 7 的书上代码就在一个串口上打开两个模块。
+ */
+export const DEFAULT_WIRING: Wiring = { adam4017: 'COM2', adam4150: 'COM3', zigbee: 'COM4', led: 'COM5' }
+
+/**
+ * 串口问题，设备因此没有反应（和真机一样不报错）：opened 是程序打开的串口名（打开错了），null 表示串口没打开程序就在读写它。
+ * Windows 的串口名不分大小写
+ */
+export interface PortProblem {
+  device: PortDevice
+  opened: string | null
+  wired: string
+}
+
+export function portProblems(state: Pick<BoardState, 'wiring' | 'opened' | 'usedUnopened'>): PortProblem[] {
+  return PORT_DEVICES.flatMap((device): PortProblem[] => {
+    const opened = state.opened[device]
+    const wired = state.wiring[device]
+    if (opened === null) return state.usedUnopened.includes(device) ? [{ device, opened, wired }] : []
+    return opened.trim().toUpperCase() !== wired ? [{ device, opened, wired }] : []
+  })
+}
+
+/** 一句话说明串口问题，如"程序在 COM2 上打开 ADAM-4150，它接在 COM3" */
+export function describePortProblem(p: PortProblem) {
+  const name = PORT_DEVICE_NAMES[p.device]
+  // 名字以中文结尾时直接接"的"（"LED 屏的串口"），以字母、数字结尾时空一格（"ADAM-4150 的串口"）
+  const owner = /[\x00-\x7f]$/.test(name) ? `${name} 的` : `${name}的`
+  if (p.opened === null) return `${owner}串口没有打开，程序却在读写它（它接在 ${p.wired}）`
+  return p.opened.trim() ? `程序在 ${p.opened.trim()} 上打开 ${name}，它接在 ${p.wired}` : `程序没有选串口就打开了 ${name}，它接在 ${p.wired}`
 }
 
 /**
@@ -117,7 +166,10 @@ export type RunnerMessage =
   | { type: 'media'; id: string; action: 'play' | 'stop'; key?: string; name?: string }
   /** 学生程序用 Image.Save 保存了图片；path 相对程序所在目录，如 Camera/20241022_10 30 00.jpg */
   | { type: 'imageSaved'; path: string; image: string }
-  /** 学生程序操作了实训台输出：led/text、adam4150/do、zigbee/relay、camera/on、camera/pan，data 见 DeviceCtrlHelper.cs、IPCameraHelper.cs */
+  /**
+   * 学生程序操作了实训台输出：led/text、adam4150/do、zigbee/relay、camera/on、camera/pan，data 见 DeviceCtrlHelper.cs、IPCameraHelper.cs；
+   * 以及打开、关闭串口设备：adam4017/open（data 是串口名）、adam4017/close，串口没打开时程序还在读写：adam4017/unopened（每次打开后最多报一次），4150、zigbee、led 同样
+   */
   | { type: 'device'; device: string; action: string; data: unknown }
   | { type: 'console'; text: string }
   /** 学生程序没有处理的异常；file、line 是出错的那行学生代码（找得到时才有），网页上点击可以跳过去 */
@@ -150,14 +202,16 @@ export type UserAction =
 export type RunnerInput =
   | ({ type: 'action'; id: string } & UserAction)
   | { type: 'reply'; requestId: number; result: unknown }
-  /** 实训台传感器读数，按通道号排列（见 ANALOG_CHANNELS、DIGITAL_CHANNELS），以及虚拟时钟（不带时表示不变） */
-  | { type: 'board'; analog: number[]; digital: boolean[]; clock?: VirtualClock | null }
+  /** 实训台传感器读数，按通道号排列（见 ANALOG_CHANNELS、DIGITAL_CHANNELS），以及虚拟时钟、接线（不带时表示不变） */
+  | { type: 'board'; analog: number[]; digital: boolean[]; clock?: VirtualClock | null; wiring?: Wiring }
   | { type: 'stop' }
 
 /** 浏览器发给服务器的消息 */
 export type ClientMessage =
   /** sampleId：当前实验，第一次运行时自动建好实验预置的数据库（学生还没有这些库时） */
   | { type: 'run'; files: SourceFile[]; sampleId?: string }
+  /** 打开了哪个实验：实训台换成这个实验的接线（没有 sampleId 时用默认接线） */
+  | { type: 'experiment'; sampleId?: string }
   /** 调节实训台环境：拖动滑块、触发传感器 */
   /** clock：拨到某个时刻（time：yyyy-MM-ddTHH:mm:ss）、改倍速，或 null 恢复真实时间 */
   | { type: 'boardInput'; analog?: Partial<BoardState['analog']>; digital?: Partial<BoardState['digital']>; clock?: { time?: string; speed?: number } | null }

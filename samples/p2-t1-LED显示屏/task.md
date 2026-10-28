@@ -22,7 +22,7 @@
 
 1. 平台已经引用好了 `DeviceCtrlLibrary.dll` 和 `WinFormsDeviceControlLibrary.dll`，不用像书上那样复制 dll、添加引用；LED 显示屏、灯泡、报警灯这些控件直接在工具箱的"物联网设备"里。
 2. 代码开头加上 `using System.IO.Ports;`、`using DeviceCtrlLibrary;`、`using WinFormsDeviceControlLibrary;`。
-3. **com_Port 的 Click**（在 ⚡ 事件里双击 Click）：先清空下拉框，再用 foreach 把 `SerialPort.GetPortNames()` 的每个串口号加进去。这样每次点开下拉框都会刷新串口列表。
+3. **com_Port 的 Click**（在 ⚡ 事件里双击"单击"，即 Click）：先清空下拉框，再用 foreach 把 `SerialPort.GetPortNames()` 的每个串口号加进去。这样每次点开下拉框都会刷新串口列表。
 4. **btn_Open 的 Click**：调用 `DeviceCtrlHelper.ledHelper.OpenLedCom(com_Port.Text)` 打开选中的串口。
 5. **btn_Send 的 Click**：调用 `DeviceCtrlHelper.ledHelper.SendLedString(txt_SendText.Text)`，把返回的字符串存到变量 res；如果 res 里含有 "Error"（`res.IndexOf("Error") >= 0`）就用 MessageBox 显示出来，否则调用 `led.setLedText(res)` 让窗体上的 LED 控件显示。
 
@@ -34,4 +34,4 @@
 
 1. 运行后点开"串口"下拉框，选 **COM5**（LED 屏），点"打开"。
 2. 输入"欢迎光临"，点"推送"，实训台的 **LED 显示屏**和窗体上的 LED 控件都应显示"欢迎光临"。
-3. 重新运行，不点"打开"直接推送，应弹出"Error:发送失败"。
+3. 重新运行，先点实训台的"实训台复位"清掉 LED 屏上的字（和真的 LED 屏一样，上次显示的字会一直留着），再不点"打开"直接推送：应弹出"Error:发送失败"，LED 屏不显示，实训台最上方用红字提示串口没有打开。

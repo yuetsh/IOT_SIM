@@ -222,7 +222,7 @@ async function loadAssignment(discardWork = false) {
 }
 
 // ---------- 老师运行学生提交的程序 ----------
-const viewing = ref<{ studentName: string; username: string; assignmentTitle: string } | null>(null)
+const viewing = ref<{ studentName: string; username: string; assignmentTitle: string; sampleId: string } | null>(null)
 
 // 第一次打开一个实验（或作业）时自动打开任务面板；记在浏览器里，之后不再自动打开
 const TASK_SEEN_KEY = 'iot-sim:task-seen'
@@ -243,7 +243,7 @@ watch(
 
 async function loadSubmission() {
   try {
-    const result = await api<{ files: SourceFile[]; studentName: string; username: string; assignmentTitle: string }>(
+    const result = await api<{ files: SourceFile[]; studentName: string; username: string; assignmentTitle: string; sampleId: string }>(
       'GET',
       `/api/teacher/submissions/${props.submissionId}`,
     )
@@ -513,9 +513,13 @@ function start() {
   rerunBlocked.value = false
   session.run(
     files.value.map((f) => ({ ...f })),
-    props.assignmentId ? assignment.value?.sampleId : sampleId.value,
+    experimentId.value,
   )
 }
+
+/** 当前实验：做作业、看学生提交时是作业基于的实验。实训台按它接线（项目 7 的 4150 并在 COM2 上） */
+const experimentId = computed(() => (props.submissionId ? viewing.value?.sampleId : props.assignmentId ? assignment.value?.sampleId : sampleId.value))
+watch(experimentId, (id) => session.setExperiment(id), { immediate: true })
 
 // ---------- 运行中改了代码或窗体：自动重新运行，不用再按 F5 ----------
 /** 停止修改多久后重新运行 */

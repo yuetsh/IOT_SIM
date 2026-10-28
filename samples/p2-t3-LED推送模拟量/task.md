@@ -37,7 +37,7 @@
 
 ## 和书上不一样的地方
 
-> 书上关闭时调用的 `DeviceCtrlHelper.ledHelper.Close()`，教材配套的类库里其实没有这个方法。平台保留了它（什么也不做），书上的代码可以原样编译。
+> 书上关闭时调用的 `DeviceCtrlHelper.ledHelper.Close()`，教材配套的类库里其实没有这个方法。平台补上了这个方法（关闭 LED 屏的串口），书上的代码可以原样编译。
 
 > 书上的 `True` / `False` 首字母大写是印刷错误，要写成小写的 `true` / `false`。
 

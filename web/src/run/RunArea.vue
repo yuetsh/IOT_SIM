@@ -7,6 +7,7 @@ import TrainingBoard from '../scene/TrainingBoard.vue'
 import type { SizeValue } from '../winforms/format'
 import FormWindow, { WINDOW_MARGIN, WINDOW_STEP } from '../winforms/FormWindow.vue'
 import { RUN_IMAGES } from '../winforms/images'
+import { PORT_LABELS, portLabels } from '../scene/wiring'
 import MessageBoxDialog from '../winforms/MessageBoxDialog.vue'
 import type { RunSession } from './session'
 
@@ -17,6 +18,10 @@ const emit = defineEmits<{
 
 const state = props.session.state
 provide(RUN_IMAGES, props.session.images)
+provide(
+  PORT_LABELS,
+  computed(() => portLabels(props.session.state.board?.wiring)),
+)
 // 素材库清单：认出素材图片，在高分辨率屏幕上换成两倍图
 void loadGallery()
 
