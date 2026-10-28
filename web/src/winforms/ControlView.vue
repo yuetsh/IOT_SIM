@@ -151,7 +151,12 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   </div>
 
   <!-- TextBox -->
-  <div v-else-if="node.type === 'TextBox'" class="wf-control wf-textbox" :style="style">
+  <div
+    v-else-if="node.type === 'TextBox'"
+    class="wf-control wf-textbox"
+    :class="{ 'wf-readonly': p.ReadOnly === true, 'wf-input-disabled': !enabled }"
+    :style="style"
+  >
     <textarea
       v-if="p.Multiline"
       :class="`wf-scrollbars-${p.ScrollBars ?? 'None'}`"
@@ -173,7 +178,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   </div>
 
   <!-- ComboBox -->
-  <div v-else-if="node.type === 'ComboBox'" ref="combo" class="wf-control wf-combobox" :style="style">
+  <div v-else-if="node.type === 'ComboBox'" ref="combo" class="wf-control wf-combobox" :class="{ 'wf-input-disabled': !enabled }" :style="style">
     <input
       :value="String(p.Text ?? '')"
       autocomplete="off"
@@ -269,7 +274,7 @@ const itemHeight = computed(() => `${(p.value.ItemHeight as number | undefined) 
   <!-- GroupBox -->
   <div v-else-if="node.type === 'GroupBox'" class="wf-control wf-groupbox" :class="{ 'wf-disabled': !enabled }" :style="style">
     <!-- 标题处的边框断开、透出底下的背景（教材项目 8 的分组框放在背景图上，白色标题） -->
-    <fieldset class="wf-groupbox-frame">
+    <fieldset class="wf-groupbox-frame" :class="{ 'wf-no-caption': !p.Text }">
       <legend v-if="p.Text" class="wf-groupbox-caption">{{ displayText(p.Text) }}</legend>
     </fieldset>
     <ControlView v-for="child in childrenTopLast" :key="child.id" :node="child" :act="props.act" />

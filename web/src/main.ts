@@ -1,3 +1,4 @@
+import './polyfills'
 import { createApp } from 'vue'
 import { loadCurrentUser } from './auth'
 import Root from './Root.vue'

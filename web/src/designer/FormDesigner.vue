@@ -529,7 +529,7 @@ const noop = () => {}
       <div class="actions">
         <button :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</button>
         <button :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</button>
-        <span class="tips" title="拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除"
+        <span class="tips" :class="{ narrow: canvasWidth <= 560 }" title="拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除"
           >拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span
         >
         <select
@@ -677,7 +677,6 @@ const noop = () => {}
 }
 
 .actions {
-  container-type: inline-size;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -725,10 +724,8 @@ const noop = () => {}
   color: #7a838e;
 }
 
-@container (max-width: 560px) {
-  .tips {
-    visibility: hidden;
-  }
+.tips.narrow {
+  visibility: hidden;
 }
 
 .window {

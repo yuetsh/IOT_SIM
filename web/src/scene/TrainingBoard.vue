@@ -42,6 +42,16 @@ function setCollapsed(value: boolean) {
   }
 }
 
+// 布局按实训台自身宽度调整（打开设计器时右栏会变窄）。Chrome 94 没有容器查询，用 ResizeObserver 量宽度
+const boardEl = ref<HTMLElement>()
+const boardWidth = ref(0)
+const boardObserver = new ResizeObserver(([entry]) => (boardWidth.value = entry.contentRect.width))
+watch(boardEl, (el) => {
+  boardObserver.disconnect()
+  if (el) boardObserver.observe(el)
+})
+onBeforeUnmount(() => boardObserver.disconnect())
+
 // 拖动滑块时先显示本地值，避免服务器回传前滑块跳动；发送做节流
 const dragging = ref<Partial<Record<AnalogKey, number>>>({})
 let pending: Partial<Record<AnalogKey, number>> = {}
@@ -168,7 +178,12 @@ const cameraTitle = computed(() =>
     <button class="link expand" @click="setCollapsed(false)">展开 ▾</button>
   </div>
 
-  <div v-else class="board" :class="{ disconnected: !board }">
+  <div
+    v-else
+    ref="boardEl"
+    class="board"
+    :class="{ disconnected: !board, 'board-wide': boardWidth >= 1100, 'board-narrow': boardWidth <= 760, 'board-tiny': boardWidth <= 560 }"
+  >
     <div class="board-header">
       <span class="board-name">虚拟实训台</span>
       <button class="link" title="收起后只显示一行状态，给窗体留出更多地方" @click="setCollapsed(true)">收起 ▴</button>
@@ -371,8 +386,6 @@ const cameraTitle = computed(() =>
   color: var(--text);
   font-size: 12px;
   user-select: none;
-  /* 布局按实训台自身宽度调整（打开设计器时右栏会变窄） */
-  container-type: inline-size;
 }
 
 .board-header {
@@ -545,20 +558,16 @@ button {
   order: 1;
 }
 
-@container (min-width: 1100px) {
-  .sensors {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-  }
-
-  .sensors .wide {
-    order: 0;
-  }
+.board-wide .sensors {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
 }
 
-@container (max-width: 560px) {
-  .sensors {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.board-wide .sensors .wide {
+  order: 0;
+}
+
+.board-tiny .sensors {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .card {
@@ -770,18 +779,16 @@ button {
 }
 
 /* 窄时串口服务器单独占一行，四个串口横排 */
-@container (max-width: 760px) {
-  .modules {
-    grid-template-columns: 1fr 1fr;
-  }
+.board-narrow .modules {
+  grid-template-columns: 1fr 1fr;
+}
 
-  .ports {
-    grid-column: 1 / -1;
-  }
+.board-narrow .ports {
+  grid-column: 1 / -1;
+}
 
-  .ports .port-list {
-    flex-direction: row;
-  }
+.board-narrow .ports .port-list {
+  flex-direction: row;
 }
 
 .module {

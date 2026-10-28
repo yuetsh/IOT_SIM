@@ -139,13 +139,13 @@
   background: #fff;
 }
 
-.wf-textbox:has(> [readonly]) {
+.wf-textbox.wf-readonly {
   background: #f0f0f0;
 }
 
 /* 禁用时和 WinForms 一样灰字（设了 ForeColor 也是灰字）；没设背景色时是灰底 */
-.wf-textbox:has(> :disabled),
-.wf-combobox:has(> :disabled) {
+.wf-textbox.wf-input-disabled,
+.wf-combobox.wf-input-disabled {
   background: #f0f0f0;
   color: #6d6d6d !important;
 }
@@ -555,7 +555,7 @@
 }
 
 /* 没有标题时边框的上沿和有标题时一样在 6px 处 */
-.wf-groupbox-frame:not(:has(legend)) {
+.wf-groupbox-frame.wf-no-caption {
   top: 6px;
 }
 
