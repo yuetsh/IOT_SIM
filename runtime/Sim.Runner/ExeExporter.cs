@@ -69,7 +69,7 @@ internal static class ExeExporter
     /// <summary>libsDir：教材 dll 所在目录；galleryDir：平台素材库</summary>
     public static Result Export(string projectDir, string libsDir, string galleryDir, string assemblyName)
     {
-        var libs = Directory.Exists(libsDir) ? Directory.GetFiles(libsDir, "*.dll").OrderBy(p => p, StringComparer.Ordinal).ToArray() : Array.Empty<string>();
+        var libs = TextbookLibs(libsDir);
         if (!libs.Any(p => Path.GetFileName(p) == "DeviceCtrlLibrary.dll"))
             throw new InvalidOperationException("服务器上没有放教材的设备类库（真机版 DeviceCtrlLibrary.dll 等），不能导出 EXE，请联系老师");
 
@@ -133,6 +133,32 @@ internal static class ExeExporter
             diagnostics.Add(StudentCompiler.ToJson(diagnostic));
         }
         return new Result(emit.Success, pe.ToArray(), diagnostics);
+    }
+
+    /// <summary>
+    /// 教材 dll 的路径。目录或文件读不了时（服务器上拷进去的文件权限是 600，容器里的平台用户读不到）说明原因，
+    /// 不把英文的系统报错直接给学生看。
+    /// </summary>
+    private static string[] TextbookLibs(string libsDir)
+    {
+        if (!Directory.Exists(libsDir)) return Array.Empty<string>();
+        string? current = null;
+        try
+        {
+            var libs = Directory.GetFiles(libsDir, "*.dll").OrderBy(p => p, StringComparer.Ordinal).ToArray();
+            foreach (var lib in libs)
+            {
+                current = lib;
+                using var _ = File.OpenRead(lib);
+            }
+            return libs;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            var what = current == null ? "目录" : Path.GetFileName(current);
+            throw new InvalidOperationException(
+                $"服务器上的教材设备类库读不了（{what} 的权限不够），不能导出 EXE，请联系老师（服务器上执行 chmod 755 textbook-libs 和 chmod 644 textbook-libs/*.dll）");
+        }
     }
 
     /// <summary>

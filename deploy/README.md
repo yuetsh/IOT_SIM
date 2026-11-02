@@ -129,6 +129,13 @@ scp "$B"/公共库/设备控制类库/设备控制/DeviceCtrlLibrary.dll "$B"/�
     "$B"/项目7/任务二/寝室情景模式/寝室情景模式/bin/Debug/*Interop.WMPLib.dll 服务器:IOT_SIM/textbook-libs/
 ```
 
+容器里的平台用普通用户运行，目录和文件要让其他用户能读（用 root 拷的文件常常是 `-rw-------`，导出时会提示"权限不够"）：
+
+```bash
+chmod 755 ~/IOT_SIM/textbook-libs
+chmod 644 ~/IOT_SIM/textbook-libs/*.dll
+```
+
 拷好后不用重启，下一次导出就能用。本机开发时同样放在仓库根目录的 `textbook-libs/`（已在 .gitignore 里），也可以用环境变量 `SIM_TEXTBOOK_LIBS` 指到别处。
 
 ## 备份与恢复
