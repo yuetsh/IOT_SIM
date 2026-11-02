@@ -43,9 +43,7 @@ internal static class StudentCompiler
     public static Result Compile(string projectDir)
     {
         var parseOptions = ParseOptions;
-        var trees = Directory.EnumerateFiles(projectDir, "*.cs", SearchOption.AllDirectories)
-            .Where(path => !IsBuildOutput(projectDir, path))
-            .OrderBy(path => path, StringComparer.Ordinal)
+        var trees = SourceFiles(projectDir)
             .Select(path => CSharpSyntaxTree.ParseText(
                 SourceText.From(File.ReadAllText(path), Encoding.UTF8),
                 parseOptions,
@@ -122,6 +120,12 @@ internal static class StudentCompiler
         if (hint != null) json["hint"] = hint;
         return json;
     }
+
+    /// <summary>学生工程里的源文件（不含 bin、obj 下的），按路径排序</summary>
+    internal static IEnumerable<string> SourceFiles(string projectDir) =>
+        Directory.EnumerateFiles(projectDir, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(projectDir, path))
+            .OrderBy(path => path, StringComparer.Ordinal);
 
     private static bool IsBuildOutput(string projectDir, string path)
     {

@@ -9,6 +9,9 @@ export interface CompileResult {
   ms: number
 }
 
+/** 导出的 exe 在工程目录里的文件名（Sim.Runner 的 CompileServer.ExportFile） */
+export const EXPORT_FILE = 'export.exe'
+
 type Reply = ({ type: 'compiled' } & CompileResult) | { type: 'compileFailed'; message: string }
 
 /**
@@ -22,11 +25,23 @@ class CompileService {
   private readonly pending = new Map<number, { resolve: (r: CompileResult) => void; reject: (e: Error) => void }>()
 
   /** 编译工程目录；成功时程序集写到同一目录 */
-  async compile(dir: string): Promise<CompileResult> {
+  compile(dir: string): Promise<CompileResult> {
+    return this.request({ dir })
+  }
+
+  /**
+   * 导出 EXE：照教材工程编译成 .NET Framework 程序，嵌入教材的设备类库（config.textbookLibsDir），
+   * 成功时写到工程目录的 EXPORT_FILE。name 是 exe 的名字（不带 .exe）
+   */
+  exportExe(dir: string, name: string): Promise<CompileResult> {
+    return this.request({ dir, export: { libs: config.textbookLibsDir, name } })
+  }
+
+  private async request(payload: object): Promise<CompileResult> {
     await this.start()
     const id = this.nextId++
     const result = new Promise<CompileResult>((resolve, reject) => this.pending.set(id, { resolve, reject }))
-    this.proc!.stdin.write(`${JSON.stringify({ id, dir })}\n`)
+    this.proc!.stdin.write(`${JSON.stringify({ id, ...payload })}\n`)
     this.proc!.stdin.flush()
     return result
   }

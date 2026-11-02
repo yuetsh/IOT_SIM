@@ -1,5 +1,6 @@
 // HTTP 接口测试：内存数据库，直接调用 app.fetch。
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+import { existsSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { createAiQueue, normalizeAiResult } from '../src/ai-review'
 import { createApp } from '../src/app'
@@ -736,5 +737,55 @@ describe('AI 评阅', () => {
     expect((await student.get(`/api/assignments/${assignmentId}`)).body.review).toMatchObject({ scores: [9, 5], comment: '界面整齐，继续加油。' })
     // 已经评阅过的不会再被覆盖
     expect((await t.post(`/api/teacher/assignments/${assignmentId}/adopt-ai`)).body).toEqual({ adopted: 0 })
+  }, 60000)
+})
+
+describe('导出 EXE', () => {
+  const hasLibs = existsSync(`${config.textbookLibsDir}/DeviceCtrlLibrary.dll`)
+
+  async function exportExe(browser: Browser, json: unknown) {
+    const response = await app.fetch(
+      new Request('http://localhost/api/export-exe', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${browser.accessToken}`, 'content-type': 'application/json', 'x-real-ip': browser.ip },
+        body: JSON.stringify(json),
+      }),
+    )
+    return response
+  }
+
+  test.skipIf(!hasLibs)(
+    '照真机版类库编译成 exe；书上的 ledHelper.Close() 也能编译；代码有错时返回报错',
+    async () => {
+      const t = await teacher()
+      const files = (await loadSample('p2-t3-LED推送模拟量'))!
+      const response = await exportExe(t, { files, name: 'LED推送 模拟量/..' })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-disposition')).toContain(`filename*=UTF-8''${encodeURIComponent('LED推送模拟量.exe')}`)
+      const exe = new Uint8Array(await response.arrayBuffer())
+      expect(String.fromCharCode(exe[0]!, exe[1]!)).toBe('MZ')
+      // 教材 dll 嵌在 exe 里
+      expect(Buffer.from(exe).includes('IotSimExport.lib.DeviceCtrlLibrary.dll')).toBe(true)
+
+      const broken = files.map((f) => (f.path === 'frm_LED.cs' ? { ...f, content: f.content.replace('IsOpen = true;', 'IsOpen = true') } : f))
+      const failed = await exportExe(t, { files: broken, name: 'x' })
+      expect(failed.status).toBe(422)
+      expect(((await failed.json()) as any).diagnostics[0]).toMatchObject({ file: 'frm_LED.cs', severity: 'error' })
+    },
+    60000,
+  )
+
+  test('服务器上没有教材类库时说明原因；格式不对拒绝', async () => {
+    const t = await teacher()
+    const saved = config.textbookLibsDir
+    config.textbookLibsDir = '/nonexistent/textbook-libs'
+    try {
+      const response = await exportExe(t, { files: (await loadSample('p1-t1-登录'))!, name: '登录' })
+      expect(response.status).toBe(503)
+      expect(((await response.json()) as any).message).toContain('设备类库')
+    } finally {
+      config.textbookLibsDir = saved
+    }
+    expect((await exportExe(t, { files: 'x' })).status).toBe(400)
   }, 60000)
 })

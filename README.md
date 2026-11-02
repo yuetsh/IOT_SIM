@@ -73,6 +73,7 @@ Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到
 - 代码编辑器（Monaco）：C# 高亮、编译错误波浪线、点错误跳到对应行、F5 运行 / Shift+F5 停止、草稿自动保存在浏览器本地。
 - 窗体设计器（仿 VS，界面中文）：工具箱、拖放与改大小、属性窗口、事件窗口、双击生成事件处理方法、撤销 / 重做；读写 VS 格式的 Designer.cs。
 - 多窗体：新建、删除窗体；运行时多个窗口可切换前后。
+- 导出 EXE：学生的程序照教材工程（.NET Framework 4.5、真机版设备类库）编译成一个 exe，教材 dll 嵌在里面，在机房电脑上双击就能控制真的实训台（`runtime/Sim.Runner/ExeExporter.cs`）。教材 dll 有版权，不进仓库：本机放在 `textbook-libs/`，服务器上的放法见 [deploy/README.md](deploy/README.md)。
 - 部署：bubblewrap 沙箱（断网、只读、看不到其他进程，限制内存、CPU 时间和运行时长）、编译时禁止网络 / 反射 / 启动进程等 API、Docker Compose、GitHub Actions 自动部署。
 - 第 2 阶段（进行中）：账号登录（本机开发时老师账号为 admin / admin）、班级管理与 CSV 名单导入、学生作品保存在服务器上；自动评分（每个示例的 `checks.yaml`）；实验页"评价项"可以自己检查（不计分）；布置作业、学生提交后自动评分；老师评阅（看代码和界面截图、运行学生的程序、老师评分项打分、评语）、AI 评阅建议（DeepSeek，老师采纳后生效）、全班成绩表与 CSV 导出。
 - 第 3 阶段（教材项目 4–8 已全部完成）：教材项目 5 用到的旧版线程 API（`Thread.Suspend` / `Resume` / `Abort`）编译时改写成平台的协作式实现（`runtime/Sim.Runner/LegacyThreadRewriter.cs`、`runtime/Sim.WinForms/Host/LegacyThreads.cs`）；网络摄像机（画面帧由 `runtime/Sim.Devices/Camera/build-frames.ts` 从 `scene.svg` 生成，需要 rsvg-convert 和 ImageMagick）。
@@ -80,4 +81,4 @@ Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到
 尚未完成：
 
 - 一个班试用。
-- 书上的扩展练习（"边想边做""自主探究"）、导出 VS 工程、校园街景场景、故障注入题库（第 4 阶段）。
+- 书上的扩展练习（"边想边做""自主探究"）、校园街景场景、故障注入题库（第 4 阶段）。

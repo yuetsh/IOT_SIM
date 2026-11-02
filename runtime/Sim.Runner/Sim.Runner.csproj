@@ -14,6 +14,20 @@
     <!-- 语言服务（代码补全、悬停提示）：和 VS 的 IntelliSense 用同一套引擎；只有 language-server 模式会加载 -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.14.0" />
   </ItemGroup>
+  <!-- 导出 EXE：照教材工程（.NET Framework 4.5）编译学生代码，要用 4.5 的引用程序集（只供编译，不含实现）。
+       只复制教材工程引用的那些（VS 窗体应用模板默认的引用加图表控件），放到输出目录的 netfx/ -->
+  <ItemGroup>
+    <PackageDownload Include="Microsoft.NETFramework.ReferenceAssemblies.net45" Version="[1.0.3]" />
+  </ItemGroup>
+  <Target Name="CopyNetFxReferences" AfterTargets="Build">
+    <PropertyGroup>
+      <NetFxDir>$(NuGetPackageRoot)microsoft.netframework.referenceassemblies.net45/1.0.3/build/.NETFramework/v4.5/</NetFxDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <NetFxReference Include="$(NetFxDir)mscorlib.dll;$(NetFxDir)System.dll;$(NetFxDir)System.Core.dll;$(NetFxDir)System.Data.dll;$(NetFxDir)System.Data.DataSetExtensions.dll;$(NetFxDir)System.Deployment.dll;$(NetFxDir)System.Drawing.dll;$(NetFxDir)System.Net.Http.dll;$(NetFxDir)System.Windows.Forms.dll;$(NetFxDir)System.Windows.Forms.DataVisualization.dll;$(NetFxDir)System.Xml.dll;$(NetFxDir)System.Xml.Linq.dll;$(NetFxDir)Microsoft.CSharp.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NetFxReference)" DestinationFiles="@(NetFxReference->'$(OutDir)netfx/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="../Sim.WinForms/Sim.WinForms.csproj" />
     <ProjectReference Include="../Sim.Devices/Sim.Devices.csproj" />

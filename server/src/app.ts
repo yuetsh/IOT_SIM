@@ -27,6 +27,7 @@ import { config } from './config'
 import { deleteUserDatabases, restoreExperimentDatabases, userDatabaseDir } from './databases'
 import { listSamples, loadChecks, loadSample, loadTask } from './samples'
 import { SqlError, sqlService } from './sql-service'
+import { exeName, exportExe } from './export-exe'
 import { serveStatic } from './static'
 import { deleteWork, getWork, saveWork, validFiles, validScreenshots } from './works'
 
@@ -128,6 +129,26 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   })
 
   app.get('/api/selfcheck', (c) => c.json(selfCheck.get(c.get('user').id)))
+
+  /** 导出 EXE：成功时返回 exe 文件；代码有错误时 422 和报错（照真机版类库编译，和 VS 里一样） */
+  app.post('/api/export-exe', async (c) => {
+    const { files, name } = await body<{ files: unknown; name: unknown }>(c)
+    if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
+    let result
+    try {
+      result = await exportExe(files, exeName(name))
+    } catch (error) {
+      return c.json({ message: error instanceof Error ? error.message : String(error) }, 503)
+    }
+    if (!result.ok) return c.json({ message: '代码有错误，不能导出', diagnostics: result.diagnostics }, 422)
+    return new Response(result.exe, {
+      headers: {
+        'Content-Type': 'application/vnd.microsoft.portable-executable',
+        'Content-Disposition': `attachment; filename="program.exe"; filename*=UTF-8''${encodeURIComponent(`${result.name}.exe`)}`,
+        'Cache-Control': 'no-store',
+      },
+    })
+  })
 
   // 代码编辑器的语言服务：补全、悬停提示、参数提示、边写边检查
   const LANGUAGE_REQUESTS = new Set(['complete', 'completionDetail', 'hover', 'signature', 'diagnostics'])

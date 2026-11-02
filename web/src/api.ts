@@ -6,6 +6,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** 服务器回复里的其他内容（如导出 EXE 时的编译报错） */
+    readonly data: Record<string, unknown> = {},
   ) {
     super(message)
   }
@@ -20,6 +22,15 @@ export async function api<T>(method: string, path: string, json?: unknown, init?
   if (response.status === 401 && path !== '/api/login') apiHooks.onUnauthorized()
   if (!response.ok) throw new ApiError(data.message ?? `请求失败（${response.status}）`, response.status)
   return data
+}
+
+/** 回复不是 JSON 的接口（如下载文件）：成功时返回 Response，出错时和 api 一样抛出 ApiError */
+export async function apiResponse(method: string, path: string, json?: unknown): Promise<Response> {
+  const response = await send(method, path, json, undefined)
+  if (response.ok) return response
+  const data = (await response.json().catch(() => ({}))) as Record<string, unknown> & { message?: string }
+  if (response.status === 401) apiHooks.onUnauthorized()
+  throw new ApiError(data.message ?? `请求失败（${response.status}）`, response.status, data)
 }
 
 /** 发请求并带上访问令牌；令牌被拒绝（401）时刷新一次再重发 */

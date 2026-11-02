@@ -13,6 +13,11 @@ export const config = {
   /** 每次运行的临时工程目录放在这里 */
   runsDir: resolve(ROOT, env.RUNS_DIR ?? '.runs'),
   samplesDir: resolve(ROOT, env.SAMPLES_DIR ?? 'samples'),
+  /**
+   * 导出 EXE 用的教材设备类库（真机版 DeviceCtrlLibrary.dll 及其 API 目录下的 dll、WinFormsDeviceControlLibrary.dll、
+   * 媒体播放器的 AxInterop.WMPLib.dll / Interop.WMPLib.dll，放在同一个目录里）。有版权，不进仓库；没有时不能导出
+   */
+  textbookLibsDir: resolve(ROOT, env.SIM_TEXTBOOK_LIBS ?? 'textbook-libs'),
   /** 打包好的网页（web/dist）；目录不存在时不提供网页，开发时由 Vite 提供 */
   staticDir: resolve(ROOT, env.STATIC_DIR ?? 'web/dist'),
   /** 学生程序的沙箱：bwrap（bubblewrap）或 none；默认装了 bwrap 就用 */

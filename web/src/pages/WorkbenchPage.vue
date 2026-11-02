@@ -5,7 +5,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage, type SelectGroupOption } from 'naive-ui'
-import type { Assignment, Review, SourceFile, Submission } from '@iot/shared'
+import type { Assignment, Diagnostic, Review, SourceFile, Submission } from '@iot/shared'
 import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
 import { gallery, loadGallery, projectResources, resourcePrefix, resourcesFile, RESOURCES_FILE } from '../designer/resources'
@@ -25,6 +25,7 @@ import CodeEditor from '../editor/CodeEditor.vue'
 import { checkProject } from '../editor/language'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
+import { downloadExe } from '../editor/export-exe'
 import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
@@ -478,6 +479,35 @@ async function showDiagnostic(file: string, line: number, column: number) {
   editorRef.value?.reveal(file, line, column)
 }
 
+// ---------- 导出 EXE：照真机版类库编译，在机房电脑上双击运行 ----------
+const exporting = ref(false)
+/** 导出时的编译报错（照真机版类库编译，和平台上运行时可能不同） */
+const exportErrors = ref<Diagnostic[]>([])
+const exportErrorsOpen = ref(false)
+
+async function exportExe() {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const errors = await downloadExe(files.value.map((f) => ({ ...f })))
+    if (errors) {
+      exportErrors.value = errors
+      exportErrorsOpen.value = true
+    } else {
+      message.success('已导出，在机房电脑上双击运行（要接真的实训台）')
+    }
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : String(error))
+  } finally {
+    exporting.value = false
+  }
+}
+
+function jumpToExportError(d: Diagnostic) {
+  exportErrorsOpen.value = false
+  void showDiagnostic(d.file, d.line, d.column)
+}
+
 function restoreOriginal() {
   if (props.assignmentId) void loadAssignment(true)
   else if (sampleId.value) void loadSample(sampleId.value, true)
@@ -600,6 +630,9 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
       <NButton v-if="taskPanel && !viewing" size="small" title="任务说明、自动检查哪些功能；可以自己先检查一遍（不计分）" @click="taskOpen = !taskOpen">
         任务
       </NButton>
+      <NButton size="small" :loading="exporting" title="编译成 Windows 程序（.exe），在机房电脑上双击运行，控制真的实训台" @click="exportExe">
+        导出 EXE
+      </NButton>
       <NPopconfirm v-if="modified && !viewing" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
         <template #trigger>
           <NButton quaternary size="small">{{ assignmentId ? '恢复到作业起点' : '恢复原始代码' }}</NButton>
@@ -622,6 +655,15 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
       <RouterLink v-if="currentUser?.role === 'teacher'" to="/teacher" class="nav-link">班级管理</RouterLink>
       <NButton quaternary size="small" @click="signOut">退出</NButton>
     </header>
+
+    <NModal v-model:show="exportErrorsOpen" preset="card" title="代码有错误，不能导出" style="width: 640px; max-width: calc(100vw - 32px)">
+      <p class="export-errors-note">导出时照机房电脑上的设备类库编译，和在 VS 里编译一样。点击报错跳到出错的代码。</p>
+      <div v-for="(d, i) in exportErrors.slice(0, 20)" :key="i" class="export-error" @click="jumpToExportError(d)">
+        {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
+        <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>
+      </div>
+      <p v-if="exportErrors.length > 20" class="export-errors-note">还有 {{ exportErrors.length - 20 }} 个错误，先改上面的，后面的往往跟着就没了。</p>
+    </NModal>
 
     <NModal
       v-if="assignment && submission"
@@ -792,6 +834,28 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
 
 .save-state.error {
   color: #dc2626;
+}
+
+.export-errors-note {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.export-error {
+  color: #b91c1c;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.export-error:hover {
+  text-decoration: underline;
+}
+
+.export-error .hint {
+  color: #2563eb;
+  padding-left: 1em;
 }
 
 .rerun-blocked {

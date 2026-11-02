@@ -41,6 +41,8 @@ services:
     # 数据库（账号、班级、学生作品），重新部署不会丢
     volumes:
       - data:/data
+      # 导出 EXE 用的教材设备类库（真机版 dll，有版权，不进仓库）：放在服务器的 ~/IOT_SIM/textbook-libs/，见 deploy/README.md
+      - ./textbook-libs:/app/textbook-libs:ro
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true

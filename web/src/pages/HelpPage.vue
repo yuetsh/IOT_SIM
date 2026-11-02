@@ -167,6 +167,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           <a href="/help-img/db.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
           <figcaption>数据库页面：左边是你的库和表（点表名编辑数据），右边写 SQL、按 F5 执行，下面是结果</figcaption>
         </figure>
+
+        <h3>8. 导出 EXE，在机房电脑上运行</h3>
+        <ul>
+          <li>
+            点工具栏的<b>导出 EXE</b>，下载一个
+            exe（名字是工程名，比如“教室情景模式.exe”）。拷到接着实训台的机房电脑上双击运行，选对串口、点打开，就能控制<b>真的</b>设备。
+          </li>
+          <li>导出时照机房电脑上的设备类库编译，和在 VS 里编译一样。代码有错误时弹出报错，点它跳到出错的地方。</li>
+          <li>设备类库已经装在 exe 里，不用另外拷 dll。项目 7 寝室的音乐第一次运行时会放到 exe 旁边的 Resources 文件夹。</li>
+          <li>项目 6、8 的程序连的是机房电脑上真的 SQL Server，那台电脑上要有书上建的库。</li>
+          <li>第一次运行时 Windows 可能提示“Windows 已保护你的电脑”：点<b>更多信息</b>→<b>仍要运行</b>。</li>
+        </ul>
       </section>
 
       <section v-if="currentUser?.role === 'teacher'" id="teacher">

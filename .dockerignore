@@ -7,4 +7,5 @@
 .git
 docs
 *.pdf
+textbook-libs
 .env

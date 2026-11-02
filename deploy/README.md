@@ -106,6 +106,31 @@
 | 备份数据     | `deploy/backup.sh`，见下文"备份与恢复"                                                  |
 | 重启 / 停止  | `docker compose restart` / `docker compose down`                                        |
 
+## 导出 EXE 用的教材类库
+
+实验页的"导出 EXE"把学生的程序编译成 Windows 程序，嵌入教材的**真机版**设备类库，在机房电脑上双击就能控制真的实训台。这些 dll 是教材配套资料，有版权，不进仓库（GitHub 上的仓库是公开的），要单独拷到服务器的 `~/IOT_SIM/textbook-libs/`（compose 把它只读挂进容器）。没放时导出会提示"服务器上没有放教材的设备类库"，其他功能不受影响。
+
+放进同一个目录（不分子目录）的文件，都在教材配套资料里：
+
+| 文件                                                                                                                            | 在配套资料里的位置                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `DeviceCtrlLibrary.dll`                                                                                                         | `公共库/设备控制类库/设备控制/`（**不是** `仿真/`） |
+| `ComLibrary.dll`、`ICS.Acquisition.dll`、`ICS.Common.dll`、`ICS.Models.dll`、`IPCameraDll.dll`、`LEDLibrary.dll`、`MyCamer.dll` | `公共库/设备控制类库/设备控制/API/`                 |
+| `WinFormsDeviceControlLibrary.dll`                                                                                              | `公共库/设备控件库/`                                |
+| `AxInterop.WMPLib.dll`、`Interop.WMPLib.dll`（媒体播放器，项目 7 任务 2）                                                       | `项目7/任务二/寝室情景模式/寝室情景模式/bin/Debug/` |
+
+在本机（配套资料解压在 `~/下载/物联网编程与应用配套/`）执行：
+
+```bash
+B=~/下载/物联网编程与应用配套/物联网编程与应用
+ssh 服务器 mkdir -p IOT_SIM/textbook-libs
+scp "$B"/公共库/设备控制类库/设备控制/DeviceCtrlLibrary.dll "$B"/公共库/设备控制类库/设备控制/API/*.dll \
+    "$B"/公共库/设备控件库/WinFormsDeviceControlLibrary.dll \
+    "$B"/项目7/任务二/寝室情景模式/寝室情景模式/bin/Debug/*Interop.WMPLib.dll 服务器:IOT_SIM/textbook-libs/
+```
+
+拷好后不用重启，下一次导出就能用。本机开发时同样放在仓库根目录的 `textbook-libs/`（已在 .gitignore 里），也可以用环境变量 `SIM_TEXTBOOK_LIBS` 指到别处。
+
 ## 备份与恢复
 
 平台不自动备份，在服务器的 `~/IOT_SIM` 下手动执行：
