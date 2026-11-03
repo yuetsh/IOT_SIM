@@ -66,15 +66,34 @@
 
 数据库（账号、班级、学生作品）在 Docker 数据卷 `data` 里，重新部署不会丢；`docker compose down -v` 会删除数据卷，不要加 `-v`。
 
-## 自动部署（GitHub Actions）
+## 自动部署（push origin 就部署）
 
-`.github/workflows/ci.yml`：
+`.gitea/workflows/deploy.yml`：push 到 origin（git.xuyue.cc）的 main 时，**开发机上的 gitea-runner** 编 C# 运行时、网页和 `server.js`，跑服务端测试（含沙箱）、网页端测试和类型检查（有一项不过就不部署），把产物 rsync 到服务器的 `~/IOT_SIM/prebuilt/`，再在服务器上执行 `deploy/update.sh <提交号> --prebuilt`：拉代码、用现成产物构建镜像（只剩几条 COPY）、重启，等到"编译服务已就绪"才算成功。push 后一两分钟上线，进度在 git.xuyue.cc/xuyue/IOT_SIM/actions。
 
-- 每次推送和 PR：编译 C# 运行时，跑服务端测试（含沙箱）、网页端测试和类型检查。
-- 推送到 GitHub 的 main 且测试通过：SSH 到服务器执行 `deploy/update.sh <提交号>`，服务器从 origin 拉代码、构建、重启，等到"编译服务已就绪"才算成功。**重启会结束正在运行的学生程序**，上课时间尽量不要推送 main。
-- 服务器从 origin 拉代码，所以**两个仓库都要推送**（`git push origin main`、`git push github main`）。GitHub 先到时，脚本会等 origin 最多约 100 秒。
-- 在 GitHub 的 Actions 页面点 Run workflow 可以手动重新部署。
-- 只在 github.com 上运行；推到 git.xuyue.cc 不会触发。
+- **重启会结束正在运行的学生程序**，上课时间尽量不要推送 main。
+- **push 时开发机得开着。** 没开的话任务在 Gitea 里排队，开机后 runner 连上就接着跑；排队超过 24 小时会被作废，要在 Actions 页面重跑。
+- 在 Gitea 的 Actions 页面点 Run workflow 可以手动重新部署（比如改了服务器上的 `.env` 之后）。
+- `prebuilt/COMMIT` 记着产物是哪个提交编的，和要部署的提交对不上时 `update.sh` 直接失败，不会把旧产物配新代码。
+
+为什么不在服务器或 GitHub 上编：服务器只有 2 核，学生程序也在上面跑，以前服务器自己编约一分钟，dotnet 和 vite 把两个核占满；GitHub 上测试约 5 分钟，push 后 6 分钟多才上线。开发机 16 核，服务端测试同时跑（`bun test --parallel`，评分测试标了 `describe.concurrent`）约半分钟。
+
+**服务器自己编的能力还在**：`deploy/update.sh` 不带 `--prebuilt` 就是在镜像里编（`Dockerfile` 的构建参数 `ARTIFACTS` 默认 `build`），只要有 docker 就能部署，不依赖开发机。
+
+### 部署 runner
+
+和 OJ2 共用开发机上的同一个 runner（host 模式，注册在 git.xuyue.cc 的 `xuyue` 用户下，标签 `oj2-deploy`、`iot-deploy`，一次只跑一个任务，两边的部署排队）。装法、配置文件位置、换机器重新注册见 OJ2 仓库 `docs/deploy.md` 的"部署 runner"。
+
+host 模式直接用开发机自己的东西，所以**不需要配任何 secret**：
+
+- PATH 里的 bun、dotnet 10 SDK、bubblewrap（测试里学生程序在沙箱中运行）、rsync；
+- `~/.ssh/config` 里的 `debian`（root@服务器，服务器目录 `/root/IOT_SIM`）；
+- 能 `git fetch git@git.xuyue.cc:xuyue/IOT_SIM.git`（都不能要密码）。
+
+开发机的 bun 版本和 `Dockerfile` 里镜像的 bun 不一样时，工作流会给出警告（`server.js` 是开发机打包、镜像里的 bun 运行的）。
+
+### 备用：GitHub 手动触发
+
+`.github/workflows/ci.yml` 只在 PR 时跑测试，push 不触发（不然每次推送两边各部署一遍）。开发机不在、又急着上线时，在 github.com 的 Actions → CI/CD → Run workflow：测试通过后 SSH 到服务器执行 `deploy/update.sh <提交号>`，**服务器自己编**。这个提交要已经推到 origin（服务器从 origin 拉代码，没到时脚本会等最多约 100 秒）。
 
 一次性配置（在本机执行，需要已登录的 `gh`）：
 
@@ -96,15 +115,15 @@
 
 在服务器的 `~/IOT_SIM` 目录下：
 
-| 做什么       | 命令                                                                                    |
-| ------------ | --------------------------------------------------------------------------------------- |
-| 更新到新版本 | 推送到两个仓库的 main（GitHub 测试通过后自动部署），或在服务器上执行 `deploy/update.sh` |
-| 改老师密码   | 修改 `.env` 后 `docker compose up -d`                                                   |
-| 学生账号     | 老师登录后在"班级管理"里导入名单、查看和重置密码                                        |
-| 看日志       | `docker compose logs -f app`                                                            |
-| 看资源占用   | `docker stats`                                                                          |
-| 备份数据     | `deploy/backup.sh`，见下文"备份与恢复"                                                  |
-| 重启 / 停止  | `docker compose restart` / `docker compose down`                                        |
+| 做什么       | 命令                                                                                                      |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| 更新到新版本 | `git push origin main`（开发机测试、编好后自动部署），或在服务器上执行 `deploy/update.sh`（服务器自己编） |
+| 改老师密码   | 修改 `.env` 后 `docker compose up -d`                                                                     |
+| 学生账号     | 老师登录后在"班级管理"里导入名单、查看和重置密码                                                          |
+| 看日志       | `docker compose logs -f app`                                                                              |
+| 看资源占用   | `docker stats`                                                                                            |
+| 备份数据     | `deploy/backup.sh`，见下文"备份与恢复"                                                                    |
+| 重启 / 停止  | `docker compose restart` / `docker compose down`                                                          |
 
 ## 导出 EXE 用的教材类库
 

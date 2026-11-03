@@ -5,7 +5,11 @@ services:
   init-data:
     image: iot-sim:latest
     # 和 app 同一个镜像（构建有缓存，不会重复构建）；写上 build，新服务器上就不会去 Docker Hub 拉这个镜像
-    build: .
+    build: &build
+      context: .
+      # build：在镜像里编（默认）；prebuilt：用 prebuilt/ 里开发机编好的产物，见 Dockerfile 开头
+      args:
+        ARTIFACTS: ${ARTIFACTS:-build}
     user: root
     command: ['sh', '-c', 'chown -R "$$APP_UID" /data']
     volumes:
@@ -15,8 +19,13 @@ services:
 
   app:
     image: iot-sim:latest
-    build: .
+    build: *build
     restart: unless-stopped
+    logging: &logging # 默认的 json-file 日志不限大小，会一直涨
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
     depends_on:
       init-data:
         condition: service_completed_successfully
@@ -60,6 +69,7 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *logging
     depends_on: [app]
     expose:
       - 80

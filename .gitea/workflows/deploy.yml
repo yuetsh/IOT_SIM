@@ -1,0 +1,118 @@
+# push 到 origin（git.xuyue.cc）的 main 就部署：在开发机上编好产物、跑测试 → 产物 rsync 到服务器的 prebuilt/ →
+# 服务器上 deploy/update.sh --prebuilt（拉代码、用现成产物构建镜像、重启）。
+#
+# 跑在哪：开发机上的 gitea-runner（host 模式，标签 iot-deploy；和 OJ2 共用一个 runner，一次只跑一个任务，
+# 两边的部署排队，不会同时挤服务器）。runner 的装法见 deploy/README.md「自动部署」。
+#   - 服务器只有 2 核，学生程序也在上面跑，以前服务器自己编约一分钟，dotnet 和 vite 把两个核占满。
+#   - 以前在 GitHub 上测试（约 5 分钟）再 SSH 到服务器编，push 后 6 分钟多才上线。
+#   代价：**push 时开发机得开着。** 没开的话任务在 Gitea 里排队，开机后 runner 连上就接着跑；
+#   急着上线又不在开发机旁时，用 GitHub 上手动触发的备用部署（.github/workflows/ci.yml，服务器自己编）。
+#
+# host 模式直接用开发机自己的东西：PATH 里的 bun / dotnet / bwrap、~/.ssh/config 里的 `debian`（root@服务器）
+# 和 git.xuyue.cc 的 SSH 访问。所以这里**不需要配任何 secret**，也不用 actions/checkout。
+#
+# 有了 .gitea/workflows 之后，Gitea 不再读 .github/workflows。
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # 在 Actions 页面手动重新部署（比如改了服务器上的 .env 之后）
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  REMOTE: debian # 开发机 ~/.ssh/config 里的主机名
+  REMOTE_DIR: /root/IOT_SIM
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  deploy:
+    runs-on: iot-deploy
+    timeout-minutes: 20
+    steps:
+      # 工作目录可能是上一次留下的，所以 fetch 之后强制切过去再清掉没跟踪的文件（node_modules 留着，bun install 会对齐它）
+      - name: 取代码
+        env:
+          SHA: ${{ gitea.sha }}
+          REPO: ${{ gitea.repository }}
+        run: |
+          git init -q .
+          git fetch -q --depth 1 "git@git.xuyue.cc:$REPO.git" "$SHA"
+          git checkout -q --force FETCH_HEAD
+          git clean -ffdxq -e node_modules
+          git log --oneline -1
+
+      # server.js 是开发机的 bun 打包的，到服务器上由镜像里的 bun（Dockerfile 里写死的版本）运行。
+      # 打包出来是普通 JS，不像 OJ2 的单二进制那样把 bun 本身带过去，版本差一点一般没事，所以只提醒不拦。
+      - name: 看 bun 版本
+        run: |
+          want=$(sed -nE 's|^FROM oven/bun:([0-9.]+).*|\1|p' Dockerfile | head -1)
+          have=$(bun --version)
+          echo "开发机 bun $have，镜像里 bun $want"
+          [ "$have" = "$want" ] || echo "::warning::开发机的 bun 是 $have，镜像里是 $want，升级 Dockerfile 和 ci.yml 里的版本，或者确认没有用到新版本才有的功能"
+
+      - name: 装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 编 C# 运行时
+        run: dotnet build runtime/Runtime.slnx -c Release -v q
+
+      - name: 编网页、打包服务端
+        run: |
+          (cd web && bun run build)
+          bun build server/src/index.ts --target=bun --outfile=server.js
+
+      # 有一项不过就不部署。服务端测试用上一步编的 Release 版运行时，测的就是要上线的那份。
+      # --parallel 让 6 个测试文件同时跑；grading 里的测试标了 describe.concurrent，
+      # --max-concurrency 限制同时跑几个（太多时定时器来不及触发会误判）。挨个跑约 4 分钟，这样半分钟左右
+      - name: 测试
+        env:
+          RUNNER_DLL: runtime/Sim.Runner/bin/Release/net10.0/Sim.Runner.dll
+        run: |
+          (cd server && bun test --parallel --max-concurrency=8)
+          (cd web && bun test src && bunx vue-tsc --noEmit)
+
+      # 目录结构就是 Dockerfile 里 artifacts-prebuilt 阶段要的；COMMIT 让服务器确认产物和要部署的代码是同一个提交
+      - name: 收集产物
+        env:
+          SHA: ${{ gitea.sha }}
+        run: |
+          rm -rf prebuilt
+          mkdir -p prebuilt/runtime prebuilt/web
+          cp -a runtime/Sim.Runner/bin/Release/net10.0/. prebuilt/runtime/
+          cp -a web/dist/. prebuilt/web/
+          cp server.js prebuilt/
+          echo "$SHA" > prebuilt/COMMIT
+          du -sh prebuilt
+
+      # 只传产物，源码由服务器自己从 origin 拉（git.xuyue.cc 就在那台服务器上）。
+      #   -c               按内容比：每次编出来的 mtime 都是「刚才」，按 mtime 比会把没变的文件也传一遍
+      #   --delay-updates  全部传完才一起换上去，中途断了不会留下半新半旧的产物（反正 COMMIT 对不上也会被 update.sh 拦下）
+      #   --timeout        60 秒没有数据进出就算断了，交给循环重试，半截文件接着用
+      - name: 同步到服务器
+        timeout-minutes: 10
+        run: |
+          for attempt in 1 2 3; do
+            rsync -a -c --no-owner --no-group --delete-delay --delay-updates \
+              --compress --compress-choice=zstd \
+              --timeout=60 --stats --human-readable \
+              -e "ssh -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
+              prebuilt/ "$REMOTE:$REMOTE_DIR/prebuilt/" && exit 0
+            echo "::warning::rsync 第 $attempt 次没传完，10 秒后重试"
+            sleep 10
+          done
+          exit 1
+
+      # 先把服务器上的代码切到这个提交再跑 update.sh：不然跑的是上一版的 update.sh，改了它要晚一次部署才生效。
+      # 重启会结束正在运行的学生程序，上课时间尽量不要推送 main。
+      - name: 起服务
+        env:
+          SHA: ${{ gitea.sha }}
+        run: |
+          ssh -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8 "$REMOTE" \
+            "cd $REMOTE_DIR && git fetch --quiet origin && git reset --quiet --hard $SHA && deploy/update.sh $SHA --prebuilt"

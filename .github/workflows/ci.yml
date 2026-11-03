@@ -1,13 +1,13 @@
-# 每次推送和 PR 都跑测试；推送到 main 且测试通过后，SSH 到服务器执行 deploy/update.sh（服务器从 origin 拉代码、构建、重启）。
-# 部署需要的 Secrets 见 deploy/README.md 的"自动部署"一节。
-# 只在 github.com 上运行；仓库同时推到 git.xuyue.cc，那边的 Gitea Actions 也会读这个目录，用 if 跳过。
+# 备用路线。平时 push origin（git.xuyue.cc）后，由开发机上的 gitea-runner 测试、编好、部署（.gitea/workflows/deploy.yml），
+# 这里 push 不再触发，免得每次推送在两边各测一遍、各部署一遍。
+#   - PR：只跑测试。
+#   - 手动触发（Actions → CI/CD → Run workflow）：测试通过后 SSH 到服务器执行 deploy/update.sh，服务器从 origin 拉代码、
+#     **自己编**、重启。开发机不在、又急着上线时用。部署需要的 Secrets 见 deploy/README.md 的"自动部署"一节。
+# 只在 github.com 上运行（Gitea 有了 .gitea/workflows 后不再读这个目录，if 再保一道）。
 name: CI/CD
 
 on:
-  push:
-    branches: [main]
   pull_request:
-  # 在 Actions 页面手动重新部署（比如改了服务器上的 .env 之后）
   workflow_dispatch:
 
 jobs:
@@ -37,9 +37,10 @@ jobs:
       - name: 编译 C# 运行时
         run: bun run build:runtime
 
+      # 文件之间同时跑，grading 里的测试也同时跑（describe.concurrent），见 .gitea/workflows/deploy.yml 同名一步
       - name: 服务端测试（编译并运行示例、沙箱、编译检查）
         working-directory: server
-        run: bun test
+        run: bun test --parallel --max-concurrency=8
 
       - name: 网页端测试和类型检查
         working-directory: web
@@ -49,7 +50,7 @@ jobs:
 
   deploy:
     needs: test
-    if: github.server_url == 'https://github.com' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     # 服务器构建约几分钟；卡住时及时失败，不要一直占着
     timeout-minutes: 20

@@ -33,7 +33,9 @@ async function prepare(id: string, name: string, edit?: { file: string; from: st
   return dir
 }
 
-describe('参考答案全部通过', async () => {
+// 每个检查大部分时间在等学生程序的定时器，挨个跑要 3 分钟；测试之间各用各的临时目录，可以同时跑（30 秒左右）。
+// 同时跑的个数由 bun test 的 --max-concurrency 管，CI 里给的是 8：太多时 CPU 跟不上，定时器来不及触发会误判
+describe.concurrent('参考答案全部通过', async () => {
   const ids = (await Array.fromAsync(new Bun.Glob('*/checks.yaml').scan({ cwd: SAMPLES }))).map((p) => p.split('/')[0]).sort()
   test('每个示例都有评分规则', () => expect(ids.length).toBe(23))
   for (const id of ids) {
@@ -49,7 +51,7 @@ describe('参考答案全部通过', async () => {
   }
 })
 
-describe('改坏的代码', () => {
+describe.concurrent('改坏的代码', () => {
   test('编译不通过时所有项都不通过', async () => {
     const id = 'p2-t1-LED显示屏'
     const dir = await prepare(id, 'compile-error', { file: 'Form1.cs', from: 'led.setLedText(res);', to: 'led.setLedText(res)' })

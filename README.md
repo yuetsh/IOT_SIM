@@ -38,7 +38,7 @@ BASE=http://localhost:3000 bun test/classroom.ts 45  # 全班模拟：45 个学�
 
 ## 部署
 
-Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到 GitHub 的 main 后，GitHub Actions 跑完测试，SSH 到服务器执行 `deploy/update.sh`：服务器从 git.xuyue.cc 拉代码、构建镜像、重启。详见 [deploy/README.md](deploy/README.md)。
+Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。push 到 origin（git.xuyue.cc）的 main 后，开发机上的 gitea-runner 跑完测试、编好产物传到服务器，服务器拉代码、用现成产物构建镜像、重启（`deploy/update.sh --prebuilt`）；GitHub 上手动触发是备用路线，由服务器自己编。详见 [deploy/README.md](deploy/README.md)。
 
 ## 运行器的四种模式
 
@@ -74,7 +74,7 @@ Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。推送到
 - 窗体设计器（仿 VS，界面中文）：工具箱、拖放与改大小、属性窗口、事件窗口、双击生成事件处理方法、撤销 / 重做；读写 VS 格式的 Designer.cs。
 - 多窗体：新建、删除窗体；运行时多个窗口可切换前后。
 - 导出 EXE：学生的程序照教材工程（.NET Framework 4.5、真机版设备类库）编译成一个 exe，教材 dll 嵌在里面，在机房电脑上双击就能控制真的实训台（`runtime/Sim.Runner/ExeExporter.cs`）。教材 dll 有版权，不进仓库：本机放在 `textbook-libs/`，服务器上的放法见 [deploy/README.md](deploy/README.md)。
-- 部署：bubblewrap 沙箱（断网、只读、看不到其他进程，限制内存、CPU 时间和运行时长）、编译时禁止网络 / 反射 / 启动进程等 API、Docker Compose、GitHub Actions 自动部署。
+- 部署：bubblewrap 沙箱（断网、只读、看不到其他进程，限制内存、CPU 时间和运行时长）、编译时禁止网络 / 反射 / 启动进程等 API、Docker Compose、push origin 自动部署（开发机上的 gitea-runner 测试、编好再传到服务器）。
 - 第 2 阶段（进行中）：账号登录（本机开发时老师账号为 admin / admin）、班级管理与 CSV 名单导入、学生作品保存在服务器上；自动评分（每个示例的 `checks.yaml`）；实验页"评价项"可以自己检查（不计分）；布置作业、学生提交后自动评分；老师评阅（看代码和界面截图、运行学生的程序、老师评分项打分、评语）、AI 评阅建议（DeepSeek，老师采纳后生效）、全班成绩表与 CSV 导出。
 - 第 3 阶段（教材项目 4–8 已全部完成）：教材项目 5 用到的旧版线程 API（`Thread.Suspend` / `Resume` / `Abort`）编译时改写成平台的协作式实现（`runtime/Sim.Runner/LegacyThreadRewriter.cs`、`runtime/Sim.WinForms/Host/LegacyThreads.cs`）；网络摄像机（画面帧由 `runtime/Sim.Devices/Camera/build-frames.ts` 从 `scene.svg` 生成，需要 rsvg-convert 和 ImageMagick）。
 

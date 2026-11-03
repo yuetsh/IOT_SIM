@@ -27,3 +27,6 @@ obj/
 
 # 服务器上 deploy/backup.sh 做的备份
 /backups/
+
+# 开发机上的 gitea-runner 编好传到服务器的产物（.gitea/workflows/deploy.yml）
+/prebuilt/
