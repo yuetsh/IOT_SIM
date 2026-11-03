@@ -28,6 +28,10 @@
     </ItemGroup>
     <Copy SourceFiles="@(NetFxReference)" DestinationFiles="@(NetFxReference->'$(OutDir)netfx/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
+  <!-- 导出 VS 工程：.resx 文件开头的标准内容（VS 生成的架构说明和 resheader） -->
+  <ItemGroup>
+    <EmbeddedResource Include="ProjectTemplate/ResxHeader.xml" LogicalName="ResxHeader.xml" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Sim.WinForms/Sim.WinForms.csproj" />
     <ProjectReference Include="../Sim.Devices/Sim.Devices.csproj" />

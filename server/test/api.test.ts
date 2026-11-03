@@ -740,12 +740,14 @@ describe('AI 评阅', () => {
   }, 60000)
 })
 
-describe('导出 EXE', () => {
+describe('导出 EXE、VS 工程', () => {
   const hasLibs = existsSync(`${config.textbookLibsDir}/DeviceCtrlLibrary.dll`)
 
-  async function exportExe(browser: Browser, json: unknown) {
+  const exportExe = (browser: Browser, json: unknown) => exportRequest(browser, 'exe', json)
+
+  async function exportRequest(browser: Browser, kind: 'exe' | 'project', json: unknown) {
     const response = await app.fetch(
-      new Request('http://localhost/api/export-exe', {
+      new Request(`http://localhost/api/export-${kind}`, {
         method: 'POST',
         headers: { authorization: `Bearer ${browser.accessToken}`, 'content-type': 'application/json', 'x-real-ip': browser.ip },
         body: JSON.stringify(json),
@@ -775,6 +777,104 @@ describe('导出 EXE', () => {
     60000,
   )
 
+  /** 读出 zip 里的文件：文件名是 GBK 编码，0x7075 扩展字段里是 UTF-8 文件名，两者要一致 */
+  function unzip(zip: Uint8Array<ArrayBuffer>) {
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength)
+    let end = zip.length - 22
+    while (view.getUint32(end, true) !== 0x06054b50) end--
+    const count = view.getUint16(end + 10, true)
+    let p = view.getUint32(end + 16, true)
+    const files = new Map<string, Uint8Array<ArrayBuffer>>()
+    for (let i = 0; i < count; i++) {
+      expect(view.getUint32(p, true)).toBe(0x02014b50)
+      const flags = view.getUint16(p + 8, true)
+      const method = view.getUint16(p + 10, true)
+      const compressedSize = view.getUint32(p + 20, true)
+      const nameLength = view.getUint16(p + 28, true)
+      const extraLength = view.getUint16(p + 30, true)
+      const commentLength = view.getUint16(p + 32, true)
+      const offset = view.getUint32(p + 42, true)
+      const nameBytes = zip.subarray(p + 46, p + 46 + nameLength)
+      const extra = zip.subarray(p + 46 + nameLength, p + 46 + nameLength + extraLength)
+      expect(flags & 0x800).toBe(0)
+      const name = new TextDecoder('gbk').decode(nameBytes)
+      if (extra.length > 0) {
+        expect(extra[0]! | (extra[1]! << 8)).toBe(0x7075)
+        expect(new TextDecoder().decode(extra.subarray(9))).toBe(name)
+      } else {
+        expect(/^[\x20-\x7e]+$/.test(name)).toBe(true)
+      }
+      const local = offset + 30 + view.getUint16(offset + 26, true) + view.getUint16(offset + 28, true)
+      const data = zip.subarray(local, local + compressedSize)
+      files.set(name, method === 8 ? Bun.inflateSync(data) : data)
+      p += 46 + nameLength + extraLength + commentLength
+    }
+    return files
+  }
+
+  test.skipIf(!hasLibs)(
+    '导出 VS 2012 工程：资源换成 resx、素材复制到输出目录、教材 dll 放在 lib；照 C# 5 检查',
+    async () => {
+      const t = await teacher()
+      const response = await exportRequest(t, 'project', { files: (await loadSample('p7-t2-智慧寝室'))!, name: '寝室' })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toBe('application/zip')
+      expect(response.headers.get('content-disposition')).toContain(`filename*=UTF-8''${encodeURIComponent('寝室.zip')}`)
+      const files = unzip(new Uint8Array(await response.arrayBuffer()))
+      const text = (name: string) => {
+        const bytes = files.get(name)
+        expect(bytes, name).toBeDefined()
+        // VS 2012 要带 BOM 才把文件当成 UTF-8；Windows 的换行
+        expect([...bytes!.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf])
+        const content = new TextDecoder().decode(bytes!.subarray(3))
+        expect(content.replace(/\r\n/g, '')).not.toContain('\n')
+        return content
+      }
+      expect(text('寝室/寝室.sln')).toContain('# Visual Studio 2012\r\nProject("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "寝室", "寝室\\寝室.csproj"')
+      const csproj = text('寝室/寝室/寝室.csproj')
+      expect(csproj).toContain('<RootNamespace>寝室情景模式</RootNamespace>')
+      expect(csproj).toContain('<AssemblyName>寝室</AssemblyName>')
+      expect(csproj).toContain('<TargetFrameworkVersion>v4.5</TargetFrameworkVersion>')
+      // 和教材工程一样只引用直接用到的教材 dll，其他的作为依赖复制到输出目录
+      expect(csproj).toContain('<HintPath>lib\\DeviceCtrlLibrary.dll</HintPath>')
+      expect(csproj).toContain('<HintPath>lib\\AxInterop.WMPLib.dll</HintPath>')
+      expect(csproj).not.toContain('ICS.Models')
+      expect(files.has('寝室/寝室/lib/ICS.Models.dll')).toBe(true)
+      expect(csproj).toContain('<Compile Include="Form1.cs">\r\n      <SubType>Form</SubType>')
+      expect(csproj).toContain('<Content Include="Resources\\ring.mp3">\r\n      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>')
+      expect(csproj).toContain('<None Include="Resources\\switch_on.png" />')
+      expect(files.has('寝室/寝室/Resources/ring.mp3')).toBe(true)
+      expect(text('寝室/寝室/Properties/Resources.resx')).toContain('<value>..\\Resources\\switch_on.png;System.Drawing.Bitmap, System.Drawing')
+      const resources = text('寝室/寝室/Properties/Resources.Designer.cs')
+      expect(resources).toContain('new global::System.Resources.ResourceManager("寝室情景模式.Properties.Resources"')
+      expect(resources).not.toContain('Sim.Host')
+      expect(text('寝室/寝室/Form1.resx')).toContain('<data name="axWindowsMediaPlayer1.OcxState" mimetype="application/x-microsoft.net.object.binary.base64">')
+      expect(text('寝室/寝室/Form1.cs')).toContain('namespace 寝室情景模式')
+      expect(files.has('寝室/寝室/LedHelperCompat.cs')).toBe(false)
+
+      // 书上的 ledHelper.Close() 教材类库里没有，用到时带上补的方法
+      const led = unzip(
+        new Uint8Array(await (await exportRequest(t, 'project', { files: (await loadSample('p2-t3-LED推送模拟量'))!, name: 'LED' })).arrayBuffer()),
+      )
+      expect(new TextDecoder().decode(led.get('LED/LED/LedHelperCompat.cs'))).toContain('Close(this global::DeviceCtrlLibrary.LEDHelper helper)')
+      expect(new TextDecoder().decode(led.get('LED/LED/LED.csproj'))).toContain('<Compile Include="LedHelperCompat.cs" />')
+
+      // 机房的 VS 2012 只支持 C# 5
+      const login = (await loadSample('p1-t1-登录'))!
+      const newer = login.map((f) =>
+        f.path === 'Program.cs' ? { ...f, content: f.content.replace('[STAThread]', 'static string S => $"{1}";\n        [STAThread]') } : f,
+      )
+      const failed = await exportRequest(t, 'project', { files: newer, name: '登录' })
+      expect(failed.status).toBe(422)
+      const diagnostics = ((await failed.json()) as any).diagnostics
+      expect(diagnostics.map((d: any) => d.code)).toEqual(['CS8026', 'CS8026'])
+      expect(diagnostics[1]).toMatchObject({ file: 'Program.cs', hint: expect.stringContaining('string.Format') })
+      // 导出 EXE 不受这个限制
+      expect((await exportExe(t, { files: newer, name: '登录' })).status).toBe(200)
+    },
+    60000,
+  )
+
   test('服务器上没有教材类库时说明原因；格式不对拒绝', async () => {
     const t = await teacher()
     const saved = config.textbookLibsDir
@@ -783,9 +883,13 @@ describe('导出 EXE', () => {
       const response = await exportExe(t, { files: (await loadSample('p1-t1-登录'))!, name: '登录' })
       expect(response.status).toBe(503)
       expect(((await response.json()) as any).message).toContain('设备类库')
+      const project = await exportRequest(t, 'project', { files: (await loadSample('p1-t1-登录'))!, name: '登录' })
+      expect(project.status).toBe(503)
+      expect(((await project.json()) as any).message).toContain('不能导出工程')
     } finally {
       config.textbookLibsDir = saved
     }
     expect((await exportExe(t, { files: 'x' })).status).toBe(400)
+    expect((await exportRequest(t, 'project', { files: 'x' })).status).toBe(400)
   }, 60000)
 })

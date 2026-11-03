@@ -4,7 +4,21 @@
 // 老师运行学生提交的程序（/teacher/submissions/:id/run，改动只用于试运行，不保存）。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NInput, NModal, NPopconfirm, NPopover, NSelect, NTab, NTabs, NTag, useMessage, type SelectGroupOption } from 'naive-ui'
+import {
+  NButton,
+  NDropdown,
+  NInput,
+  NModal,
+  NPopconfirm,
+  NPopover,
+  NSelect,
+  NTab,
+  NTabs,
+  NTag,
+  useMessage,
+  type DropdownOption,
+  type SelectGroupOption,
+} from 'naive-ui'
 import type { Assignment, Diagnostic, Review, SourceFile, Submission } from '@iot/shared'
 import FormDesigner from '../designer/FormDesigner.vue'
 import { createDesignerHistory } from '../designer/history'
@@ -25,7 +39,7 @@ import CodeEditor from '../editor/CodeEditor.vue'
 import { checkProject } from '../editor/language'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
-import { downloadExe } from '../editor/export-exe'
+import { downloadExport, type ExportKind } from '../editor/export'
 import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
@@ -479,22 +493,37 @@ async function showDiagnostic(file: string, line: number, column: number) {
   editorRef.value?.reveal(file, line, column)
 }
 
-// ---------- 导出 EXE：照真机版类库编译，在机房电脑上双击运行 ----------
+// ---------- 导出：照真机版类库编译，EXE 在机房电脑上双击运行，VS 工程用机房的 VS 2012 打开 ----------
 const exporting = ref(false)
 /** 导出时的编译报错（照真机版类库编译，和平台上运行时可能不同） */
 const exportErrors = ref<Diagnostic[]>([])
 const exportErrorsOpen = ref(false)
+const exportKind = ref<ExportKind>('exe')
 
-async function exportExe() {
+const EXPORT_OPTIONS: DropdownOption[] = [
+  { key: 'exe', label: '导出 EXE', props: { title: '编译成 Windows 程序（.exe），在机房电脑上双击运行，控制真的实训台' } },
+  { key: 'project', label: '导出 VS 工程', props: { title: '打包成 VS 2012 工程（.zip），在机房电脑上解压后用 VS 打开，接着改代码、按 F5 运行' } },
+]
+
+const EXPORT_DONE: Record<ExportKind, string> = {
+  exe: '已导出，在机房电脑上双击运行（要接真的实训台）',
+  project: '已导出，解压后双击 .sln 文件用 VS 打开，按 F5 运行（要接真的实训台）',
+}
+
+async function exportProgram(kind: ExportKind) {
   if (exporting.value) return
   exporting.value = true
+  exportKind.value = kind
   try {
-    const errors = await downloadExe(files.value.map((f) => ({ ...f })))
+    const errors = await downloadExport(
+      kind,
+      files.value.map((f) => ({ ...f })),
+    )
     if (errors) {
       exportErrors.value = errors
       exportErrorsOpen.value = true
     } else {
-      message.success('已导出，在机房电脑上双击运行（要接真的实训台）')
+      message.success(EXPORT_DONE[kind])
     }
   } catch (error) {
     message.error(error instanceof Error ? error.message : String(error))
@@ -630,9 +659,9 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
       <NButton v-if="taskPanel && !viewing" size="small" title="任务说明、自动检查哪些功能；可以自己先检查一遍（不计分）" @click="taskOpen = !taskOpen">
         任务
       </NButton>
-      <NButton size="small" :loading="exporting" title="编译成 Windows 程序（.exe），在机房电脑上双击运行，控制真的实训台" @click="exportExe">
-        导出 EXE
-      </NButton>
+      <NDropdown trigger="click" :options="EXPORT_OPTIONS" :disabled="exporting" @select="(key: ExportKind) => exportProgram(key)">
+        <NButton size="small" :loading="exporting" title="导出到机房电脑上用：EXE 双击运行，VS 工程用 VS 打开">导出 ▾</NButton>
+      </NDropdown>
       <NPopconfirm v-if="modified && !viewing" positive-text="恢复" negative-text="取消" @positive-click="restoreOriginal">
         <template #trigger>
           <NButton quaternary size="small">{{ assignmentId ? '恢复到作业起点' : '恢复原始代码' }}</NButton>
@@ -657,7 +686,10 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
     </header>
 
     <NModal v-model:show="exportErrorsOpen" preset="card" title="代码有错误，不能导出" style="width: 640px; max-width: calc(100vw - 32px)">
-      <p class="export-errors-note">导出时照机房电脑上的设备类库编译，和在 VS 里编译一样。点击报错跳到出错的代码。</p>
+      <p v-if="exportKind === 'project'" class="export-errors-note">
+        导出时照机房电脑上的 VS 2012 编译（只支持 C# 5，用真机版设备类库）。点击报错跳到出错的代码。
+      </p>
+      <p v-else class="export-errors-note">导出时照机房电脑上的设备类库编译，和在 VS 里编译一样。点击报错跳到出错的代码。</p>
       <div v-for="(d, i) in exportErrors.slice(0, 20)" :key="i" class="export-error" @click="jumpToExportError(d)">
         {{ d.file }}({{ d.line }},{{ d.column }}) {{ d.code }}：{{ d.message }}
         <div v-if="d.hint" class="hint">提示：{{ d.hint }}</div>

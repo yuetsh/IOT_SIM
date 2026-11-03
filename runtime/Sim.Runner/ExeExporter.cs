@@ -34,7 +34,7 @@ internal static class ExeExporter
     /// VS 设计器给媒体播放器存的 OcxState（AxHost.State 的 BinaryFormatter 序列化数据，取自教材项目 7 的 Form1.resx，是控件的默认状态）。
     /// 平台没有 .resx，导出时给每个 resources.GetObject("…OcxState") 都放这一份。
     /// </summary>
-    private const string MediaPlayerOcxState =
+    internal const string MediaPlayerOcxState =
         "AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAuMC4w" +
         "LCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAAACFTeXN0" +
         "ZW0uV2luZG93cy5Gb3Jtcy5BeEhvc3QrU3RhdGUBAAAABERhdGEHAgIAAAAJAwAAAA8DAAAAtwAAAAIB" +
@@ -51,9 +51,9 @@ internal static class ExeExporter
     private const string EmbeddedResources = "global::IotSimExport.EmbeddedFiles.";
 
     private static readonly Regex ResourceFile = new(@"ProjectResources\.(?:Image|Bytes)\(""([^""]+)""\)");
-    private static readonly Regex OcxStateKey = new(@"GetObject\(""([^""]+\.OcxState)""\)");
+    internal static readonly Regex OcxStateKey = new(@"GetObject\(""([^""]+\.OcxState)""\)");
 
-    private static readonly CSharpCompilationOptions Options = new CSharpCompilationOptions(OutputKind.WindowsApplication)
+    internal static readonly CSharpCompilationOptions Options = new CSharpCompilationOptions(OutputKind.WindowsApplication)
         .WithPlatform(Platform.AnyCpu32BitPreferred)
         .WithOptimizationLevel(OptimizationLevel.Release)
         .WithNullableContextOptions(NullableContextOptions.Disable)
@@ -61,7 +61,7 @@ internal static class ExeExporter
         .WithConcurrentBuild(true);
 
     /// <summary>.NET Framework 4.5 的引用程序集（构建时复制到 netfx/，见 Sim.Runner.csproj）</summary>
-    private static readonly Lazy<IReadOnlyList<MetadataReference>> Framework = new(() =>
+    internal static readonly Lazy<IReadOnlyList<MetadataReference>> Framework = new(() =>
         Directory.EnumerateFiles(Path.Combine(AppContext.BaseDirectory, "netfx"), "*.dll")
             .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
             .ToList());
@@ -69,9 +69,7 @@ internal static class ExeExporter
     /// <summary>libsDir：教材 dll 所在目录；galleryDir：平台素材库</summary>
     public static Result Export(string projectDir, string libsDir, string galleryDir, string assemblyName)
     {
-        var libs = TextbookLibs(libsDir);
-        if (!libs.Any(p => Path.GetFileName(p) == "DeviceCtrlLibrary.dll"))
-            throw new InvalidOperationException("服务器上没有放教材的设备类库（真机版 DeviceCtrlLibrary.dll 等），不能导出 EXE，请联系老师");
+        var libs = TextbookLibs(libsDir, "导出 EXE");
 
         var sources = StudentCompiler.SourceFiles(projectDir)
             .Select(path => (Path: Path.GetRelativePath(projectDir, path), Text: File.ReadAllText(path)))
@@ -86,15 +84,7 @@ internal static class ExeExporter
             sources[i] = (sources[i].Path, sources[i].Text.Replace(PlatformResources, EmbeddedResources));
         }
         // 代码里按文件名用到的素材（如 BaseDirectory + "//Resources//ring.mp3"），在 VS 里是复制到输出目录的 Resources 文件夹
-        var media = Directory.Exists(galleryDir)
-            ? Directory.GetFiles(galleryDir)
-                .Select(Path.GetFileName)
-                .OfType<string>()
-                .Where(name => !name.Contains(".2x.") && name != "index.json")
-                .Where(name => sources.Any(s => s.Text.Contains(name + "\"")))
-                .OrderBy(name => name, StringComparer.Ordinal)
-                .ToList()
-            : new List<string>();
+        var media = ReferencedMedia(galleryDir, sources.Select(s => s.Text));
 
         var trees = sources
             .Select(s => CSharpSyntaxTree.ParseText(SourceText.From(s.Text, Encoding.UTF8), StudentCompiler.ParseOptions, path: s.Path))
@@ -135,11 +125,33 @@ internal static class ExeExporter
         return new Result(emit.Success, pe.ToArray(), diagnostics);
     }
 
+    /// <summary>代码里按文件名用到的素材库文件（如 BaseDirectory + "//Resources//ring.mp3"），按文件名排序</summary>
+    internal static List<string> ReferencedMedia(string galleryDir, IEnumerable<string> texts)
+    {
+        if (!Directory.Exists(galleryDir)) return new List<string>();
+        var all = texts.ToList();
+        return Directory.GetFiles(galleryDir)
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .Where(name => !name.Contains(".2x.") && name != "index.json")
+            .Where(name => all.Any(text => text.Contains(name + "\"")))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+    }
+
     /// <summary>
-    /// 教材 dll 的路径。目录或文件读不了时（服务器上拷进去的文件权限是 600，容器里的平台用户读不到）说明原因，
-    /// 不把英文的系统报错直接给学生看。
+    /// 教材 dll 的路径；没放时说明原因（what："导出 EXE"或"导出工程"）。目录或文件读不了时
+    /// （服务器上拷进去的文件权限是 600，容器里的平台用户读不到）也说明原因，不把英文的系统报错直接给学生看。
     /// </summary>
-    private static string[] TextbookLibs(string libsDir)
+    internal static string[] TextbookLibs(string libsDir, string what)
+    {
+        var libs = ReadableLibs(libsDir, what);
+        if (!libs.Any(p => Path.GetFileName(p) == "DeviceCtrlLibrary.dll"))
+            throw new InvalidOperationException($"服务器上没有放教材的设备类库（真机版 DeviceCtrlLibrary.dll 等），不能{what}，请联系老师");
+        return libs;
+    }
+
+    private static string[] ReadableLibs(string libsDir, string what)
     {
         if (!Directory.Exists(libsDir)) return Array.Empty<string>();
         string? current = null;
@@ -155,9 +167,9 @@ internal static class ExeExporter
         }
         catch (UnauthorizedAccessException)
         {
-            var what = current == null ? "目录" : Path.GetFileName(current);
+            var item = current == null ? "目录" : Path.GetFileName(current);
             throw new InvalidOperationException(
-                $"服务器上的教材设备类库读不了（{what} 的权限不够），不能导出 EXE，请联系老师（服务器上执行 chmod 755 textbook-libs 和 chmod 644 textbook-libs/*.dll）");
+                $"服务器上的教材设备类库读不了（{item} 的权限不够），不能{what}，请联系老师（服务器上执行 chmod 755 textbook-libs 和 chmod 644 textbook-libs/*.dll）");
         }
     }
 

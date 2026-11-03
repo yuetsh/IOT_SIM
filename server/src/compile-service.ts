@@ -9,8 +9,9 @@ export interface CompileResult {
   ms: number
 }
 
-/** 导出的 exe 在工程目录里的文件名（Sim.Runner 的 CompileServer.ExportFile） */
+/** 导出的 exe、VS 工程（zip）在工程目录里的文件名（Sim.Runner 的 CompileServer.ExportFile、ExportProjectFile） */
 export const EXPORT_FILE = 'export.exe'
+export const EXPORT_PROJECT_FILE = 'export.zip'
 
 type Reply = ({ type: 'compiled' } & CompileResult) | { type: 'compileFailed'; message: string }
 
@@ -35,6 +36,14 @@ class CompileService {
    */
   exportExe(dir: string, name: string): Promise<CompileResult> {
     return this.request({ dir, export: { libs: config.textbookLibsDir, name } })
+  }
+
+  /**
+   * 导出 VS 工程：照机房的 VS 2012（C# 5、.NET Framework 4.5、真机版设备类库）检查，
+   * 打包成 zip 写到工程目录的 EXPORT_PROJECT_FILE。name 是工程名
+   */
+  exportProject(dir: string, name: string): Promise<CompileResult> {
+    return this.request({ dir, export: { kind: 'project', libs: config.textbookLibsDir, name } })
   }
 
   private async request(payload: object): Promise<CompileResult> {

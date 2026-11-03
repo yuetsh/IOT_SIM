@@ -11,7 +11,8 @@ namespace Sim.Runner;
 /// <summary>
 /// 常驻编译服务：从标准输入读取 {"id":…,"dir":…}，编译该目录下的学生工程，
 /// 成功时把 StudentApp.dll / StudentApp.pdb 写到同一目录，回复 {"id":…,"type":"compiled",…}。
-/// 请求带 "export":{"libs":…,"name":…} 时导出 EXE（见 ExeExporter），写到同一目录的 export.exe。
+/// 请求带 "export":{"libs":…,"name":…} 时导出 EXE（见 ExeExporter），写到同一目录的 export.exe；
+/// 带 "export":{"kind":"project",…} 时导出 VS 工程（见 ProjectExporter），写到同一目录的 export.zip。
 /// 编译器常驻，第一次之后的编译不再有加载和预热开销。
 /// </summary>
 internal static class CompileServer
@@ -19,6 +20,7 @@ internal static class CompileServer
     public const string AssemblyFile = "StudentApp.dll";
     public const string PdbFile = "StudentApp.pdb";
     public const string ExportFile = "export.exe";
+    public const string ExportProjectFile = "export.zip";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
@@ -40,7 +42,7 @@ internal static class CompileServer
                 id = request["id"]?.DeepClone();
                 var dir = (string?)request["dir"] ?? throw new ArgumentException("缺少 dir");
                 reply = request["export"] is JsonObject export
-                    ? Export(dir, (string?)export["libs"] ?? "", (string?)export["name"] ?? "")
+                    ? Export(dir, (string?)export["kind"] == "project", (string?)export["libs"] ?? "", (string?)export["name"] ?? "")
                     : Compile(dir);
             }
             catch (Exception ex)
@@ -72,19 +74,33 @@ internal static class CompileServer
     }
 
     /// <summary>
-    /// 导出 EXE：照教材工程编译成 .NET Framework 程序，嵌入 libs 目录下的教材 dll，成功时写到工程目录的 ExportFile。
-    /// name 是程序集名（exe 的名字），由服务器按工程取好。
+    /// 导出 EXE：照教材工程编译成 .NET Framework 程序，嵌入 libs 目录下的教材 dll，成功时写到工程目录的 ExportFile；
+    /// 导出工程（project）：照机房的 VS 2012 检查后打包成 VS 工程，成功时写到 ExportProjectFile。
+    /// name 是程序集名（exe 的名字、工程名），由服务器按工程取好。
     /// </summary>
-    private static JsonObject Export(string dir, string libs, string name)
+    private static JsonObject Export(string dir, bool project, string libs, string name)
     {
         var watch = Stopwatch.StartNew();
-        var result = ExeExporter.Export(dir, libs, Sim.Host.ProjectResources.Directory, string.IsNullOrWhiteSpace(name) ? "上位机程序" : name);
-        if (result.Success) File.WriteAllBytes(Path.Combine(dir, ExportFile), result.Exe);
+        if (string.IsNullOrWhiteSpace(name)) name = "上位机程序";
+        bool ok;
+        JsonArray diagnostics;
+        if (project)
+        {
+            var result = ProjectExporter.Export(dir, libs, Sim.Host.ProjectResources.Directory, name);
+            if (result.Success) File.WriteAllBytes(Path.Combine(dir, ExportProjectFile), result.Zip);
+            (ok, diagnostics) = (result.Success, result.Diagnostics);
+        }
+        else
+        {
+            var result = ExeExporter.Export(dir, libs, Sim.Host.ProjectResources.Directory, name);
+            if (result.Success) File.WriteAllBytes(Path.Combine(dir, ExportFile), result.Exe);
+            (ok, diagnostics) = (result.Success, result.Diagnostics);
+        }
         return new JsonObject
         {
             ["type"] = "compiled",
-            ["ok"] = result.Success,
-            ["diagnostics"] = result.Diagnostics,
+            ["ok"] = ok,
+            ["diagnostics"] = diagnostics,
             ["ms"] = watch.ElapsedMilliseconds,
         };
     }
