@@ -70,6 +70,7 @@
 
 `.gitea/workflows/deploy.yml`：push 到 origin（git.xuyue.cc）的 main 时，**开发机上的 gitea-runner** 编 C# 运行时、网页和 `server.js`，跑服务端测试（含沙箱）、网页端测试和类型检查（有一项不过就不部署），把产物 rsync 到服务器的 `~/IOT_SIM/prebuilt/`，再在服务器上执行 `deploy/update.sh <提交号> --prebuilt`：拉代码、用现成产物构建镜像（只剩几条 COPY）、重启，等到"编译服务已就绪"才算成功。push 后一两分钟上线，进度在 git.xuyue.cc/xuyue/IOT_SIM/actions。
 
+- `update.sh` 由 `deploy/update-bg.sh` 在服务器上**后台**跑，SSH 断了（开发机切代理、换网络）它照样跑完，runner 重连后接着看输出、拿结果。以前它跑在 SSH 会话里，断线时正好在 `docker compose up` 中间，旧容器删了、新容器没启动，网站就停了。服务器上的部署输出在 `/var/tmp/iot_sim-update.log`。
 - **重启会结束正在运行的学生程序**，上课时间尽量不要推送 main。
 - **push 时开发机得开着。** 没开的话任务在 Gitea 里排队，开机后 runner 连上就接着跑；排队超过 24 小时会被作废，要在 Actions 页面重跑。
 - 在 Gitea 的 Actions 页面点 Run workflow 可以手动重新部署（比如改了服务器上的 `.env` 之后）。
@@ -93,7 +94,7 @@ host 模式直接用开发机自己的东西，所以**不需要配任何 secret
 
 ### 备用：GitHub 手动触发
 
-`.github/workflows/ci.yml` 只在 PR 时跑测试，push 不触发（不然每次推送两边各部署一遍）。开发机不在、又急着上线时，在 github.com 的 Actions → CI/CD → Run workflow：测试通过后 SSH 到服务器执行 `deploy/update.sh <提交号>`，**服务器自己编**。这个提交要已经推到 origin（服务器从 origin 拉代码，没到时脚本会等最多约 100 秒）。
+`.github/workflows/ci.yml` 只在 PR 时跑测试，push 不触发（不然每次推送两边各部署一遍）。开发机不在、又急着上线时，在 github.com 的 Actions → CI/CD → Run workflow：测试通过后 SSH 到服务器执行 `deploy/update-bg.sh <提交号>`（后台跑 `update.sh`），**服务器自己编**。这个提交要已经推到 origin（服务器从 origin 拉代码，没到时脚本会等最多约 100 秒）。
 
 一次性配置（在本机执行，需要已登录的 `gh`）：
 

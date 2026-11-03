@@ -100,4 +100,4 @@ jobs:
 
       - name: 部署（在服务器上拉代码、构建、重启）
         if: steps.check.outputs.configured == 'true'
-        run: ssh deploy-target "cd ${{ vars.DEPLOY_DIR || 'IOT_SIM' }} && deploy/update.sh ${{ github.sha }}"
+        run: ssh deploy-target "cd ${{ vars.DEPLOY_DIR || 'IOT_SIM' }} && deploy/update-bg.sh ${{ github.sha }}"

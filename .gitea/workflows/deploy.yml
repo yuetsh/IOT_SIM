@@ -110,9 +110,26 @@ jobs:
 
       # 先把服务器上的代码切到这个提交再跑 update.sh：不然跑的是上一版的 update.sh，改了它要晚一次部署才生效。
       # 重启会结束正在运行的学生程序，上课时间尽量不要推送 main。
+      #
+      # update.sh 由 update-bg.sh 在服务器上后台跑，SSH 断了（开发机切代理、换网络）它照样跑完；
+      # 这边 ssh 返回 255（连接出错）就重连，用 --follow 接着看、拿退出码。
+      # 75 = 服务器上这个提交的部署还没开始（断在 git fetch 那里），重新开始。
       - name: 起服务
+        timeout-minutes: 10
         env:
           SHA: ${{ gitea.sha }}
         run: |
-          ssh -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8 "$REMOTE" \
-            "cd $REMOTE_DIR && git fetch --quiet origin && git reset --quiet --hard $SHA && deploy/update.sh $SHA --prebuilt"
+          remote() { ssh -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=8 "$REMOTE" "$1"; }
+          start="cd $REMOTE_DIR && git fetch --quiet origin && git reset --quiet --hard $SHA && deploy/update-bg.sh $SHA --prebuilt"
+          follow="cd $REMOTE_DIR && deploy/update-bg.sh --follow $SHA"
+          code=0; remote "$start" || code=$?
+          for attempt in 1 2 3 4 5 6; do
+            case $code in
+              255) echo "::warning::和服务器的 SSH 断了，部署在服务器上接着跑，10 秒后重连接着看"
+                   sleep 10; code=0; remote "$follow" || code=$? ;;
+              75)  echo "::warning::服务器上的部署还没开始，重新开始"
+                   code=0; remote "$start" || code=$? ;;
+              *)   exit $code ;;
+            esac
+          done
+          exit $code
