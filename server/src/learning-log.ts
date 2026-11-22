@@ -5,20 +5,12 @@
 // - activity：某一分钟里在做某个作品（改代码、运行、操作程序）就记一行，数行数就是做了多少分钟
 // - snapshots：运行时存一份代码，同一份作品至少隔一分钟；只存和上一份比改了的文件
 import type { Database } from 'bun:sqlite'
-import type { CheckResult, Diagnostic, SourceFile } from '@iot/shared'
+import type { Diagnostic, LearningEvent, SnapshotChanges, SourceFile } from '@iot/shared'
 
 /** 作品 key：自由练习 sample:实验编号，作业 assignment:作业编号（和 works 表一样） */
 export function validWorkKey(key: unknown): key is string {
   return typeof key === 'string' && /^(sample:[^/\\]{1,80}|assignment:\d{1,9})$/.test(key)
 }
-
-export type LearningEvent =
-  | { type: 'open' }
-  | { type: 'reset' }
-  /** 编译；errors 只存前几条错误，hint 是平台补充的中文提示（书上常见错误的说明） */
-  | { type: 'compile'; ok: boolean; errorCount: number; errors: Pick<Diagnostic, 'code' | 'message' | 'file' | 'line' | 'hint'>[] }
-  | { type: 'exception'; message: string; file?: string; line?: number }
-  | { type: 'selfcheck'; compiled: boolean; results: CheckResult[] }
 
 /** 一次编译最多记几条错误 */
 const MAX_ERRORS = 10
@@ -90,11 +82,24 @@ export function createLearningLog(db: Database) {
 
 export type LearningLog = ReturnType<typeof createLearningLog>
 
-/** 一份快照相对上一份的改动；full 表示这一份是完整代码（不依赖前面的） */
-interface SnapshotChanges {
-  full?: boolean
-  files: Record<string, string>
-  deleted: string[]
+/** 一份作品的全部代码快照（只含改动，浏览器里按顺序还原），按时间顺序 */
+export function workSnapshotChanges(db: Database, userId: number, workKey: string): ({ at: number } & SnapshotChanges)[] {
+  return db
+    .query<{ changes: Uint8Array<ArrayBuffer>; created_at: number }, [number, string]>(
+      'SELECT changes, created_at FROM snapshots WHERE user_id = ? AND work_key = ? ORDER BY id',
+    )
+    .all(userId, workKey)
+    .map((row) => ({ at: row.created_at, ...(JSON.parse(new TextDecoder().decode(Bun.gunzipSync(row.changes))) as SnapshotChanges) }))
+}
+
+/** 一份作品的过程事件（打开、编译、运行出错、自测），按时间顺序 */
+export function workEvents(db: Database, userId: number, workKey: string): { at: number; event: LearningEvent }[] {
+  return db
+    .query<{ type: LearningEvent['type']; data: string | null; created_at: number }, [number, string]>(
+      'SELECT type, data, created_at FROM events WHERE user_id = ? AND work_key = ? ORDER BY id',
+    )
+    .all(userId, workKey)
+    .map((row) => ({ at: row.created_at, event: { type: row.type, ...(row.data ? JSON.parse(row.data) : {}) } as LearningEvent }))
 }
 
 /** 一份作品的全部代码快照，按时间顺序，每份都还原成完整代码 */

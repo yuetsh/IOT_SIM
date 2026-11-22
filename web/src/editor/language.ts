@@ -16,6 +16,8 @@ export function setLanguageFiles(files: () => SourceFile[]) {
 
 /** 模型对应的文件路径（模型用 Uri.file(path) 创建） */
 const pathOf = (model: monaco.editor.ITextModel) => model.uri.path.replace(/^\//, '')
+/** 工程里的文件（不是代码回放等处只用来显示的模型），才提供补全、悬停提示和参数提示 */
+const isProjectFile = (model: monaco.editor.ITextModel) => model.uri.scheme === 'file'
 
 interface Range {
   startLine: number
@@ -74,6 +76,7 @@ export function registerLanguageFeatures() {
   monaco.languages.registerCompletionItemProvider('csharp', {
     triggerCharacters: ['.'],
     async provideCompletionItems(model, position) {
+      if (!isProjectFile(model)) return { suggestions: [] }
       const result = await request<Completions>({
         type: 'complete',
         files: currentFiles(),
@@ -106,6 +109,7 @@ export function registerLanguageFeatures() {
 
   monaco.languages.registerHoverProvider('csharp', {
     async provideHover(model, position) {
+      if (!isProjectFile(model)) return null
       const result = await request<{ text: string | null; range: Range }>({
         type: 'hover',
         files: currentFiles(),
@@ -127,6 +131,7 @@ export function registerLanguageFeatures() {
     signatureHelpTriggerCharacters: ['(', ','],
     signatureHelpRetriggerCharacters: [','],
     async provideSignatureHelp(model, position) {
+      if (!isProjectFile(model)) return null
       const result = await request<{
         signatures: { label: string; parameters: [number, number][] }[]
         activeSignature: number

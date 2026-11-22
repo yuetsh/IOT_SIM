@@ -1,4 +1,5 @@
 // 自动评分的结果：服务器给学生程序逐项检查后返回，学生提交后立即能看到。
+import type { Diagnostic, SourceFile } from './protocol'
 
 export interface CheckResult {
   /** 检查项名称，对应书上评价表的功能项，如"能实时显示入侵数据" */
@@ -173,4 +174,30 @@ export interface StudentLearning {
   /** 常犯的编译错误：按错误代码分组、按次数排；works 是在几份作品里出过 */
   compileErrors: { code: string; count: number; works: number; lastAt: number; messages: { message: string; count: number; hint: string | null }[] }[]
   exceptions: { message: string; count: number; lastAt: number }[]
+}
+
+/** 学习过程记录里的一条事件（服务器的 learning-log.ts 记） */
+export type LearningEvent =
+  | { type: 'open' }
+  | { type: 'reset' }
+  /** 编译；errors 只存前几条错误，hint 是平台补充的中文提示（书上常见错误的说明） */
+  | { type: 'compile'; ok: boolean; errorCount: number; errors: Pick<Diagnostic, 'code' | 'message' | 'file' | 'line' | 'hint'>[] }
+  | { type: 'exception'; message: string; file?: string; line?: number }
+  | { type: 'selfcheck'; compiled: boolean; results: CheckResult[] }
+
+/** 一份快照相对上一份的改动；full 表示这一份是完整代码（不依赖前面的） */
+export interface SnapshotChanges {
+  full?: boolean
+  files: Record<string, string>
+  deleted: string[]
+}
+
+/** 老师回放一个学生做一个作业的过程 */
+export interface WorkHistory {
+  /** 布置时的起点工程（回放的第 0 步） */
+  template: SourceFile[]
+  /** 运行时存的代码快照，按时间顺序，只含改动（浏览器里按顺序还原） */
+  snapshots: ({ at: number } & SnapshotChanges)[]
+  events: { at: number; event: LearningEvent }[]
+  submissions: { id: number; at: number; status: Submission['status']; autoScore: number | null }[]
 }

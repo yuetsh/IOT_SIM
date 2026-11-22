@@ -536,6 +536,33 @@ describe('作业', () => {
     expect((await t.get('/api/teacher/students/9999/learning')).status).toBe(404)
   }, 60000)
 
+  test('过程回放：起点工程、代码快照（只含改动）、事件和提交；只有老师能看', async () => {
+    const { t, student, assignmentId, files } = await setup()
+    const s1 = db.query<{ id: number }, []>("SELECT id FROM users WHERE username = 's1'").get()!.id
+    const log = createLearningLog(db)
+    const key = `assignment:${assignmentId}`
+    const edited = files.map((f) => (f.path === 'Form1.cs' ? { ...f, content: `${f.content}\n// 改了` } : f))
+    log.snapshot(s1, key, files, 1_000)
+    log.compiled(s1, key, false, [{ file: 'Form1.cs', line: 3, column: 1, severity: 'error', code: 'CS1002', message: '应输入 ;' }], 2_000)
+    log.snapshot(s1, key, edited, 100_000)
+    await student.post(`/api/assignments/${assignmentId}/submit`, { files: edited })
+    await queue.idle()
+
+    const path = `/api/teacher/assignments/${assignmentId}/students/${s1}/history`
+    expect((await student.get(path)).status).toBe(403)
+    const { body } = await t.get(path)
+    expect(body.template).toEqual(files)
+    expect(body.snapshots.map((x: any) => [x.at, x.full ?? false, Object.keys(x.files)])).toEqual([
+      [1_000, true, files.map((f) => f.path)],
+      [100_000, false, ['Form1.cs']],
+    ])
+    expect(body.events).toEqual([
+      { at: 2_000, event: { type: 'compile', ok: false, errorCount: 1, errors: [{ code: 'CS1002', message: '应输入 ;', file: 'Form1.cs', line: 3 }] } },
+    ])
+    expect(body.submissions).toEqual([expect.objectContaining({ status: 'done', autoScore: 20 })])
+    expect((await t.get(`/api/teacher/assignments/999/students/${s1}/history`)).status).toBe(404)
+  }, 60000)
+
   test('过了截止时间不能提交', async () => {
     const { student, assignmentId, files } = await setup(Date.now() - 1000)
     const result = await student.post(`/api/assignments/${assignmentId}/submit`, { files })

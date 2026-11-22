@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 import { Hono, type Context } from 'hono'
 import { bearerToken, login, logout, refresh, tokenUser, tooManyFailures, type Tokens, type User } from './auth'
 import { createClass, deleteClass, deleteStudent, importStudents, listClasses, listStudents, renameClass, resetPassword, type ImportRow } from './classes'
-import type { Scoring, StartMode } from '@iot/shared'
+import type { Scoring, StartMode, Submission, WorkHistory } from '@iot/shared'
 import {
   assignmentChecks,
   assignmentTemplate,
@@ -23,7 +23,7 @@ import { studentLearning } from './learning-report'
 import { parseChecks } from './grading/checks'
 import { createSelfCheck } from './grading/selfcheck'
 import { languageService } from './language-service'
-import { createLearningLog, deleteWorkRecords, type LearningLog, validWorkKey } from './learning-log'
+import { createLearningLog, deleteWorkRecords, type LearningLog, validWorkKey, workEvents, workSnapshotChanges } from './learning-log'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
 import { config } from './config'
@@ -431,6 +431,25 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     const assignment = getAssignment(db, id(c))
     const detail = assignment && studentDetail(db, assignment.id, Number(c.req.param('userId')))
     return detail ? c.json({ assignment, ...detail }) : c.json({ message: '找不到这个学生的作业' }, 404)
+  })
+
+  // 回放一个学生做这个作业的过程：起点工程、每次运行时的代码快照、编译和自测等事件、提交
+  app.get('/api/teacher/assignments/:id/students/:userId/history', (c) => {
+    const template = assignmentTemplate(db, id(c))
+    if (!template) return c.json({ message: '作业不存在' }, 404)
+    const userId = Number(c.req.param('userId'))
+    const key = `assignment:${id(c)}`
+    return c.json({
+      template,
+      snapshots: workSnapshotChanges(db, userId, key),
+      events: workEvents(db, userId, key),
+      submissions: db
+        .query<{ id: number; created_at: number; status: Submission['status']; auto_score: number | null }, [number, number]>(
+          'SELECT id, created_at, status, auto_score FROM submissions WHERE assignment_id = ? AND user_id = ? ORDER BY id',
+        )
+        .all(id(c), userId)
+        .map((s) => ({ id: s.id, at: s.created_at, status: s.status, autoScore: s.auto_score })),
+    } satisfies WorkHistory)
   })
 
   app.put('/api/teacher/assignments/:id/students/:userId/review', async (c) => {

@@ -17,6 +17,7 @@ import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
 import { conventionHints } from '@iot/shared'
 import AnalysisPanel from '../teacher/AnalysisPanel.vue'
+import ReplayPanel from '../teacher/ReplayPanel.vue'
 import { downloadCsv, textCell } from '../teacher/csv'
 
 interface Row {
@@ -48,6 +49,7 @@ interface Detail {
 /** 代码区"界面截图""运行"标签页的名字（不会和 .cs 文件名冲突） */
 const SCREENS = '界面截图'
 const RUN = '运行'
+const REPLAY = '过程回放'
 
 const props = defineProps<{ assignmentId: string }>()
 const route = useRoute()
@@ -141,7 +143,8 @@ async function select(userId: number | undefined) {
   runState.diagnostics = []
   runState.errors = []
   runState.console = ''
-  const wasRunTab = activeFile.value === RUN
+  // 正在看"运行""过程回放"时换学生，留在这个标签页
+  const keepTab = activeFile.value === RUN || activeFile.value === REPLAY ? activeFile.value : null
   selectedId.value = userId
   void router.replace({ query: { student: userId } })
   detail.value = await api<Detail>('GET', `/api/teacher/assignments/${props.assignmentId}/students/${userId}`).catch((e: Error) => {
@@ -151,9 +154,9 @@ async function select(userId: number | undefined) {
   const manual = assignment.value?.scoring.manual ?? []
   scores.value = manual.map((_, i) => detail.value?.review?.scores[i] ?? null)
   comment.value = detail.value?.review?.comment ?? ''
-  // 正在看"运行"时换学生，留在"运行"；否则默认先看界面截图，没有截图时看第一个窗体的代码
-  activeFile.value = wasRunTab
-    ? RUN
+  // 否则默认先看界面截图，没有截图时看第一个窗体的代码
+  activeFile.value = keepTab
+    ? keepTab
     : detail.value?.screenshots.length
       ? SCREENS
       : (codeFiles.value.find((f) => !f.path.endsWith('.Designer.cs') && f.path !== 'Program.cs')?.path ?? codeFiles.value[0]?.path)
@@ -357,6 +360,7 @@ async function signOut() {
             <NTabs :value="activeFile" type="card" size="small" @update:value="(v: string) => (activeFile = v)">
               <NTab v-if="detail.screenshots.length" :name="SCREENS">{{ SCREENS }}</NTab>
               <NTab :name="RUN">▶ {{ RUN }}</NTab>
+              <NTab :name="REPLAY" title="一步步看代码是怎么改的，以及每次运行的结果">{{ REPLAY }}</NTab>
               <NTab v-for="f in codeFiles" :key="f.path" :name="f.path">{{ f.path }}</NTab>
             </NTabs>
             <div v-if="activeFile === SCREENS" class="screens">
@@ -376,8 +380,16 @@ async function signOut() {
               </div>
               <RunArea class="run-area-host" :session="session" @diagnostic="showDiagnostic" />
             </div>
+            <ReplayPanel
+              v-if="activeFile === REPLAY"
+              :key="detail.student.id"
+              class="replay-pane"
+              :assignment-id="assignmentId"
+              :user-id="detail.student.id"
+              :submitted="detail.files ? { at: detail.submission.createdAt, files: detail.files } : null"
+            />
             <CodeEditor
-              v-show="activeFile !== SCREENS && activeFile !== RUN"
+              v-show="activeFile !== SCREENS && activeFile !== RUN && activeFile !== REPLAY"
               ref="editorRef"
               class="editor"
               :files="codeFiles"
@@ -553,6 +565,13 @@ async function signOut() {
 .score.suggested {
   color: #6b7280;
   font-weight: normal;
+}
+
+.replay-pane {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #e5e7eb;
+  border-top: none;
 }
 
 .run-pane {
