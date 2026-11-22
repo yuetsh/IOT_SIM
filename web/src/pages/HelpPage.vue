@@ -219,17 +219,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           <figcaption>布置作业：选实验和起点，自动评分项、任务说明、老师评分项都可以改</figcaption>
         </figure>
 
-        <h3>3. 评阅、成绩</h3>
+        <h3>3. 评阅、分析、成绩</h3>
         <ul>
           <li>作业列表里点<b>评阅</b>：左边是全班学生，右边是选中学生的界面截图、代码、自动评分结果和规范提示。</li>
           <li><b>▶ 运行</b>标签页直接运行学生的程序，可以操作实训台（改动不保存）。</li>
           <li>配置了 AI 评阅时，右边有<b>AI 建议</b>的分数和评语，点<b>采纳 AI 建议</b>填进表单，改好后<b>保存并看下一个</b>。</li>
+          <li>
+            评阅页工具栏切到<b>分析</b>（或作业列表里点<b>分析</b>）：全班得分分布、每个评分项的通过率、常见编译错误和运行出错、每个学生做了多久、运行和自己检查了几次。点学生那一行回到评阅看他的提交。用时、运行次数这些过程数据从
+            2026 年 11 月 22 日开始记录。
+          </li>
           <li><b>成绩</b>标签页是全班 × 全部作业的总分，<b>导出成绩表（CSV）</b>用 Excel 打开不乱码。</li>
         </ul>
 
         <figure class="shot">
           <a href="/help-img/review.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/review.webp" alt="" loading="lazy" /></a>
           <figcaption>评阅：左边是学生列表，中间看界面截图、运行程序、看代码，右边打分写评语</figcaption>
+        </figure>
+        <figure class="shot">
+          <a href="/help-img/analysis.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/analysis.webp" alt="" loading="lazy" /></a>
+          <figcaption>分析：得分分布、评分项通过率、常见错误，下面是每个学生的用时和运行次数</figcaption>
         </figure>
         <figure class="shot">
           <a href="/help-img/grades.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/grades.webp" alt="" loading="lazy" /></a>

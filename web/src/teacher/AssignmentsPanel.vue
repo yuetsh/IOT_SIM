@@ -53,6 +53,10 @@ function review(row: Row) {
   void router.push(`/teacher/assignments/${row.id}`)
 }
 
+function analyze(row: Row) {
+  void router.push({ path: `/teacher/assignments/${row.id}`, query: { view: 'analysis' } })
+}
+
 const formatTime = (ms: number) => new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 const columns: DataTableColumns<Row> = [
@@ -69,9 +73,10 @@ const columns: DataTableColumns<Row> = [
   {
     title: '操作',
     key: 'actions',
-    width: 130,
+    width: 180,
     render: (r) =>
       h('div', { class: 'row-actions' }, [
+        h(NButton, { size: 'tiny', title: '得分分布、评分项通过率、常见错误、每个学生的用时', onClick: () => analyze(r) }, () => '分析'),
         h(NButton, { size: 'tiny', onClick: () => edit(r) }, () => '修改'),
         h(NButton, { size: 'tiny', type: 'error', quaternary: true, onClick: () => remove(r) }, () => '删除'),
       ]),

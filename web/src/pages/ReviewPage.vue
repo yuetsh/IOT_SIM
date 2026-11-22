@@ -3,9 +3,10 @@
 // 以及自动评分结果、规范提示、AI 建议和老师评分。"运行"标签页里直接运行学生的程序（换学生时自动停止）；
 // "在新标签页运行"打开完整的实验页，地方更大。
 // AI 建议只是参考：老师采纳（或修改后保存）才成为老师评分，学生才能看到。
+// 工具栏的"评阅 / 分析"切换到作业分析（?view=analysis）：全班得分分布、评分项通过率、常见错误、每人用时。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NEmpty, NInput, NInputNumber, NSpin, NTab, NTabs, NTag, useDialog, useMessage } from 'naive-ui'
+import { NButton, NEmpty, NInput, NInputNumber, NRadioButton, NRadioGroup, NSpin, NTab, NTabs, NTag, useDialog, useMessage } from 'naive-ui'
 import type { AiReview, Assignment, Review, Screenshot, SourceFile, Submission } from '@iot/shared'
 import { api } from '../api'
 import { currentUser, logout } from '../auth'
@@ -15,6 +16,7 @@ import RunArea from '../run/RunArea.vue'
 import { createRunSession } from '../run/session'
 import GradeResultView from '../grading/GradeResultView.vue'
 import { conventionHints } from '@iot/shared'
+import AnalysisPanel from '../teacher/AnalysisPanel.vue'
 import { downloadCsv, textCell } from '../teacher/csv'
 
 interface Row {
@@ -108,10 +110,27 @@ onMounted(async () => {
     message.error((e as Error).message)
     return
   }
-  const wanted = Number(route.query.student)
-  // 默认先看第一个已提交的学生
-  await select(rows.value.find((r) => r.userId === wanted)?.userId ?? rows.value.find((r) => r.status)?.userId ?? rows.value[0]?.userId)
+  if (view.value === 'review') await selectDefault()
 })
+
+/** 网址里指定的学生，没有时先看第一个已提交的学生 */
+async function selectDefault() {
+  const wanted = Number(route.query.student)
+  await select(rows.value.find((r) => r.userId === wanted)?.userId ?? rows.value.find((r) => r.status)?.userId ?? rows.value[0]?.userId)
+}
+
+// ---------- 评阅 / 分析 ----------
+const view = computed(() => (route.query.view === 'analysis' ? 'analysis' : 'review'))
+
+async function setView(value: 'review' | 'analysis') {
+  if (value === 'analysis') {
+    if (running.value) await session.stop()
+    await router.replace({ query: { view: 'analysis' } })
+    return
+  }
+  await router.replace({ query: selectedId.value === undefined ? {} : { student: selectedId.value } })
+  if (selectedId.value === undefined) await selectDefault()
+}
 
 async function select(userId: number | undefined) {
   if (userId === undefined) return
@@ -293,6 +312,10 @@ async function signOut() {
       <strong>{{ assignment?.title }}</strong>
       <span class="muted">{{ assignment?.className }}</span>
       <span class="muted">已提交 {{ rows.filter((r) => r.status).length }} / {{ rows.length }} 人</span>
+      <NRadioGroup :value="view" size="small" @update:value="setView">
+        <NRadioButton value="review">评阅</NRadioButton>
+        <NRadioButton value="analysis">分析</NRadioButton>
+      </NRadioGroup>
       <!-- 没配置 AI 评阅时不会有 AI 建议，不显示这个按钮 -->
       <NButton v-if="rows.some((r) => r.aiStatus)" size="small" @click="adoptAll">全部采纳 AI 建议</NButton>
       <NButton size="small" @click="exportCsv">导出成绩</NButton>
@@ -301,7 +324,8 @@ async function signOut() {
       <NButton quaternary size="small" @click="signOut">退出</NButton>
     </header>
 
-    <main class="content">
+    <AnalysisPanel v-if="view === 'analysis'" class="analysis" :assignment-id="assignmentId" @student="select" />
+    <main v-else class="content">
       <aside class="students">
         <button v-for="r in rows" :key="r.userId" class="student" :class="{ active: r.userId === selectedId }" @click="select(r.userId)">
           <span class="who">
@@ -458,6 +482,11 @@ async function signOut() {
 
 .user {
   font-size: 13px;
+}
+
+.analysis {
+  flex: 1;
+  min-height: 0;
 }
 
 .content {

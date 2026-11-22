@@ -70,5 +70,5 @@ test('同一分钟里在做只记一行；编译只记错误、最多 10 条', (
   expect(data.ok).toBe(false)
   expect(data.errorCount).toBe(12)
   expect(data.errors.length).toBe(10)
-  expect(data.errors[0]).toEqual({ code: 'CS1002', message: 'CS1002', file: 'Form1.cs', line: 3 })
+  expect(data.errors[0]).toEqual({ code: 'CS1002', message: 'CS1002', file: 'Form1.cs', line: 3, hint: '提示' })
 })

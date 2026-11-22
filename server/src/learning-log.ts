@@ -15,8 +15,8 @@ export function validWorkKey(key: unknown): key is string {
 export type LearningEvent =
   | { type: 'open' }
   | { type: 'reset' }
-  /** 编译；errors 只存前几条错误 */
-  | { type: 'compile'; ok: boolean; errorCount: number; errors: Pick<Diagnostic, 'code' | 'message' | 'file' | 'line'>[] }
+  /** 编译；errors 只存前几条错误，hint 是平台补充的中文提示（书上常见错误的说明） */
+  | { type: 'compile'; ok: boolean; errorCount: number; errors: Pick<Diagnostic, 'code' | 'message' | 'file' | 'line' | 'hint'>[] }
   | { type: 'exception'; message: string; file?: string; line?: number }
   | { type: 'selfcheck'; compiled: boolean; results: CheckResult[] }
 
@@ -65,7 +65,7 @@ export function createLearningLog(db: Database) {
         type: 'compile',
         ok,
         errorCount: errors.length,
-        errors: errors.slice(0, MAX_ERRORS).map(({ code, message, file, line }) => ({ code, message, file, line })),
+        errors: errors.slice(0, MAX_ERRORS).map(({ code, message, file, line, hint }) => ({ code, message, file, line, hint })),
       },
       now,
     )

@@ -18,6 +18,7 @@ import {
   updateAssignment,
 } from './assignments'
 import { aiEnabled, getAiReview, type AiQueue } from './ai-review'
+import { assignmentAnalysis } from './analysis'
 import { parseChecks } from './grading/checks'
 import { createSelfCheck } from './grading/selfcheck'
 import { languageService } from './language-service'
@@ -465,6 +466,12 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   app.get('/api/teacher/submissions/:id', (c) => {
     const submission = submissionFiles(db, id(c))
     return submission ? c.json(submission) : c.json({ message: '提交不存在' }, 404)
+  })
+
+  // 作业分析：得分分布、评分项通过率、常见错误、每个学生的用时和运行、自测次数
+  app.get('/api/teacher/assignments/:id/analysis', (c) => {
+    const analysis = assignmentAnalysis(db, id(c))
+    return analysis ? c.json(analysis) : c.json({ message: '作业不存在' }, 404)
   })
 
   app.get('/api/teacher/classes/:id/gradebook', (c) => c.json(gradebook(db, id(c))))

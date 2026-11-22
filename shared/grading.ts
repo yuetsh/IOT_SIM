@@ -93,3 +93,42 @@ export interface AiReview {
   model?: string
   at?: number
 }
+
+/** 作业分析（老师课后看）：得分来自提交和评阅，过程数据来自学习过程记录 */
+export interface AssignmentAnalysis {
+  assignment: Assignment
+  fullMarks: number
+  autoTotal: number
+  /** 这个作业最早的一条过程记录（过程记录 2026-11-22 才开始记，之前的作业没有）；没有时为 null */
+  recordedSince: number | null
+  students: {
+    userId: number
+    username: string
+    name: string
+    /** 最近一次提交的状态；没提交为 null */
+    status: Submission['status'] | null
+    auto: number | null
+    manual: number | null
+    reviewed: boolean
+    /** 自动评分 + 老师评分（没评的按 0）；没提交为 null */
+    total: number | null
+    submissions: number
+    lastSubmittedAt: number | null
+    /** 做了多少分钟（改代码、运行、操作程序的分钟数） */
+    minutes: number
+    /** 运行（编译）次数，其中编译没通过的次数 */
+    runs: number
+    failedCompiles: number
+    /** 运行出错的次数（一次运行里同样的异常只算一次） */
+    exceptions: number
+    selfchecks: number
+    firstOpenedAt: number | null
+    lastActiveAt: number | null
+  }[]
+  /** 自动评分项：最近一次提交里通过的人数 / 已评分的人数；struggled 是自测时这项没通过过的人数 */
+  checks: { title: string; points: number; passed: number; graded: number; struggled: number }[]
+  /** 常见编译错误：按错误代码分组，按出过这个错的人数排；messages 是最常见的几种具体报错，hint 是平台补充的中文提示（书上常见错误的说明） */
+  compileErrors: { code: string; students: number; count: number; messages: { message: string; count: number; hint: string | null }[] }[]
+  /** 常见运行出错：按异常信息分组 */
+  exceptions: { message: string; students: number; count: number }[]
+}

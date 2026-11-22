@@ -9,6 +9,7 @@ import { config } from '../src/config'
 import { openDatabase } from '../src/db'
 import { createGradingQueue, type GradingQueue } from '../src/grading/queue'
 import { languageService } from '../src/language-service'
+import { createLearningLog } from '../src/learning-log'
 import { sqlService } from '../src/sql-service'
 import { loadSample, loadTask } from '../src/samples'
 
@@ -434,6 +435,66 @@ describe('作业', () => {
       [`assignment:${assignmentId}`, [true, false]],
       [`sample:${SAMPLE}`, [true, true]],
     ])
+  }, 60000)
+
+  test('作业分析：得分、评分项通过率、常见编译错误和运行出错、每人的用时和运行次数；只有老师能看', async () => {
+    const { t, student, classId, assignmentId, files } = await setup()
+    await t.post(`/api/teacher/classes/${classId}/import`, { rows: [{ username: 's2', name: '乙', password: 'p2' }] })
+    const broken = files.map((f) => (f.path === 'Form1.cs' ? { ...f, content: f.content.replace('AlarmOnOff("Alarm", false);', '') } : f))
+    await student.post(`/api/assignments/${assignmentId}/submit`, { files: broken })
+    await queue.idle()
+
+    // 过程记录（运行在 WebSocket 里，这里直接写）
+    const s1 = db.query<{ id: number }, []>("SELECT id FROM users WHERE username = 's1'").get()!.id
+    const s2 = db.query<{ id: number }, []>("SELECT id FROM users WHERE username = 's2'").get()!.id
+    const log = createLearningLog(db)
+    const key = `assignment:${assignmentId}`
+    const error = (code: string, message: string) => ({ file: 'Form1.cs', line: 1, column: 1, severity: 'error' as const, code, message })
+    await student.get(`/api/works/${encodeURIComponent(key)}`)
+    log.compiled(s1, key, false, [error('CS0103', '当前上下文中不存在名称"alarm"'), error('CS1002', '应输入 ;')])
+    log.compiled(s1, key, false, [error('CS0103', '当前上下文中不存在名称"alarm"')])
+    log.compiled(s1, key, true, [])
+    log.compiled(s2, key, false, [error('CS0103', '当前上下文中不存在名称"Alarm1"')])
+    log.event(s1, key, { type: 'exception', message: '未将对象引用设置到对象的实例（NullReferenceException）' })
+    log.event(s1, key, {
+      type: 'selfcheck',
+      compiled: true,
+      results: [
+        { title: '能正确打开报警灯', passed: true },
+        { title: '能正确关闭报警灯', passed: false },
+      ],
+    })
+
+    expect((await student.get(`/api/teacher/assignments/${assignmentId}/analysis`)).status).toBe(403)
+    const { body } = await t.get(`/api/teacher/assignments/${assignmentId}/analysis`)
+    expect(body.fullMarks).toBe(30)
+    expect(body.recordedSince).toBeNumber()
+    expect(body.checks.map((c: any) => [c.passed, c.graded, c.struggled])).toEqual([
+      [1, 1, 0],
+      [0, 1, 1],
+    ])
+    expect(body.compileErrors.map((e: any) => [e.code, e.students, e.count])).toEqual([
+      ['CS0103', 2, 3],
+      ['CS1002', 1, 1],
+    ])
+    expect(body.compileErrors[0].messages[0]).toEqual({ message: '当前上下文中不存在名称"alarm"', count: 2, hint: null })
+    expect(body.exceptions).toEqual([{ message: '未将对象引用设置到对象的实例（NullReferenceException）', students: 1, count: 1 }])
+    const [a, b] = body.students
+    expect(a).toMatchObject({
+      username: 's1',
+      status: 'done',
+      auto: 10,
+      total: 10,
+      submissions: 1,
+      runs: 3,
+      failedCompiles: 2,
+      exceptions: 1,
+      selfchecks: 1,
+      minutes: 1,
+    })
+    expect(a.firstOpenedAt).toBeNumber()
+    expect(b).toMatchObject({ username: 's2', status: null, total: null, submissions: 0, runs: 1, failedCompiles: 1, firstOpenedAt: null })
+    expect((await t.get('/api/teacher/assignments/999/analysis')).status).toBe(404)
   }, 60000)
 
   test('过了截止时间不能提交', async () => {
