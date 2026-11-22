@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 任务面板：上面是任务说明（task.md，作业则是布置时的说明），下面是评价项——这个实验（或作业）自动检查的功能项；
-// "自己检查"在服务器上运行学生现在的程序逐项检查，告诉他哪几项不通过、为什么。不计分、不留记录，提交作业另算。
+// "自己检查"在服务器上运行学生现在的程序逐项检查，告诉他哪几项不通过、为什么。不计分（结果记进学习过程记录，老师可以看），提交作业另算。
 // 面板不遮挡页面，打开着也能接着搭界面、写代码。
 import { NButton, NDrawer, NDrawerContent, NSpin } from 'naive-ui'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
@@ -86,7 +86,7 @@ const formatTime = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', { ho
       <template v-if="titles.length">
         <h4 class="section">评价项</h4>
         <p class="note">
-          下面这些功能项由平台自动检查。点"自己检查"，平台会运行你现在的程序，逐项操作、核对结果， 告诉你哪几项还没做好。<b>不计分、不留记录</b>，可以随时检查。
+          下面这些功能项由平台自动检查。点"自己检查"，平台会运行你现在的程序，逐项操作、核对结果， 告诉你哪几项还没做好。<b>不计分</b>，可以随时检查。
         </p>
         <div class="actions">
           <NButton type="primary" :loading="running" :disabled="running || titles.length === 0" @click="start">自己检查</NButton>

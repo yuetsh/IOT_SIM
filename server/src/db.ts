@@ -105,6 +105,37 @@ const MIGRATIONS = [
   `
   ALTER TABLE assignments ADD COLUMN task TEXT;
   `,
+  // 学习过程记录（只记学生，见 learning-log.ts）。work_key 和 works 表一样：sample:实验编号、assignment:作业编号
+  `
+  -- type：open 打开、reset 恢复原始代码、compile 编译、exception 运行出错、selfcheck 自测；data 是 JSON
+  CREATE TABLE events (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    work_key TEXT NOT NULL,
+    type TEXT NOT NULL,
+    data TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX events_user ON events (user_id, created_at);
+  CREATE INDEX events_work ON events (work_key, created_at);
+  -- 某一分钟里在做某份作品（改代码、运行、操作程序）就有一行；minute 是 Unix 时间的分钟数
+  CREATE TABLE activity (
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    work_key TEXT NOT NULL,
+    minute INTEGER NOT NULL,
+    PRIMARY KEY (user_id, work_key, minute)
+  ) WITHOUT ROWID;
+  CREATE INDEX activity_work ON activity (work_key, user_id);
+  -- 代码快照：运行时存，同一份作品至少隔一分钟；changes 是 gzip 的 JSON，只含和上一份比改了的文件
+  CREATE TABLE snapshots (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    work_key TEXT NOT NULL,
+    changes BLOB NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX snapshots_work ON snapshots (user_id, work_key, id);
+  `,
 ]
 
 /** 打开数据库并执行未执行过的迁移。path 为 ":memory:" 时用内存数据库（测试用） */

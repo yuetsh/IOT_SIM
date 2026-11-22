@@ -573,6 +573,7 @@ function start() {
   session.run(
     files.value.map((f) => ({ ...f })),
     experimentId.value,
+    workKey.value,
   )
 }
 

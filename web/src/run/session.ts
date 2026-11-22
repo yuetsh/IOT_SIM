@@ -137,8 +137,8 @@ export function createRunSession() {
     socket?.send(JSON.stringify(message))
   }
 
-  /** sampleId：当前实验（服务器据此在第一次运行时建好实验预置的数据库） */
-  async function run(files: SourceFile[], sampleId?: string) {
+  /** sampleId：当前实验（服务器据此在第一次运行时建好实验预置的数据库）；workKey：在运行哪份作品（学习过程记录用） */
+  async function run(files: SourceFile[], sampleId?: string, workKey?: string) {
     await connect()
     if (socket?.readyState !== WebSocket.OPEN) {
       state.errors = [{ text: '连不上服务器，请检查网络，稍后再点"运行"。' }]
@@ -155,7 +155,7 @@ export function createRunSession() {
     nodes.clear()
     for (const url of images.values()) URL.revokeObjectURL(url)
     images.clear()
-    send({ type: 'run', files, sampleId })
+    send({ type: 'run', files, sampleId, workKey })
   }
 
   /** 打开了哪个实验：实训台换成它的接线 */

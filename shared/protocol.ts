@@ -208,8 +208,11 @@ export type RunnerInput =
 
 /** 浏览器发给服务器的消息 */
 export type ClientMessage =
-  /** sampleId：当前实验，第一次运行时自动建好实验预置的数据库（学生还没有这些库时） */
-  | { type: 'run'; files: SourceFile[]; sampleId?: string }
+  /**
+   * sampleId：当前实验，第一次运行时自动建好实验预置的数据库（学生还没有这些库时）；
+   * workKey：在运行哪份作品（sample:实验编号 / assignment:作业编号），学生的编译、运行出错记进学习过程记录
+   */
+  | { type: 'run'; files: SourceFile[]; sampleId?: string; workKey?: string }
   /** 打开了哪个实验：实训台换成这个实验的接线（没有 sampleId 时用默认接线） */
   | { type: 'experiment'; sampleId?: string }
   /** 调节实训台环境：拖动滑块、触发传感器 */

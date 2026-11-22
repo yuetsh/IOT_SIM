@@ -13,11 +13,12 @@ import { sqlService } from '../src/sql-service'
 import { loadSample, loadTask } from '../src/samples'
 
 let app: ReturnType<typeof createApp>
+let db: ReturnType<typeof openDatabase>
 let queue: GradingQueue
 let aiQueue: ReturnType<typeof createAiQueue>
 
 beforeEach(() => {
-  const db = openDatabase(':memory:')
+  db = openDatabase(':memory:')
   ensureTeacher(db)
   aiQueue = createAiQueue(db)
   queue = createGradingQueue(db, (id) => aiQueue.enqueue(id))
@@ -235,6 +236,25 @@ describe('作品', () => {
     expect((await s1.get(`/api/works/${key}`)).body).toBeNull()
   })
 
+  test('学生打开、改代码、恢复原始代码记进学习过程记录；老师的不记', async () => {
+    const t = await teacher()
+    await classWithStudents(t, [{ username: 's1', name: '甲', password: 'p1' }])
+    const s1 = new Browser()
+    await s1.login('s1', 'p1')
+    const key = 'sample:p2-t1-LED显示屏'
+    await s1.get(`/api/works/${encodeURIComponent(key)}`)
+    await s1.put(`/api/works/${encodeURIComponent(key)}`, { files })
+    await s1.delete(`/api/works/${encodeURIComponent(key)}`)
+    // key 不是实验或作业的不记
+    await s1.get(`/api/works/${encodeURIComponent('other:x')}`)
+    await t.get(`/api/works/${encodeURIComponent(key)}`)
+    expect(db.query('SELECT u.username, e.work_key, e.type FROM events e JOIN users u ON u.id = e.user_id ORDER BY e.id').all()).toEqual([
+      { username: 's1', work_key: key, type: 'open' },
+      { username: 's1', work_key: key, type: 'reset' },
+    ])
+    expect(db.query('SELECT work_key FROM activity').all()).toEqual([{ work_key: key }])
+  })
+
   test('格式不对或太大的作品拒绝保存', async () => {
     const t = await teacher()
     expect((await t.put('/api/works/x', { files: 'not-a-list' })).status).toBe(400)
@@ -384,7 +404,7 @@ describe('作业', () => {
     expect((await student.get(`/api/assignments/${assignmentId}/submission`)).body.autoScore).toBe(30)
   }, 60000)
 
-  test('自测：提交前自己检查，告诉哪项不通过；不计分、不留记录，同时只能一次', async () => {
+  test('自测：提交前自己检查，告诉哪项不通过；不计分，结果记进学习过程记录，同时只能一次', async () => {
     const { student, assignmentId, files } = await setup()
     const finished = async () => {
       for (let i = 0; i < 300; i++) {
@@ -408,6 +428,12 @@ describe('作业', () => {
     expect(sample.body.target).toBe(`sample:${SAMPLE}`)
     expect((await finished()).result.results.map((r: any) => r.passed)).toEqual([true, true])
     expect((await student.post('/api/samples/no-such/selfcheck', { files })).status).toBe(404)
+
+    const events = db.query<{ work_key: string; data: string }, []>("SELECT work_key, data FROM events WHERE type = 'selfcheck' ORDER BY id").all()
+    expect(events.map((e) => [e.work_key, JSON.parse(e.data).results.map((r: any) => r.passed)])).toEqual([
+      [`assignment:${assignmentId}`, [true, false]],
+      [`sample:${SAMPLE}`, [true, true]],
+    ])
   }, 60000)
 
   test('过了截止时间不能提交', async () => {

@@ -16,7 +16,7 @@ export interface GradeResult {
   ms: number
 }
 
-/** 自测（提交前自己跑一遍评分，不计分、不留记录）：每人同时一次，结果保留到下一次自测 */
+/** 自测（提交前自己跑一遍评分，不计分）：每人同时一次，结果保留到下一次自测 */
 export interface SelfCheck {
   status: 'running' | 'done' | 'error'
   /** 检查的是哪个实验或作业（结果只对同一个显示） */

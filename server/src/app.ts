@@ -21,6 +21,7 @@ import { aiEnabled, getAiReview, type AiQueue } from './ai-review'
 import { parseChecks } from './grading/checks'
 import { createSelfCheck } from './grading/selfcheck'
 import { languageService } from './language-service'
+import { createLearningLog, deleteWorkRecords, type LearningLog, validWorkKey } from './learning-log'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
 import { config } from './config'
@@ -46,8 +47,11 @@ function clientIp(c: AppContext) {
 /** 读取 JSON 请求体，格式不对时返回空对象 */
 const body = <T>(c: AppContext) => c.req.json<Partial<T>>().catch(() => ({}) as Partial<T>)
 
-export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQueue) {
+export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQueue, log: LearningLog = createLearningLog(db)) {
   const app = new Hono<{ Bindings: Env; Variables: { user: User } }>()
+
+  /** 学生在某份作品上的过程记录（老师不记；key 不是 sample:… / assignment:… 时不记） */
+  const studentWork = (c: AppContext, key: string) => (c.get('user').role === 'student' && validWorkKey(key) ? key : null)
 
   app.post('/api/login', async (c) => {
     const ip = clientIp(c)
@@ -103,8 +107,10 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     return files ? c.json(files) : c.notFound()
   })
 
-  // ---- 自测：提交前自己跑一遍评分，不计分、不留记录 ----
-  const selfCheck = createSelfCheck()
+  // ---- 自测：提交前自己跑一遍评分，不计分；学生的自测结果记进过程记录 ----
+  const selfCheck = createSelfCheck((userId, target, result) =>
+    log.event(userId, target, { type: 'selfcheck', compiled: result.compiled, results: result.results }),
+  )
 
   /** 实验的评价项（自动检查的功能项名称）：实验页的评价项面板、老师布置作业时用 */
   app.get('/api/samples/:id/checks', async (c) => {
@@ -122,7 +128,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     if (!yaml) return c.json({ message: '这个实验没有评价项' }, 404)
     const { files } = await body<{ files: unknown }>(c)
     if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
-    if (!selfCheck.start(c.get('user').id, `sample:${sampleId}`, files, parseChecks(yaml), sampleId)) {
+    if (!selfCheck.start(c.get('user').id, `sample:${sampleId}`, files, parseChecks(yaml), sampleId, c.get('user').role === 'student')) {
       return c.json({ message: '上一次检查还没完成' }, 409)
     }
     return c.json(selfCheck.get(c.get('user').id))
@@ -171,16 +177,25 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     return c.json(reply ?? { type: 'empty' })
   })
 
-  // 自己的作品：key 如 "sample:p2-t1-LED显示屏"
-  app.get('/api/works/:key', (c) => c.json(getWork(db, c.get('user').id, c.req.param('key'))))
+  // 自己的作品：key 如 "sample:p2-t1-LED显示屏"。实验页打开工程时读一次（记为"打开"），之后边改边保存
+  app.get('/api/works/:key', (c) => {
+    const key = studentWork(c, c.req.param('key'))
+    if (key) log.event(c.get('user').id, key, { type: 'open' })
+    return c.json(getWork(db, c.get('user').id, c.req.param('key')))
+  })
 
   app.put('/api/works/:key', async (c) => {
     const { files } = await body<{ files: unknown }>(c)
     if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
+    const key = studentWork(c, c.req.param('key'))
+    if (key) log.touch(c.get('user').id, key)
     return c.json({ updatedAt: saveWork(db, c.get('user').id, c.req.param('key'), files) })
   })
 
+  // 恢复原始代码
   app.delete('/api/works/:key', (c) => {
+    const key = studentWork(c, c.req.param('key'))
+    if (key) log.event(c.get('user').id, key, { type: 'reset' })
     deleteWork(db, c.get('user').id, c.req.param('key'))
     return c.json({})
   })
@@ -272,7 +287,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     if (!assignment || !checks) return c.json({ message: '作业不存在' }, 404)
     const { files } = await body<{ files: unknown }>(c)
     if (!validFiles(files)) return c.json({ message: '作品格式不对或太大' }, 400)
-    if (!selfCheck.start(c.get('user').id, `assignment:${assignment.id}`, files, checks, assignment.sampleId)) {
+    if (!selfCheck.start(c.get('user').id, `assignment:${assignment.id}`, files, checks, assignment.sampleId, c.get('user').role === 'student')) {
       return c.json({ message: '上一次检查还没完成' }, 409)
     }
     return c.json(selfCheck.get(c.get('user').id))
@@ -382,6 +397,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
 
   app.delete('/api/teacher/assignments/:id', (c) => {
     deleteAssignment(db, id(c))
+    deleteWorkRecords(db, `assignment:${id(c)}`)
     return c.json({})
   })
 

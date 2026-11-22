@@ -203,7 +203,7 @@ try {
     s.window = window
     await window.opened()
     const shown = window.waitFor((m) => m.type === 'formShown')
-    window.send({ type: 'run', files: s.files, sampleId: SAMPLE })
+    window.send({ type: 'run', files: s.files, sampleId: SAMPLE, workKey: `assignment:${assignment.id}` })
     window.form = ((await shown) as Extract<ServerMessage, { type: 'formShown' }>).form
   })
 
