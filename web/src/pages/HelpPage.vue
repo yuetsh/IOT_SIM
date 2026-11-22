@@ -187,6 +187,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
             <code>$"温度{t}"</code>）会弹出报错和改法，改好再导出。
           </li>
         </ul>
+
+        <h3>9. 我的学习</h3>
+        <ul>
+          <li>
+            工具栏的<b>我的学习</b>：每个作业的得分和用时、自由练习过哪些实验、每天做了多久，还有<b>你常犯的编译错误和运行出错</b>，每种都写了是什么原因、怎么改。
+          </li>
+          <li>用时是改代码、运行或操作程序的分钟数，开着页面不动不算。老师也能看到这些。</li>
+        </ul>
+
+        <figure class="shot">
+          <a href="/help-img/learning.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/learning.webp" alt="" loading="lazy" /></a>
+          <figcaption>我的学习：作业得分和用时、每天做了多久、常犯的错误和改法</figcaption>
+        </figure>
       </section>
 
       <section v-if="currentUser?.role === 'teacher'" id="teacher">
@@ -227,6 +240,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           <li>
             评阅页工具栏切到<b>分析</b>（或作业列表里点<b>分析</b>）：全班得分分布、每个评分项的通过率、常见编译错误和运行出错、每个学生做了多久、运行和自己检查了几次。点学生那一行回到评阅看他的提交。用时、运行次数这些过程数据从
             2026 年 11 月 22 日开始记录。
+          </li>
+          <li>
+            <b>学习档案</b
+            >（名单里每个学生后面的按钮，或评阅页学生名字旁边）：这个学生所有作业的得分和用时、自由练习、每天做了多久、常犯的错误，和学生自己在"我的学习"里看到的一样。
           </li>
           <li><b>成绩</b>标签页是全班 × 全部作业的总分，<b>导出成绩表（CSV）</b>用 Excel 打开不乱码。</li>
         </ul>

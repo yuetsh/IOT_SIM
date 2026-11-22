@@ -132,3 +132,45 @@ export interface AssignmentAnalysis {
   /** 常见运行出错：按异常信息分组 */
   exceptions: { message: string; students: number; count: number }[]
 }
+
+/** 一份作品（作业或自由练习的实验）上的过程数据 */
+export interface WorkStats {
+  /** 做了多少分钟（改代码、运行、操作程序的分钟数） */
+  minutes: number
+  runs: number
+  failedCompiles: number
+  exceptions: number
+  selfchecks: number
+  lastActiveAt: number | null
+}
+
+/** 一个学生的学习情况：学生在"我的学习"里看自己的，老师在学生档案里看（同一份数据） */
+export interface StudentLearning {
+  student: { id: number; username: string; name: string; className: string | null }
+  /** days：有做题记录的天数 */
+  summary: { minutes: number; days: number; runs: number; failedCompiles: number; exceptions: number; selfchecks: number }
+  /** 自己班的作业（按布置时间） */
+  assignments: (WorkStats & {
+    id: number
+    title: string
+    sampleId: string
+    deadline: number | null
+    createdAt: number
+    fullMarks: number
+    /** 有老师评分项 */
+    hasManual: boolean
+    status: Submission['status'] | null
+    reviewed: boolean
+    /** 自动评分 + 老师评分（没评的按 0）；没提交为 null */
+    total: number | null
+    submissions: number
+    lastSubmittedAt: number | null
+  })[]
+  /** 自由练习过的实验，最近做的在前 */
+  practice: (WorkStats & { sampleId: string; title: string })[]
+  /** 每天做了多少分钟（北京时间，yyyy-MM-dd） */
+  days: { day: string; minutes: number }[]
+  /** 常犯的编译错误：按错误代码分组、按次数排；works 是在几份作品里出过 */
+  compileErrors: { code: string; count: number; works: number; lastAt: number; messages: { message: string; count: number; hint: string | null }[] }[]
+  exceptions: { message: string; count: number; lastAt: number }[]
+}

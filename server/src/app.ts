@@ -19,6 +19,7 @@ import {
 } from './assignments'
 import { aiEnabled, getAiReview, type AiQueue } from './ai-review'
 import { assignmentAnalysis } from './analysis'
+import { studentLearning } from './learning-report'
 import { parseChecks } from './grading/checks'
 import { createSelfCheck } from './grading/selfcheck'
 import { languageService } from './language-service'
@@ -199,6 +200,12 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     if (key) log.event(c.get('user').id, key, { type: 'reset' })
     deleteWork(db, c.get('user').id, c.req.param('key'))
     return c.json({})
+  })
+
+  // 我的学习：自己的作业得分、用时、常犯的错误（老师没有）
+  app.get('/api/learning', async (c) => {
+    const learning = studentLearning(db, c.get('user').id, await listSamples())
+    return learning ? c.json(learning) : c.json({ message: '只有学生有学习情况' }, 404)
   })
 
   // ---- 数据库页面（代替 SSMS）：每个用户只能访问自己的数据库 ----
@@ -472,6 +479,12 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
   app.get('/api/teacher/assignments/:id/analysis', (c) => {
     const analysis = assignmentAnalysis(db, id(c))
     return analysis ? c.json(analysis) : c.json({ message: '作业不存在' }, 404)
+  })
+
+  // 学生档案：和学生自己在"我的学习"里看到的一样
+  app.get('/api/teacher/students/:id/learning', async (c) => {
+    const learning = studentLearning(db, id(c), await listSamples())
+    return learning ? c.json(learning) : c.json({ message: '学生不存在' }, 404)
   })
 
   app.get('/api/teacher/classes/:id/gradebook', (c) => c.json(gradebook(db, id(c))))

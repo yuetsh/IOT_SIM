@@ -344,6 +344,7 @@ async function signOut() {
           <h2>{{ detail.student.name }}</h2>
           <span class="muted">{{ detail.student.username }}</span>
           <span v-if="detail.submission" class="muted">提交 {{ detail.submissionCount }} 次 · 最后提交 {{ formatTime(detail.submission.createdAt) }}</span>
+          <RouterLink :to="`/teacher/students/${detail.student.id}`" class="nav-link" title="这个学生所有作业的得分、用时、常犯的错误">学习档案</RouterLink>
           <span class="spacer" />
           <NButton size="small" @click="go(-1)">上一个</NButton>
           <NButton size="small" @click="go(1)">下一个</NButton>

@@ -677,6 +677,7 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
       </span>
       <span class="spacer" />
       <RouterLink v-if="!assignmentId && currentUser?.role === 'student'" to="/assignments" class="nav-link">我的作业</RouterLink>
+      <RouterLink v-if="currentUser?.role === 'student'" to="/learning" class="nav-link" title="作业得分、用时、常犯的错误">我的学习</RouterLink>
       <RouterLink v-if="!viewing" to="/database" target="_blank" class="nav-link" title="在新标签页打开数据库（代替 SSMS）">数据库</RouterLink>
       <RouterLink v-if="!viewing" to="/help" target="_blank" class="nav-link" title="在新标签页打开使用说明">使用说明</RouterLink>
       <span class="user">

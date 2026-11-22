@@ -56,6 +56,7 @@ async function signOut() {
       <strong>物联网编程仿真平台</strong>
       <span class="title">我的作业</span>
       <RouterLink to="/" class="nav-link">自由练习</RouterLink>
+      <RouterLink to="/learning" class="nav-link">我的学习</RouterLink>
       <span class="spacer" />
       <RouterLink to="/help" target="_blank" class="nav-link">使用说明</RouterLink>
       <span class="user">

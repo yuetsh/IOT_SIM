@@ -127,9 +127,10 @@ const columns: DataTableColumns<Student> = [
   {
     title: '操作',
     key: 'actions',
-    width: 180,
+    width: 250,
     render: (s) =>
       h('div', { class: 'row-actions' }, [
+        h(NButton, { size: 'tiny', title: '作业得分、用时、常犯的错误', onClick: () => router.push(`/teacher/students/${s.id}`) }, () => '学习档案'),
         h(NButton, { size: 'tiny', onClick: () => resetPassword(s) }, () => '重置密码'),
         h(NButton, { size: 'tiny', type: 'error', quaternary: true, onClick: () => deleteStudent(s) }, () => '删除'),
       ]),

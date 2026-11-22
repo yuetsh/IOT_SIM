@@ -497,6 +497,45 @@ describe('作业', () => {
     expect((await t.get('/api/teacher/assignments/999/analysis')).status).toBe(404)
   }, 60000)
 
+  test('我的学习：学生看自己的作业得分、用时、常犯的错误；老师在学生档案里看到同样的', async () => {
+    const { t, student, assignmentId, files } = await setup()
+    await student.post(`/api/assignments/${assignmentId}/submit`, { files })
+    await queue.idle()
+    const s1 = db.query<{ id: number }, []>("SELECT id FROM users WHERE username = 's1'").get()!.id
+    const log = createLearningLog(db)
+    const error = (code: string, message: string, hint?: string) => ({ file: 'Form1.cs', line: 1, column: 1, severity: 'error' as const, code, message, hint })
+    const key = `assignment:${assignmentId}`
+    const practice = 'sample:p2-t1-LED显示屏'
+    log.compiled(s1, key, false, [error('CS0103', '当前上下文中不存在名称"True"', '布尔值是小写的 true。')], 1_800_000_000_000)
+    log.compiled(s1, practice, false, [error('CS0103', '当前上下文中不存在名称"True"'), error('CS1002', '应输入 ;')], 1_800_000_060_000)
+    log.compiled(s1, practice, true, [], 1_800_000_120_000)
+    log.event(s1, practice, { type: 'exception', message: '输入字符串的格式不正确。（System.FormatException）' }, 1_800_000_130_000)
+
+    const mine = await student.get('/api/learning')
+    expect(mine.status).toBe(200)
+    expect(mine.body.student).toMatchObject({ username: 's1', className: '物联网 2401' })
+    expect(mine.body.summary).toMatchObject({ runs: 3, failedCompiles: 2, exceptions: 1, minutes: 3 })
+    expect(mine.body.assignments).toEqual([
+      expect.objectContaining({ id: assignmentId, title: '控制报警灯', fullMarks: 30, status: 'done', total: 20, reviewed: false, runs: 1, failedCompiles: 1 }),
+    ])
+    expect(mine.body.practice).toEqual([
+      expect.objectContaining({ sampleId: 'p2-t1-LED显示屏', title: expect.any(String), runs: 2, failedCompiles: 1, exceptions: 1 }),
+    ])
+    expect(mine.body.compileErrors.map((e: any) => [e.code, e.count, e.works])).toEqual([
+      ['CS0103', 2, 2],
+      ['CS1002', 1, 1],
+    ])
+    expect(mine.body.compileErrors[0].messages).toEqual([{ message: '当前上下文中不存在名称"True"', count: 2, hint: '布尔值是小写的 true。' }])
+    expect(mine.body.exceptions).toEqual([{ message: '输入字符串的格式不正确。（System.FormatException）', count: 1, lastAt: 1_800_000_130_000 }])
+    // 2027-01-15 北京时间
+    expect(mine.body.days).toEqual([{ day: '2027-01-15', minutes: 3 }])
+
+    expect((await t.get(`/api/teacher/students/${s1}/learning`)).body).toEqual(mine.body)
+    expect((await student.get(`/api/teacher/students/${s1}/learning`)).status).toBe(403)
+    expect((await t.get('/api/learning')).status).toBe(404)
+    expect((await t.get('/api/teacher/students/9999/learning')).status).toBe(404)
+  }, 60000)
+
   test('过了截止时间不能提交', async () => {
     const { student, assignmentId, files } = await setup(Date.now() - 1000)
     const result = await student.post(`/api/assignments/${assignmentId}/submit`, { files })
