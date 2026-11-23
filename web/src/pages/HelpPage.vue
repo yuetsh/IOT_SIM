@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // 使用说明：学生部分谁都能看（登录页也有入口），老师登录后多出老师部分。从各页顶栏在新标签页打开，不打断正在做的事。
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { currentUser } from '../auth'
+import TopNav from '../TopNav.vue'
 
 /** 点截图在页面上放大看，点任意处或按 Esc 关闭 */
 const zoomed = ref<{ src: string; caption: string } | null>(null)
@@ -32,7 +32,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <strong>物联网编程仿真平台</strong>
       <span class="title">使用说明</span>
       <span class="spacer" />
-      <RouterLink :to="currentUser ? '/' : '/login'" class="nav-link">{{ currentUser ? '返回实验' : '登录' }}</RouterLink>
+      <TopNav />
     </header>
 
     <main class="content">
@@ -161,7 +161,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           </li>
           <li>每个人有自己的一套数据库，只有自己能看到，一直保留。程序里的连接字符串只看数据库名，服务器名、账号密码照书上写就行。</li>
           <li>数据弄乱了：点<b>恢复实验初始数据</b>，选实验（默认是刚才做的实验），把这个实验用到的库换回初始数据（其他库不动）。</li>
-          <li>点<b>← 返回实验</b>回到刚才做的实验。</li>
+          <li>点右上角的<b>自由练习</b>回到实验。</li>
         </ul>
         <figure class="shot">
           <a href="/help-img/db.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
@@ -325,7 +325,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   flex: 1;
 }
 
-.nav-link,
 .toc a {
   color: #2563eb;
   font-size: 14px;

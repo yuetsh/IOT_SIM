@@ -9,7 +9,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NButton, NEmpty, NInput, NInputNumber, NRadioButton, NRadioGroup, NSpin, NTab, NTabs, NTag, useDialog, useMessage } from 'naive-ui'
 import type { AiReview, Assignment, Review, Screenshot, SourceFile, Submission } from '@iot/shared'
 import { api } from '../api'
-import { currentUser, logout } from '../auth'
+import TopNav from '../TopNav.vue'
 import { RESOURCES_FILE } from '../designer/resources'
 import CodeEditor from '../editor/CodeEditor.vue'
 import RunArea from '../run/RunArea.vue'
@@ -301,17 +301,11 @@ function exportCsv() {
     ]),
   ])
 }
-
-async function signOut() {
-  await logout()
-  await router.push('/login')
-}
 </script>
 
 <template>
   <div class="page">
     <header class="toolbar">
-      <RouterLink to="/teacher" class="nav-link">← 班级管理</RouterLink>
       <strong>{{ assignment?.title }}</strong>
       <span class="muted">{{ assignment?.className }}</span>
       <span class="muted">已提交 {{ rows.filter((r) => r.status).length }} / {{ rows.length }} 人</span>
@@ -323,8 +317,7 @@ async function signOut() {
       <NButton v-if="rows.some((r) => r.aiStatus)" size="small" @click="adoptAll">全部采纳 AI 建议</NButton>
       <NButton size="small" @click="exportCsv">导出成绩</NButton>
       <span class="spacer" />
-      <span class="user">{{ currentUser?.name }}</span>
-      <NButton quaternary size="small" @click="signOut">退出</NButton>
+      <TopNav />
     </header>
 
     <AnalysisPanel v-if="view === 'analysis'" class="analysis" :assignment-id="assignmentId" @student="select" />
@@ -493,9 +486,6 @@ async function signOut() {
   flex: 1;
 }
 
-.user {
-  font-size: 13px;
-}
 
 .analysis {
   flex: 1;

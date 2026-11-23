@@ -4,7 +4,7 @@
 import { NButton, NInput, NModal, NSelect, NTabPane, NTabs, useDialog, useMessage } from 'naive-ui'
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../api'
-import { currentUser } from '../auth'
+import TopNav from '../TopNav.vue'
 import DesignTab from '../database/DesignTab.vue'
 import EditTab from '../database/EditTab.vue'
 import ObjectExplorer, { type ExplorerAction } from '../database/ObjectExplorer.vue'
@@ -181,12 +181,12 @@ onMounted(refresh)
 <template>
   <div class="page">
     <header class="toolbar">
-      <RouterLink to="/" class="nav-link">← 返回实验</RouterLink>
       <strong>数据库</strong>
+      <span class="note">只有自己能看到</span>
       <NButton size="small" type="primary" @click="newQuery()">新建查询</NButton>
       <NButton size="small" @click="openRestore">恢复实验初始数据</NButton>
       <span class="spacer" />
-      <span class="user">{{ currentUser?.name }}的数据库（只有自己能看到）</span>
+      <TopNav />
     </header>
     <div class="workspace">
       <ObjectExplorer class="explorer" :databases="databases" @action="onAction" />
@@ -257,17 +257,11 @@ onMounted(refresh)
   flex: 1;
 }
 
-.user {
+.note {
   font-size: 13px;
-  color: #4b5563;
+  color: #6b7280;
 }
 
-.nav-link {
-  color: #2563eb;
-  font-size: 13px;
-  text-decoration: none;
-  white-space: nowrap;
-}
 
 .workspace {
   flex: 1;

@@ -38,7 +38,8 @@ import {
 import CodeEditor from '../editor/CodeEditor.vue'
 import { checkProject } from '../editor/language'
 import { api } from '../api'
-import { currentUser, logout } from '../auth'
+import { currentUser } from '../auth'
+import TopNav from '../TopNav.vue'
 import { downloadExport, type ExportKind } from '../editor/export'
 import { deleteWork, loadWork, sampleWorkKey, saveWork } from '../editor/works'
 import RunArea from '../run/RunArea.vue'
@@ -334,12 +335,6 @@ onBeforeUnmount(() => {
   void flushSave()
 })
 
-async function signOut() {
-  await flushSave()
-  await logout()
-  await router.push('/login')
-}
-
 function updateFile(path: string, content: string) {
   const file = files.value.find((f) => f.path === path)
   if (!file || file.content === content) return
@@ -623,7 +618,6 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
         <span class="deadline">可以运行和试改，改动不会保存</span>
       </template>
       <template v-else-if="assignmentId">
-        <RouterLink to="/assignments" class="nav-link">← 我的作业</RouterLink>
         <strong class="assignment-title">{{ assignment?.title }}</strong>
         <span v-if="assignment?.deadline" class="deadline" :class="{ past: pastDeadline }">
           {{ pastDeadline ? '已截止' : '截止' }} {{ formatTime(assignment.deadline) }}
@@ -676,15 +670,9 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
         编译 {{ state.metrics.compileMs }} ms · 启动 {{ state.metrics.startMs }} ms · 最近一次操作往返 {{ state.metrics.lastRoundTripMs }} ms
       </span>
       <span class="spacer" />
-      <RouterLink v-if="!assignmentId && currentUser?.role === 'student'" to="/assignments" class="nav-link">我的作业</RouterLink>
-      <RouterLink v-if="currentUser?.role === 'student'" to="/learning" class="nav-link" title="作业得分、用时、常犯的错误">我的学习</RouterLink>
-      <RouterLink v-if="!viewing" to="/database" target="_blank" class="nav-link" title="在新标签页打开数据库（代替 SSMS）">数据库</RouterLink>
-      <RouterLink v-if="!viewing" to="/help" target="_blank" class="nav-link" title="在新标签页打开使用说明">使用说明</RouterLink>
-      <span class="user">
-        {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
-      </span>
-      <RouterLink v-if="currentUser?.role === 'teacher'" to="/teacher" class="nav-link">班级管理</RouterLink>
-      <NButton quaternary size="small" @click="signOut">退出</NButton>
+      <TopNav :before-sign-out="flushSave">
+        <RouterLink v-if="!viewing" to="/database" target="_blank" class="nav-link" title="在新标签页打开数据库（代替 SSMS）">数据库</RouterLink>
+      </TopNav>
     </header>
 
     <NModal v-model:show="exportErrorsOpen" preset="card" title="代码有错误，不能导出" style="width: 640px; max-width: calc(100vw - 32px)">
@@ -898,18 +886,7 @@ onBeforeUnmount(() => clearTimeout(rerunTimer))
   white-space: nowrap;
 }
 
-.user {
-  font-size: 13px;
-  white-space: nowrap;
-}
 
-.nav-link {
-  color: #2563eb;
-  font-size: 13px;
-  white-space: nowrap;
-  text-decoration: none;
-  white-space: nowrap;
-}
 
 /* 设计页要放工具箱、窗体和属性窗口，代码页要放得下长代码行，左栏都放宽；切换标签页时布局不跳 */
 .workspace {

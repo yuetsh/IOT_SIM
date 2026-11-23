@@ -4,7 +4,7 @@ import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NDataTable, NEmpty, NInput, NModal, NPopconfirm, NPopover, NTabPane, NTabs, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import { api } from '../api'
-import { currentUser, logout } from '../auth'
+import TopNav from '../TopNav.vue'
 import AssignmentsPanel from '../teacher/AssignmentsPanel.vue'
 import GradebookPanel from '../teacher/GradebookPanel.vue'
 import { downloadCsv, textCell } from '../teacher/csv'
@@ -187,11 +187,6 @@ function downloadTemplate() {
     ['张三', ''],
   ])
 }
-
-async function signOut() {
-  await logout()
-  await router.push('/login')
-}
 </script>
 
 <template>
@@ -199,11 +194,8 @@ async function signOut() {
     <header class="toolbar">
       <strong>物联网编程仿真平台</strong>
       <span class="title">班级管理</span>
-      <RouterLink to="/" class="nav-link">返回实验</RouterLink>
       <span class="spacer" />
-      <RouterLink to="/help#teacher" target="_blank" class="nav-link">使用说明</RouterLink>
-      <span class="user">{{ currentUser?.name }}</span>
-      <NButton quaternary size="small" @click="signOut">退出</NButton>
+      <TopNav />
     </header>
 
     <main class="content">
@@ -338,15 +330,7 @@ async function signOut() {
   flex: 1;
 }
 
-.nav-link {
-  color: #2563eb;
-  font-size: 13px;
-  text-decoration: none;
-}
 
-.user {
-  font-size: 13px;
-}
 
 .content {
   flex: 1;

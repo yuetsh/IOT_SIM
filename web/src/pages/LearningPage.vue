@@ -4,11 +4,11 @@
 // 用时、运行、常犯的错误来自学习过程记录，2026-11-22 才开始记。
 import { BarController, BarElement, CategoryScale, Chart, LinearScale, Tooltip } from 'chart.js'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import { NButton, NDataTable, NEmpty, NSpin, NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { RouterLink } from 'vue-router'
+import { NDataTable, NEmpty, NSpin, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import type { StudentLearning } from '@iot/shared'
 import { api } from '../api'
-import { currentUser, logout } from '../auth'
+import TopNav from '../TopNav.vue'
 import { exceptionFix, explainCompileError } from '../learning/explain'
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
@@ -18,7 +18,6 @@ type PracticeRow = StudentLearning['practice'][number]
 
 /** 老师看学生档案时是学生的 id；学生看自己的时没有 */
 const props = defineProps<{ studentId?: string }>()
-const router = useRouter()
 const message = useMessage()
 const data = ref<StudentLearning | null>(null)
 const loading = ref(true)
@@ -128,18 +127,12 @@ const practiceColumns = computed<DataTableColumns<PracticeRow>>(() => [
   ...statColumns<PracticeRow>(),
   { title: '最后做', key: 'lastActiveAt', width: 120, render: (p) => formatTime(p.lastActiveAt) },
 ])
-
-async function signOut() {
-  await logout()
-  await router.push('/login')
-}
 </script>
 
 <template>
   <div class="page">
     <header class="toolbar">
       <template v-if="teacherView">
-        <RouterLink to="/teacher" class="nav-link">← 班级管理</RouterLink>
         <strong>学生档案</strong>
         <span v-if="data"
           >{{ data.student.name }}<span v-if="data.student.className" class="muted">（{{ data.student.className }}）</span></span
@@ -148,15 +141,9 @@ async function signOut() {
       <template v-else>
         <strong>物联网编程仿真平台</strong>
         <span class="title">我的学习</span>
-        <RouterLink to="/" class="nav-link">自由练习</RouterLink>
-        <RouterLink to="/assignments" class="nav-link">我的作业</RouterLink>
       </template>
       <span class="spacer" />
-      <RouterLink v-if="!teacherView" to="/help" target="_blank" class="nav-link">使用说明</RouterLink>
-      <span class="user">
-        {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
-      </span>
-      <NButton quaternary size="small" @click="signOut">退出</NButton>
+      <TopNav />
     </header>
 
     <main class="content">
@@ -285,16 +272,12 @@ async function signOut() {
   flex: 1;
 }
 
-.nav-link,
 :deep(.link) {
   color: #2563eb;
   font-size: 14px;
   text-decoration: none;
 }
 
-.user {
-  font-size: 13px;
-}
 
 .content {
   display: flex;

@@ -1,15 +1,14 @@
 <script setup lang="ts">
 // 学生的作业列表：自己班的作业、截止时间、提交和得分情况。
 import { h, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import { NButton, NDataTable, NEmpty, NTag, type DataTableColumns } from 'naive-ui'
+import { RouterLink } from 'vue-router'
+import { NDataTable, NEmpty, NTag, type DataTableColumns } from 'naive-ui'
 import type { Assignment, Submission } from '@iot/shared'
 import { api } from '../api'
-import { currentUser, logout } from '../auth'
+import TopNav from '../TopNav.vue'
 
 type Row = Assignment & { latest: Submission | null; manualScore: number | null }
 
-const router = useRouter()
 const rows = ref<Row[]>([])
 const loaded = ref(false)
 
@@ -43,11 +42,6 @@ const columns: DataTableColumns<Row> = [
   { title: '截止时间', key: 'deadline', width: 140, render: (r) => (r.deadline ? formatTime(r.deadline) : '不限') },
   { title: '状态', key: 'status', width: 220, render: status },
 ]
-
-async function signOut() {
-  await logout()
-  await router.push('/login')
-}
 </script>
 
 <template>
@@ -55,14 +49,8 @@ async function signOut() {
     <header class="toolbar">
       <strong>物联网编程仿真平台</strong>
       <span class="title">我的作业</span>
-      <RouterLink to="/" class="nav-link">自由练习</RouterLink>
-      <RouterLink to="/learning" class="nav-link">我的学习</RouterLink>
       <span class="spacer" />
-      <RouterLink to="/help" target="_blank" class="nav-link">使用说明</RouterLink>
-      <span class="user">
-        {{ currentUser?.name }}<template v-if="currentUser?.className">（{{ currentUser.className }}）</template>
-      </span>
-      <NButton quaternary size="small" @click="signOut">退出</NButton>
+      <TopNav />
     </header>
     <main class="content">
       <NDataTable v-if="rows.length" :columns="columns" :data="rows" :row-key="(r: Row) => r.id" :bordered="false" />
@@ -94,16 +82,12 @@ async function signOut() {
   flex: 1;
 }
 
-.nav-link,
 :deep(.link) {
   color: #2563eb;
   font-size: 14px;
   text-decoration: none;
 }
 
-.user {
-  font-size: 13px;
-}
 
 .content {
   width: 100%;
