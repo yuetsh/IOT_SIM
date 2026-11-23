@@ -4,9 +4,25 @@
 // "在新标签页运行"打开完整的实验页，地方更大。
 // AI 建议只是参考：老师采纳（或修改后保存）才成为老师评分，学生才能看到。
 // 工具栏的"评阅 / 分析"切换到作业分析（?view=analysis）：全班得分分布、评分项通过率、常见错误、每人用时。
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NEmpty, NInput, NInputNumber, NRadioButton, NRadioGroup, NSpin, NTab, NTabs, NTag, useDialog, useMessage } from 'naive-ui'
+import {
+  NButton,
+  NEmpty,
+  NInput,
+  NInputNumber,
+  NMenu,
+  NRadioButton,
+  NRadioGroup,
+  NSpin,
+  NTab,
+  NTabs,
+  NTag,
+  NText,
+  useDialog,
+  useMessage,
+  type MenuOption,
+} from 'naive-ui'
 import type { AiReview, Assignment, Review, Screenshot, SourceFile, Submission } from '@iot/shared'
 import { api } from '../api'
 import TopNav from '../TopNav.vue'
@@ -278,6 +294,28 @@ function rowScore(row: Row) {
   return (row.autoScore ?? 0) + (row.manualScore ?? row.aiManual ?? 0)
 }
 
+/** 左边的学生名单：名字和用户名两行，右边是得分（还没评阅、只含 AI 建议的分数显示成灰色）和状态 */
+const studentMenu = computed<MenuOption[]>(() =>
+  rows.value.map((r) => {
+    const score = rowScore(r)
+    const tag = statusTag(r)
+    return {
+      key: r.userId,
+      label: () =>
+        h('div', { style: 'display: flex; align-items: center; justify-content: space-between; gap: 6px' }, [
+          h('div', { style: 'display: flex; flex-direction: column; min-width: 0; line-height: 1.3' }, [
+            h('span', null, r.name),
+            h(NText, { depth: 3, style: 'font-size: 12px' }, () => r.username),
+          ]),
+          h('span', { style: 'display: inline-flex; align-items: center; gap: 6px' }, [
+            score === null ? null : h(NText, r.review ? { strong: true } : { depth: 3 }, () => String(score)),
+            h(NTag, { size: 'tiny', type: tag.type }, () => tag.text),
+          ]),
+        ]),
+    }
+  }),
+)
+
 /** 导出这个作业的成绩：每个学生的自动评分、老师评分各项、总分和评语 */
 function exportCsv() {
   const a = assignment.value
@@ -323,16 +361,13 @@ function exportCsv() {
     <AnalysisPanel v-if="view === 'analysis'" class="analysis" :assignment-id="assignmentId" @student="select" />
     <main v-else class="content">
       <aside class="students">
-        <button v-for="r in rows" :key="r.userId" class="student" :class="{ active: r.userId === selectedId }" @click="select(r.userId)">
-          <span class="who">
-            <span>{{ r.name }}</span>
-            <span class="username">{{ r.username }}</span>
-          </span>
-          <span class="right">
-            <span v-if="rowScore(r) !== null" class="score" :class="{ suggested: !r.review }">{{ rowScore(r) }}</span>
-            <NTag size="tiny" :type="statusTag(r).type">{{ statusTag(r).text }}</NTag>
-          </span>
-        </button>
+        <NMenu
+          :value="selectedId"
+          :options="studentMenu"
+          :root-indent="8"
+          :theme-overrides="{ itemHeight: '46px' }"
+          @update:value="(key) => select(Number(key))"
+        />
       </aside>
 
       <section v-if="detail && assignment" class="review">
@@ -486,7 +521,6 @@ function exportCsv() {
   flex: 1;
 }
 
-
 .analysis {
   flex: 1;
   min-height: 0;
@@ -505,56 +539,6 @@ function exportCsv() {
   padding: 6px;
   border-right: 1px solid #e5e7eb;
   overflow: auto;
-}
-
-.student {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.student:hover {
-  background: #f3f4f6;
-}
-
-.student.active {
-  background: #e0ecff;
-}
-
-.who {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.username {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.score {
-  font-weight: 600;
-}
-
-/* 还没评阅、只是含 AI 建议的分数 */
-.score.suggested {
-  color: #6b7280;
-  font-weight: normal;
 }
 
 .replay-pane {

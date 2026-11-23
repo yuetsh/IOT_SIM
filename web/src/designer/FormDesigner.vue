@@ -3,6 +3,7 @@
 // 窗体用运行时同一套 ControlView 渲染；上面盖一层透明的操作层，负责选中、拖动、改大小、放置新控件。
 // 每次改动都重新生成 Designer.cs，通过 update 事件交给页面保存。
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { NButton, NSelect, useMessage } from 'naive-ui'
 import ControlView from '../winforms/ControlView.vue'
 import { displayText, fontCss, type FontValue } from '../winforms/format'
 import { CONTROLS, type ControlDef, FORM_DEF, controlDef, isContainerType } from './catalog'
@@ -53,6 +54,7 @@ const emit = defineEmits<{
   /** 窗体本身改名（涉及多个文件，由实验页处理） */
   renameForm: [to: string]
 }>()
+const message = useMessage()
 
 /** Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做；在属性窗口的输入框里打字时不拦截（输入框有自己的撤销） */
 function onShortcut(event: KeyboardEvent) {
@@ -179,6 +181,9 @@ const ZOOM_OPTIONS: [ZoomChoice, string][] = [
   ['0.5', '50%'],
 ]
 const zoomChoice = ref<ZoomChoice>(readZoom())
+const zoomOptions = computed(() =>
+  ZOOM_OPTIONS.map(([value, label]) => ({ value, label: value === 'fit' ? `${label}（${Math.round(zoom.value * 100)}%）` : label })),
+)
 function readZoom(): ZoomChoice {
   try {
     const saved = localStorage.getItem(ZOOM_KEY)
@@ -456,7 +461,7 @@ function openEvent(target: string, eventName: string, handler?: string) {
     emit('openCode', result.line)
   } catch (error) {
     commit(next)
-    alert(String(error))
+    message.error(String(error))
   }
 }
 
@@ -527,22 +532,23 @@ const noop = () => {}
 
     <section ref="canvas" class="canvas">
       <div class="actions">
-        <button :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</button>
-        <button :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</button>
+        <NButton size="tiny" :disabled="!canUndo" title="撤销（Ctrl+Z）" @click="emit('undo')">↶ 撤销</NButton>
+        <NButton size="tiny" :disabled="!canRedo" title="重做（Ctrl+Y）" @click="emit('redo')">↷ 重做</NButton>
         <span class="tips" :class="{ narrow: canvasWidth <= 560 }" title="拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除"
           >拖动工具箱里的控件到窗体上；双击控件生成事件处理方法；Delete 删除</span
         >
-        <select
+        <NSelect
           class="zoom"
+          size="tiny"
           title="窗体显示的大小（不影响窗体的实际大小）"
           :value="zoomChoice"
-          @change="setZoom(($event.target as HTMLSelectElement).value as ZoomChoice)"
-        >
-          <option v-for="[value, label] in ZOOM_OPTIONS" :key="value" :value="value">
-            {{ value === 'fit' ? `${label}（${Math.round(zoom * 100)}%）` : label }}
-          </option>
-        </select>
-        <button class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">查看生成的代码</button>
+          :options="zoomOptions"
+          :consistent-menu-width="false"
+          @update:value="setZoom"
+        />
+        <NButton size="tiny" class="view-code" title="设计器根据窗体上的控件自动生成的代码（Designer.cs）" @click="emit('openDesignerFile')">
+          查看生成的代码
+        </NButton>
       </div>
       <div class="window" :class="{ selected: selected === '', borderless }" :style="zoom !== 1 ? { zoom } : undefined">
         <!-- 无边框窗体和 VS 设计器里一样不画标题栏，点窗体空白处选中窗体 -->
@@ -684,29 +690,10 @@ const noop = () => {}
   font-size: 12px;
 }
 
-.actions button {
-  flex: none;
-  white-space: nowrap;
-  padding: 2px 10px;
-  border: 1px solid #c5ccd5;
-  border-radius: 3px;
-  background: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-
-.actions button:disabled {
-  color: #b0b6bf;
-  cursor: default;
-}
-
 .zoom {
+  flex: none;
+  width: 150px;
   margin-left: auto;
-  padding: 1px 4px;
-  border: 1px solid #c5ccd5;
-  border-radius: 3px;
-  background: #fff;
-  font: inherit;
 }
 
 .view-code {

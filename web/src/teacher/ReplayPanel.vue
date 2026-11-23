@@ -4,7 +4,7 @@
 // 右边是和上一步比改了什么（Monaco 的对比编辑器），左边是这一步运行之后发生了什么：编译出错、运行出错、自己检查、提交。
 // 点报错跳到那一行。快照 2026-11-22 才开始存。
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { NButton, NEmpty, NSlider, NSpin, NSwitch, NTag } from 'naive-ui'
+import { NButton, NEmpty, NSlider, NSpin, NSwitch, NTab, NTabs, NTag } from 'naive-ui'
 import type { LearningEvent, SourceFile, WorkHistory } from '@iot/shared'
 import { api } from '../api'
 import { RESOURCES_FILE } from '../designer/resources'
@@ -272,18 +272,12 @@ const formatSeconds = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', {
         </aside>
 
         <section class="code">
-          <div class="tabs">
-            <button
-              v-for="t in fileTabs"
-              :key="t.path"
-              class="tab"
-              :class="{ active: t.path === activePath, changed: t.changed, deleted: t.deleted }"
-              :title="t.deleted ? '这一步删掉了' : t.changed ? '这一步改过' : ''"
-              @click="activePath = t.path"
-            >
-              {{ t.path }}<span v-if="t.changed" class="dot">●</span>
-            </button>
-          </div>
+          <NTabs v-model:value="activePath" type="card" size="small" class="tabs">
+            <NTab v-for="t in fileTabs" :key="t.path" :name="t.path" :title="t.deleted ? '这一步删掉了' : t.changed ? '这一步改过' : ''">
+              <span :class="{ deleted: t.deleted }">{{ t.path }}</span
+              ><span v-if="t.changed" class="dot">●</span>
+            </NTab>
+          </NTabs>
           <div ref="container" class="diff" />
         </section>
       </div>
@@ -407,30 +401,16 @@ const formatSeconds = (ms: number) => new Date(ms).toLocaleTimeString('zh-CN', {
 }
 
 .tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
+  flex: none;
   padding: 4px 6px 0;
-  border-bottom: 1px solid #e5e7eb;
 }
 
-.tab {
-  padding: 3px 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-bottom: none;
-  border-radius: 4px 4px 0 0;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+/* 文件多时标签换行显示，和实验页一样 */
+.tabs :deep(.n-tabs-wrapper) {
+  flex-wrap: wrap;
 }
 
-.tab.active {
-  background: #fff;
-  font-weight: 600;
-}
-
-.tab.deleted {
+.deleted {
   color: #9ca3af;
   text-decoration: line-through;
 }

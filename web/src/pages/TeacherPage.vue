@@ -2,7 +2,24 @@
 // 老师的班级管理：建班、导入学生名单（CSV）、查看和重置密码、导出名单发给学生；布置作业（评阅在 ReviewPage）；全班成绩表。
 import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NDataTable, NEmpty, NInput, NModal, NPopconfirm, NPopover, NTabPane, NTabs, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import {
+  NButton,
+  NDataTable,
+  NEmpty,
+  NInput,
+  NMenu,
+  NModal,
+  NPopconfirm,
+  NPopover,
+  NTable,
+  NTabPane,
+  NTabs,
+  NText,
+  useDialog,
+  useMessage,
+  type DataTableColumns,
+  type MenuOption,
+} from 'naive-ui'
 import { api } from '../api'
 import TopNav from '../TopNav.vue'
 import AssignmentsPanel from '../teacher/AssignmentsPanel.vue'
@@ -36,6 +53,17 @@ const dialog = useDialog()
 const classes = ref<ClassInfo[]>([])
 const selectedId = ref<number>()
 const selected = computed(() => classes.value.find((c) => c.id === selectedId.value))
+/** 班级列表：左边班级名，右边人数 */
+const classMenu = computed<MenuOption[]>(() =>
+  classes.value.map((c) => ({
+    key: c.id,
+    label: () =>
+      h('div', { style: 'display: flex; justify-content: space-between; gap: 8px' }, [
+        h('span', null, c.name),
+        h(NText, { depth: 3, style: 'font-size: 12px' }, () => `${c.studentCount} 人`),
+      ]),
+  })),
+)
 const students = ref<Student[]>([])
 
 /** 出错时弹出服务器给的说明 */
@@ -212,10 +240,13 @@ function downloadTemplate() {
             </form>
           </NPopover>
         </div>
-        <button v-for="c in classes" :key="c.id" class="class-item" :class="{ active: c.id === selectedId }" @click="selectClass(c.id)">
-          <span>{{ c.name }}</span>
-          <span class="count">{{ c.studentCount }} 人</span>
-        </button>
+        <NMenu
+          :value="selectedId"
+          :options="classMenu"
+          :root-indent="10"
+          :theme-overrides="{ itemHeight: '36px' }"
+          @update:value="(key) => selectClass(Number(key))"
+        />
         <NEmpty v-if="classes.length === 0" description="还没有班级，先新建一个" size="small" class="empty" />
       </aside>
 
@@ -278,7 +309,7 @@ function downloadTemplate() {
         >。
       </p>
       <div class="preview">
-        <table>
+        <NTable size="small" :bordered="false">
           <thead>
             <tr>
               <th>用户名</th>
@@ -293,7 +324,7 @@ function downloadTemplate() {
               <td class="problem">{{ r.problem }}</td>
             </tr>
           </tbody>
-        </table>
+        </NTable>
       </div>
       <template #footer>
         <div class="modal-actions">
@@ -330,8 +361,6 @@ function downloadTemplate() {
   flex: 1;
 }
 
-
-
 .content {
   flex: 1;
   display: grid;
@@ -355,33 +384,6 @@ function downloadTemplate() {
   padding: 0 4px 6px;
   color: #6b7280;
   font-size: 13px;
-}
-
-.class-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.class-item:hover {
-  background: #f3f4f6;
-}
-
-.class-item.active {
-  background: #e0ecff;
-  color: #1d4ed8;
-}
-
-.count {
-  color: #9ca3af;
-  font-size: 12px;
 }
 
 .empty {
@@ -432,17 +434,8 @@ function downloadTemplate() {
   overflow: auto;
 }
 
-.preview table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
 .preview th,
 .preview td {
-  padding: 4px 8px;
-  border-bottom: 1px solid #f0f0f0;
-  text-align: left;
   white-space: nowrap;
 }
 

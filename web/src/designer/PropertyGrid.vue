@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // 属性窗口和事件窗口（仿 VS）：显示选中控件的常用属性；改动立即写回 Designer.cs。
 import { computed, ref, watch } from 'vue'
+import { NButton, NTab, NTabs } from 'naive-ui'
 import { type ControlDef, FORM_DEF, NO_TRANSPARENT_BACK_COLOR, type PropDef, controlDef } from './catalog'
 import { type ChartModel, readChart } from './chart'
 import ChartDialog from './ChartDialog.vue'
@@ -194,10 +195,10 @@ function renameHandler(event: string, value: string) {
 <template>
   <div class="grid">
     <div class="grid-title" :title="`类型：${typeName}`">{{ title }}</div>
-    <div class="tabs">
-      <button :class="{ active: tab === 'props' }" @click="tab = 'props'">属性</button>
-      <button :class="{ active: tab === 'events' }" title="事件" @click="tab = 'events'">⚡ 事件</button>
-    </div>
+    <NTabs v-model:value="tab" type="line" size="small" justify-content="space-evenly" class="tabs">
+      <NTab name="props">属性</NTab>
+      <NTab name="events" title="事件">⚡ 事件</NTab>
+    </NTabs>
 
     <div v-if="tab === 'props'" class="rows">
       <div class="row">
@@ -342,7 +343,7 @@ function renameHandler(event: string, value: string) {
             <span :title="`系列：${chartModel.series.map((s) => s.name).join('、') || '无'}；图例：${chartModel.legends.join('、') || '无'}`"
               >{{ chartModel.series.length }} 个系列</span
             >
-            <button @click="chartOpen = true">编辑…</button>
+            <NButton size="tiny" @click="chartOpen = true">编辑…</NButton>
           </span>
 
           <textarea
@@ -374,7 +375,7 @@ function renameHandler(event: string, value: string) {
         <div class="editor">
           <span class="pair">
             <input :value="handlerOf(event.name)" placeholder="（未绑定）" @change="renameHandler(event.name, ($event.target as HTMLInputElement).value)" />
-            <button class="go" title="生成或跳到事件处理方法" @click="emit('openEvent', selected, event.name)">→</button>
+            <NButton size="tiny" class="go" title="生成或跳到事件处理方法" @click="emit('openEvent', selected, event.name)">→</NButton>
           </span>
         </div>
       </div>
@@ -403,22 +404,7 @@ function renameHandler(event: string, value: string) {
 }
 
 .tabs {
-  display: flex;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.tabs button {
-  flex: 1;
-  padding: 4px;
-  border: none;
-  background: #f7f7f8;
-  cursor: pointer;
-}
-
-.tabs button.active {
-  background: #fff;
-  font-weight: 600;
-  box-shadow: inset 0 -2px #2563eb;
+  flex: none;
 }
 
 .rows {
@@ -538,10 +524,5 @@ function renameHandler(event: string, value: string) {
 
 .go {
   flex: none;
-  padding: 1px 6px;
-  border: 1px solid #d1d5db;
-  border-radius: 3px;
-  background: #f9fafb;
-  cursor: pointer;
 }
 </style>

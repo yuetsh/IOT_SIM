@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 对象资源管理器：只有“库 → 表”两层。点表名打开编辑数据，其他操作在 ⋯ 里（右键也是同一个菜单，照书上右键操作也行）。
-import { NDropdown, type DropdownOption } from 'naive-ui'
+import { NButton, NDropdown, NEmpty, type DropdownOption } from 'naive-ui'
 import { nextTick, reactive, ref } from 'vue'
 import type { ExplorerDatabase, ExplorerTable } from './sql'
 
@@ -77,12 +77,12 @@ function columnsTip(table: ExplorerTable) {
   <div class="explorer">
     <div class="head">
       <span class="title">数据库</span>
-      <button class="head-btn" title="刷新" @click="emit('action', { kind: 'refresh' })">↻</button>
-      <button class="head-btn add" @click="emit('action', { kind: 'newDatabase' })">+ 新建库</button>
+      <NButton quaternary size="tiny" title="刷新" @click="emit('action', { kind: 'refresh' })">↻</NButton>
+      <NButton quaternary size="tiny" @click="emit('action', { kind: 'newDatabase' })">+ 新建库</NButton>
     </div>
 
     <div class="tree">
-      <p v-if="databases.length === 0" class="empty">还没有数据库。点上面的“+ 新建库”，或者在页面顶部“恢复实验初始数据”。</p>
+      <NEmpty v-if="databases.length === 0" size="small" class="empty" description="还没有数据库。点上面的“+ 新建库”，或者在页面顶部“恢复实验初始数据”。" />
 
       <div v-for="db in databases" :key="db.name" class="db">
         <div class="row db-row" @click="toggle(db.name)" @contextmenu="databaseMenu($event, db.name)">
@@ -93,7 +93,7 @@ function columnsTip(table: ExplorerTable) {
           </svg>
           <span class="name">{{ db.name }}</span>
           <span class="count">{{ db.tables.length }} 张表</span>
-          <button class="more" title="更多操作" @click="databaseMenu($event, db.name)">⋯</button>
+          <NButton quaternary size="tiny" class="more" title="更多操作" @click="databaseMenu($event, db.name)">⋯</NButton>
         </div>
 
         <div v-if="!collapsed.has(db.name)" class="tables">
@@ -110,7 +110,7 @@ function columnsTip(table: ExplorerTable) {
               <path d="M2 6.5h12M6.5 6.5V13" />
             </svg>
             <span class="name">{{ table.name }}</span>
-            <button class="more" title="更多操作" @click="tableMenu($event, db.name, table)">⋯</button>
+            <NButton quaternary size="tiny" class="more" title="更多操作" @click="tableMenu($event, db.name, table)">⋯</NButton>
           </div>
           <div class="row new-table" @click="emit('action', { kind: 'newTable', database: db.name })">+ 新建表</div>
         </div>
@@ -152,24 +152,6 @@ function columnsTip(table: ExplorerTable) {
 .title {
   flex: 1;
   font-weight: 600;
-}
-
-.head-btn {
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #4b5563;
-  font: inherit;
-  cursor: pointer;
-}
-
-.head-btn:hover {
-  background: #f3f4f6;
-}
-
-.head-btn.add {
-  color: #2563eb;
 }
 
 .tree {
@@ -259,27 +241,14 @@ function columnsTip(table: ExplorerTable) {
 
 /* ⋯ 平时浅一点，鼠标移到这一行再变深 */
 .more {
-  padding: 0 6px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #c0c4cc;
-  font: inherit;
-  line-height: 22px;
-  cursor: pointer;
+  opacity: 0.45;
 }
 
 .row:hover .more {
-  color: #4b5563;
-}
-
-.more:hover {
-  background: #dbeafe;
+  opacity: 1;
 }
 
 .empty {
-  margin: 8px 6px;
-  color: #9ca3af;
-  line-height: 1.6;
+  margin: 16px 6px;
 }
 </style>

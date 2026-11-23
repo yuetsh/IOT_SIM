@@ -4,7 +4,7 @@
 // 点学生那一行回到评阅看他的代码。
 import { BarController, BarElement, CategoryScale, Chart, Legend, LinearScale, Tooltip } from 'chart.js'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { NButton, NDataTable, NEmpty, NSpin, NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NDataTable, NEmpty, NProgress, NSpin, NTable, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import type { AssignmentAnalysis } from '@iot/shared'
 import { api } from '../api'
 import { downloadCsv, textCell } from './csv'
@@ -228,7 +228,7 @@ function exportCsv() {
         <section class="card">
           <h3>评分项</h3>
           <p class="muted small">通过率按每人最近一次提交算；"自己检查没过"是做的过程中自己检查时这项没通过过的人数，多说明这一步卡人。</p>
-          <table class="checks">
+          <NTable size="small" :bordered="false" class="checks">
             <thead>
               <tr>
                 <th>评分项</th>
@@ -242,14 +242,21 @@ function exportCsv() {
                 <td>{{ c.title }}</td>
                 <td>{{ c.points }}</td>
                 <td class="rate">
-                  <span class="bar"><span :style="{ width: percent(c.passed, c.graded) === '—' ? '0' : percent(c.passed, c.graded) }" /></span>
+                  <NProgress
+                    type="line"
+                    class="bar"
+                    status="success"
+                    :percentage="c.graded ? (c.passed / c.graded) * 100 : 0"
+                    :show-indicator="false"
+                    :height="8"
+                  />
                   {{ percent(c.passed, c.graded) }}
                   <span class="muted">（{{ c.passed }}/{{ c.graded }}）</span>
                 </td>
                 <td>{{ c.struggled }} 人</td>
               </tr>
             </tbody>
-          </table>
+          </NTable>
         </section>
 
         <section class="card">
@@ -380,24 +387,6 @@ function exportCsv() {
   height: 220px;
 }
 
-.checks {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.checks th,
-.checks td {
-  padding: 5px 6px;
-  border-bottom: 1px solid #f3f4f6;
-  text-align: left;
-}
-
-.checks th {
-  color: #6b7280;
-  font-weight: normal;
-}
-
 .rate {
   white-space: nowrap;
 }
@@ -405,18 +394,8 @@ function exportCsv() {
 .bar {
   display: inline-block;
   width: 80px;
-  height: 8px;
   margin-right: 6px;
-  background: #f3f4f6;
-  border-radius: 4px;
-  overflow: hidden;
   vertical-align: middle;
-}
-
-.bar span {
-  display: block;
-  height: 100%;
-  background: #34d399;
 }
 
 .errors {

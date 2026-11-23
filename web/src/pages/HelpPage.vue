@@ -1,29 +1,8 @@
 <script setup lang="ts">
 // 使用说明：学生部分谁都能看（登录页也有入口），老师登录后多出老师部分。从各页顶栏在新标签页打开，不打断正在做的事。
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { NImage, NImageGroup } from 'naive-ui'
 import { currentUser } from '../auth'
 import TopNav from '../TopNav.vue'
-
-/** 点截图在页面上放大看，点任意处或按 Esc 关闭 */
-const zoomed = ref<{ src: string; caption: string } | null>(null)
-
-function zoom(event: MouseEvent) {
-  const link = event.currentTarget as HTMLAnchorElement
-  zoomed.value = { src: link.href, caption: link.closest('figure')?.querySelector('figcaption')?.textContent ?? '' }
-}
-
-/** 按窗口大小放大到放得下，小截图最多放大 2 倍（再大就糊了） */
-function fit(event: Event) {
-  const img = event.target as HTMLImageElement
-  const scale = Math.min(2, (window.innerWidth - 32) / img.naturalWidth, (window.innerHeight - 72) / img.naturalHeight)
-  img.style.width = `${Math.round(img.naturalWidth * scale)}px`
-}
-
-function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') zoomed.value = null
-}
-onMounted(() => window.addEventListener('keydown', onKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
@@ -35,270 +14,271 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <TopNav />
     </header>
 
-    <main class="content">
-      <nav class="toc">
-        <a href="#student">学生</a>
-        <a v-if="currentUser?.role === 'teacher'" href="#teacher">老师</a>
-        <a href="#faq">常见问题</a>
-      </nav>
+    <NImageGroup>
+      <main class="content">
+        <nav class="toc">
+          <a href="#student">学生</a>
+          <a v-if="currentUser?.role === 'teacher'" href="#teacher">老师</a>
+          <a href="#faq">常见问题</a>
+        </nav>
 
-      <section id="student">
-        <h2>学生</h2>
+        <section id="student">
+          <h2>学生</h2>
 
-        <h3>1. 登录</h3>
-        <p>用老师发给你的用户名和密码登录。</p>
+          <h3>1. 登录</h3>
+          <p>用老师发给你的用户名和密码登录。</p>
 
-        <h3>2. 自由练习和做作业</h3>
-        <ul>
-          <li>登录后先看到<b>我的作业</b>：老师布置的作业、截止时间和得分；点作业名开始做。做实验时随时可以点右上角的<b>我的作业</b>回来。</li>
-          <li>点<b>自由练习</b>：左上角的下拉框选教材上的任务，可以随便改、随便运行；下次打开时回到上次做的任务。</li>
-          <li>工具栏的<b>任务</b>：任务目标、控件名、实现步骤和在平台上怎么试，第一次打开一个实验时自动弹出。面板在工具栏下面，可以开着做。</li>
-          <li>
-            作业的起点有两种：<b>界面已做好</b>（只写事件和代码）、<b>空白工程</b>（从搭界面做起）。控件名照书上的写，自动评分按书上的控件名操作你的程序。
-          </li>
-        </ul>
-        <figure class="shot">
-          <a href="/help-img/assignments.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/assignments.webp" alt="" loading="lazy" /></a>
-          <figcaption>我的作业：点作业名开始做，右边是提交状态和得分</figcaption>
-        </figure>
-        <figure class="shot">
-          <a href="/help-img/overview.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/overview.webp" alt="" loading="lazy" /></a>
-          <figcaption>实验页：左边是设计器和代码，右边是运行区（学生程序的窗体）和虚拟实训台</figcaption>
-        </figure>
-        <figure class="shot">
-          <a href="/help-img/task.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/task.webp" alt="" loading="lazy" /></a>
-          <figcaption>任务面板：任务目标、控件名、实现步骤</figcaption>
-        </figure>
+          <h3>2. 自由练习和做作业</h3>
+          <ul>
+            <li>
+              登录后先看到<b>我的作业</b>：老师布置的作业、截止时间和得分；点作业名开始做。做实验时随时可以点右上角自己的名字，在下拉菜单里选<b>我的作业</b>回来；<b>自由练习</b>、<b>我的学习</b>、<b>使用说明</b>、<b>退出</b>也都在这个菜单里。
+            </li>
+            <li>点<b>自由练习</b>：左上角的下拉框选教材上的任务，可以随便改、随便运行；下次打开时回到上次做的任务。</li>
+            <li>工具栏的<b>任务</b>：任务目标、控件名、实现步骤和在平台上怎么试，第一次打开一个实验时自动弹出。面板在工具栏下面，可以开着做。</li>
+            <li>
+              作业的起点有两种：<b>界面已做好</b>（只写事件和代码）、<b>空白工程</b>（从搭界面做起）。控件名照书上的写，自动评分按书上的控件名操作你的程序。
+            </li>
+          </ul>
+          <figure class="shot">
+            <NImage src="/help-img/assignments.webp" lazy />
+            <figcaption>我的作业：点作业名开始做，右边是提交状态和得分</figcaption>
+          </figure>
+          <figure class="shot">
+            <NImage src="/help-img/overview.webp" lazy />
+            <figcaption>实验页：左边是设计器和代码，右边是运行区（学生程序的窗体）和虚拟实训台</figcaption>
+          </figure>
+          <figure class="shot">
+            <NImage src="/help-img/task.webp" lazy />
+            <figcaption>任务面板：任务目标、控件名、实现步骤</figcaption>
+          </figure>
 
-        <h3>3. 搭界面</h3>
-        <ul>
-          <li>点 <code>Form1.cs [设计]</code> 标签打开窗体设计器，和 Visual Studio 一样用。</li>
-          <li>
-            把<b>工具箱</b>里的控件拖到窗体上，或者双击工具箱里的控件：放在选中的分组框、面板（或选中控件所在的容器）左上角，连续双击会依次错开。比窗体还宽的控件（如
-            LED 显示屏）会自动缩小到放得下。选中控件后在右边的<b>属性</b>里改名称、文字等。
-          </li>
-          <li>
-            <b>双击窗体上的控件</b>生成它的默认事件（如按钮的单击），并跳到代码；其他事件在 <b>⚡ 事件</b> 里双击事件名。定时器等组件显示在窗体下面的组件栏里。
-          </li>
-          <li>撤销 Ctrl+Z，重做 Ctrl+Y，删除控件 Delete，方向键微调位置。</li>
-        </ul>
+          <h3>3. 搭界面</h3>
+          <ul>
+            <li>点 <code>Form1.cs [设计]</code> 标签打开窗体设计器，和 Visual Studio 一样用。</li>
+            <li>
+              把<b>工具箱</b>里的控件拖到窗体上，或者双击工具箱里的控件：放在选中的分组框、面板（或选中控件所在的容器）左上角，连续双击会依次错开。比窗体还宽的控件（如
+              LED 显示屏）会自动缩小到放得下。选中控件后在右边的<b>属性</b>里改名称、文字等。
+            </li>
+            <li>
+              <b>双击窗体上的控件</b>生成它的默认事件（如按钮的单击），并跳到代码；其他事件在
+              <b>⚡ 事件</b> 里双击事件名。定时器等组件显示在窗体下面的组件栏里。
+            </li>
+            <li>撤销 Ctrl+Z，重做 Ctrl+Y，删除控件 Delete，方向键微调位置。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/designer.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/designer.webp" alt="" loading="lazy" /></a>
-          <figcaption>窗体设计器：左边工具箱，中间窗体，右边属性和事件（这里选中了"打开"按钮，它的单击事件是 btn_open_Click）</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/designer.webp" lazy />
+            <figcaption>窗体设计器：左边工具箱，中间窗体，右边属性和事件（这里选中了"打开"按钮，它的单击事件是 btn_open_Click）</figcaption>
+          </figure>
 
-        <h3>4. 写代码、运行</h3>
-        <ul>
-          <li><b>F5</b> 或 <b>▶ 运行</b>：编译并运行，窗体显示在右边的运行区；<b>Shift+F5</b> 或 <b>■ 停止</b> 结束程序。</li>
-          <li>程序运行时改了代码或窗体，停手 1.5 秒后自动重新运行，不用再按 F5；代码有错误时原来的程序接着运行，改好后再自动重新运行。</li>
-          <li>编译错误显示在窗体下面，点它跳到出错的代码；常见错误会给出中文<b>提示</b>。</li>
-          <li>程序运行时出错（比如文本框是空的就转换成数字），窗体下面显示中文说明和出错的文件、行号，点它跳到那一行。</li>
-          <li><code>Console.WriteLine</code> 的输出、程序保存的图片（项目 4 的拍照）也显示在窗体下面。</li>
-          <li>代码改了 1 秒后自动保存到服务器（工具栏显示"已保存"），换电脑登录也能接着做。</li>
-          <li>窗体太大时运行区会按比例缩小；点运行区右上角的<b>放大</b>让运行区占满整个网页，放大后也可以点<b>停止</b>，Esc 或<b>还原</b>回来。</li>
-        </ul>
+          <h3>4. 写代码、运行</h3>
+          <ul>
+            <li><b>F5</b> 或 <b>▶ 运行</b>：编译并运行，窗体显示在右边的运行区；<b>Shift+F5</b> 或 <b>■ 停止</b> 结束程序。</li>
+            <li>程序运行时改了代码或窗体，停手 1.5 秒后自动重新运行，不用再按 F5；代码有错误时原来的程序接着运行，改好后再自动重新运行。</li>
+            <li>编译错误显示在窗体下面，点它跳到出错的代码；常见错误会给出中文<b>提示</b>。</li>
+            <li>程序运行时出错（比如文本框是空的就转换成数字），窗体下面显示中文说明和出错的文件、行号，点它跳到那一行。</li>
+            <li><code>Console.WriteLine</code> 的输出、程序保存的图片（项目 4 的拍照）也显示在窗体下面。</li>
+            <li>代码改了 1 秒后自动保存到服务器（工具栏显示"已保存"），换电脑登录也能接着做。</li>
+            <li>窗体太大时运行区会按比例缩小；点运行区右上角的<b>放大</b>让运行区占满整个网页，放大后也可以点<b>停止</b>，Esc 或<b>还原</b>回来。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/error.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/error.webp" alt="" loading="lazy" /></a>
-          <figcaption>运行出错：窗体下面用中文说明原因和出错的行，点它跳到代码</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/error.webp" lazy />
+            <figcaption>运行出错：窗体下面用中文说明原因和出错的行，点它跳到代码</figcaption>
+          </figure>
 
-        <h3>5. 虚拟实训台</h3>
-        <ul>
-          <li>
-            运行区下面是虚拟实训台，代替书上的实物设备。设备接在串口服务器上：COM2 → ADAM-4017+，COM3 → ADAM-4150，COM4 → ZigBee 协调器，COM5 → LED 屏（项目 7
-            的 ADAM-4150 和 ADAM-4017+ 一起接在 COM2
-            上，书上的代码就是在一个串口上打开两个模块）。程序里的串口下拉框展开时，每个串口后面也会用灰字标出接的设备。
-          </li>
-          <li>
-            <b>串口要选对</b
-            >：和真机一样，在没接这台设备的串口上打开它不会报错，只是设备没有反应（读到的数据是空的、灯不亮）。忘了点“打开”就读数据、开灯也一样。这时实训台最上方会用红字提示，比如“程序在
-            COM2 上打开 ADAM-4150，它接在 COM3”。
-          </li>
-          <li>
-            鼠标移到实训台的设备上，标题栏会写出它的接线，比如“人体红外 → ADAM-4150 DI0 → 串口服务器
-            COM3”，接的通道和串口也会高亮。串口前面的绿点表示程序打开了这个串口。
-          </li>
-          <li>拖动滑块（或点一下滑块再按方向键）调温度、湿度、光照；点人体红外、烟雾、火焰、红外对射切换有无。程序控制的灯、警示灯、LED 屏会跟着变化。</li>
-          <li>
-            两盏照明灯：<b>照明灯 1</b> 接 ZigBee 继电器节点 1（项目 3 的路灯），<b>照明灯 2</b> 接 ADAM-4150 的 DO1（项目 7 的教室、寝室、会议室）；警示灯接
-            ADAM-4150 的 DO0。
-          </li>
-          <li>时钟可以拨到任意时刻、加快到 10 倍或 60 倍，程序里的 <code>DateTime.Now</code> 跟着它走（情景控制的任务用得到）。</li>
-          <li><b>实训台复位</b>：关掉所有灯、清空 LED 屏，传感器回到默认值。<b>收起</b>：实训台缩成一行，给窗体腾地方。</li>
-        </ul>
+          <h3>5. 虚拟实训台</h3>
+          <ul>
+            <li>
+              运行区下面是虚拟实训台，代替书上的实物设备。设备接在串口服务器上：COM2 → ADAM-4017+，COM3 → ADAM-4150，COM4 → ZigBee 协调器，COM5 → LED 屏（项目 7
+              的 ADAM-4150 和 ADAM-4017+ 一起接在 COM2
+              上，书上的代码就是在一个串口上打开两个模块）。程序里的串口下拉框展开时，每个串口后面也会用灰字标出接的设备。
+            </li>
+            <li>
+              <b>串口要选对</b
+              >：和真机一样，在没接这台设备的串口上打开它不会报错，只是设备没有反应（读到的数据是空的、灯不亮）。忘了点“打开”就读数据、开灯也一样。这时实训台最上方会用红字提示，比如“程序在
+              COM2 上打开 ADAM-4150，它接在 COM3”。
+            </li>
+            <li>
+              鼠标移到实训台的设备上，标题栏会写出它的接线，比如“人体红外 → ADAM-4150 DI0 → 串口服务器
+              COM3”，接的通道和串口也会高亮。串口前面的绿点表示程序打开了这个串口。
+            </li>
+            <li>拖动滑块（或点一下滑块再按方向键）调温度、湿度、光照；点人体红外、烟雾、火焰、红外对射切换有无。程序控制的灯、警示灯、LED 屏会跟着变化。</li>
+            <li>
+              两盏照明灯：<b>照明灯 1</b> 接 ZigBee 继电器节点 1（项目 3 的路灯），<b>照明灯 2</b> 接 ADAM-4150 的 DO1（项目 7 的教室、寝室、会议室）；警示灯接
+              ADAM-4150 的 DO0。
+            </li>
+            <li>时钟可以拨到任意时刻、加快到 10 倍或 60 倍，程序里的 <code>DateTime.Now</code> 跟着它走（情景控制的任务用得到）。</li>
+            <li><b>实训台复位</b>：关掉所有灯、清空 LED 屏，传感器回到默认值。<b>收起</b>：实训台缩成一行，给窗体腾地方。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/board.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/board.webp" alt="" loading="lazy" /></a>
-          <figcaption>虚拟实训台：程序打开了照明灯 2（ADAM-4150 DO1）；拖滑块调温湿度、光照，点卡片切换传感器</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/board.webp" lazy />
+            <figcaption>虚拟实训台：程序打开了照明灯 2（ADAM-4150 DO1）；拖滑块调温湿度、光照，点卡片切换传感器</figcaption>
+          </figure>
 
-        <h3>6. 自己检查、提交</h3>
-        <ul>
-          <li>
-            <b>任务</b
-            >面板下面是<b>评价项</b>：这个任务要自动检查哪些功能；点<b>自己检查</b>，平台按评分规则试运行你的程序，告诉你哪项没通过、为什么。不计分，可以检查很多次。
-          </li>
-          <li>做作业时点<b>提交</b>，平台自动评分，几十秒内出结果（全班同时提交时要排队）。截止前可以改了再交，以最后一次为准。</li>
-          <li>点工具栏上的分数，看每一项的得分；老师评阅后，这里能看到老师的打分和评语。</li>
-        </ul>
+          <h3>6. 自己检查、提交</h3>
+          <ul>
+            <li>
+              <b>任务</b
+              >面板下面是<b>评价项</b>：这个任务要自动检查哪些功能；点<b>自己检查</b>，平台按评分规则试运行你的程序，告诉你哪项没通过、为什么。不计分，可以检查很多次。
+            </li>
+            <li>做作业时点<b>提交</b>，平台自动评分，几十秒内出结果（全班同时提交时要排队）。截止前可以改了再交，以最后一次为准。</li>
+            <li>点工具栏上的分数，看每一项的得分；老师评阅后，这里能看到老师的打分和评语。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/check.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/check.webp" alt="" loading="lazy" /></a>
-          <figcaption>任务面板最下面的"自己检查"：逐项显示通过没有</figcaption>
-        </figure>
-        <figure class="shot">
-          <a href="/help-img/result.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/result.webp" alt="" loading="lazy" /></a>
-          <figcaption>提交后点工具栏上的分数看评分结果</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/check.webp" lazy />
+            <figcaption>任务面板最下面的"自己检查"：逐项显示通过没有</figcaption>
+          </figure>
+          <figure class="shot">
+            <NImage src="/help-img/result.webp" lazy />
+            <figcaption>提交后点工具栏上的分数看评分结果</figcaption>
+          </figure>
 
-        <h3>7. 数据库（项目 6、8）</h3>
-        <ul>
-          <li>
-            点右上角的<b>数据库</b>（在新标签页打开），代替书上的 SSMS：左边点“+ 新建库”“+ 新建表”，点表名编辑表里的数据，表右边的
-            ⋯（或右键）里能查询、设计表结构、删除；<b>新建查询</b>写 SQL（输入时会提示关键字、表名和列名，写"表名."或"别名."列出这张表的列），按 F5 执行。
-          </li>
-          <li>每个人有自己的一套数据库，只有自己能看到，一直保留。程序里的连接字符串只看数据库名，服务器名、账号密码照书上写就行。</li>
-          <li>数据弄乱了：点<b>恢复实验初始数据</b>，选实验（默认是刚才做的实验），把这个实验用到的库换回初始数据（其他库不动）。</li>
-          <li>点右上角的<b>自由练习</b>回到实验。</li>
-        </ul>
-        <figure class="shot">
-          <a href="/help-img/db.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/db.webp" alt="" loading="lazy" /></a>
-          <figcaption>数据库页面：左边是你的库和表（点表名编辑数据），右边写 SQL、按 F5 执行，下面是结果</figcaption>
-        </figure>
+          <h3>7. 数据库（项目 6、8）</h3>
+          <ul>
+            <li>
+              点右上角的<b>数据库</b>（在新标签页打开），代替书上的 SSMS：左边点“+ 新建库”“+ 新建表”，点表名编辑表里的数据，表右边的
+              ⋯（或右键）里能查询、设计表结构、删除；<b>新建查询</b>写 SQL（输入时会提示关键字、表名和列名，写"表名."或"别名."列出这张表的列），按 F5 执行。
+            </li>
+            <li>每个人有自己的一套数据库，只有自己能看到，一直保留。程序里的连接字符串只看数据库名，服务器名、账号密码照书上写就行。</li>
+            <li>数据弄乱了：点<b>恢复实验初始数据</b>，选实验（默认是刚才做的实验），把这个实验用到的库换回初始数据（其他库不动）。</li>
+            <li>点右上角自己的名字 → <b>自由练习</b>回到实验。</li>
+          </ul>
+          <figure class="shot">
+            <NImage src="/help-img/db.webp" lazy />
+            <figcaption>数据库页面：左边是你的库和表（点表名编辑数据），右边写 SQL、按 F5 执行，下面是结果</figcaption>
+          </figure>
 
-        <h3>8. 导出 EXE 或 VS 工程，在机房电脑上运行</h3>
-        <ul>
-          <li>
-            点工具栏的<b>导出</b>→<b>导出 EXE</b>，下载一个
-            exe（名字是工程名，比如“教室情景模式.exe”）。拷到接着实训台的机房电脑上双击运行，选对串口、点打开，就能控制<b>真的</b>设备。
-          </li>
-          <li>导出时照机房电脑上的设备类库编译，和在 VS 里编译一样。代码有错误时弹出报错，点它跳到出错的地方。</li>
-          <li>设备类库已经装在 exe 里，不用另外拷 dll。项目 7 寝室的音乐第一次运行时会放到 exe 旁边的 Resources 文件夹。</li>
-          <li>项目 6、8 的程序连的是机房电脑上真的 SQL Server，那台电脑上要有书上建的库。</li>
-          <li>第一次运行时 Windows 可能提示“Windows 已保护你的电脑”：点<b>更多信息</b>→<b>仍要运行</b>。</li>
-          <li>
-            想在机房的 VS 里接着改，点<b>导出</b>→<b>导出 VS 工程</b>，下载一个 zip。解压后双击里面的 .sln 文件用 VS 打开，按 F5
-            运行。工程和书上的一样：设备类库在 lib 文件夹里，图片、声音在 Resources 文件夹里。
-          </li>
-          <li>
-            机房的 VS 2012 只认 C# 5 的写法。导出工程时照它检查，用了新写法（比如
-            <code>$"温度{t}"</code>）会弹出报错和改法，改好再导出。
-          </li>
-        </ul>
+          <h3>8. 导出 EXE 或 VS 工程，在机房电脑上运行</h3>
+          <ul>
+            <li>
+              点工具栏的<b>导出</b>→<b>导出 EXE</b>，下载一个
+              exe（名字是工程名，比如“教室情景模式.exe”）。拷到接着实训台的机房电脑上双击运行，选对串口、点打开，就能控制<b>真的</b>设备。
+            </li>
+            <li>导出时照机房电脑上的设备类库编译，和在 VS 里编译一样。代码有错误时弹出报错，点它跳到出错的地方。</li>
+            <li>设备类库已经装在 exe 里，不用另外拷 dll。项目 7 寝室的音乐第一次运行时会放到 exe 旁边的 Resources 文件夹。</li>
+            <li>项目 6、8 的程序连的是机房电脑上真的 SQL Server，那台电脑上要有书上建的库。</li>
+            <li>第一次运行时 Windows 可能提示“Windows 已保护你的电脑”：点<b>更多信息</b>→<b>仍要运行</b>。</li>
+            <li>
+              想在机房的 VS 里接着改，点<b>导出</b>→<b>导出 VS 工程</b>，下载一个 zip。解压后双击里面的 .sln 文件用 VS 打开，按 F5
+              运行。工程和书上的一样：设备类库在 lib 文件夹里，图片、声音在 Resources 文件夹里。
+            </li>
+            <li>
+              机房的 VS 2012 只认 C# 5 的写法。导出工程时照它检查，用了新写法（比如
+              <code>$"温度{t}"</code>）会弹出报错和改法，改好再导出。
+            </li>
+          </ul>
 
-        <h3>9. 我的学习</h3>
-        <ul>
-          <li>
-            工具栏的<b>我的学习</b>：每个作业的得分和用时、自由练习过哪些实验、每天做了多久，还有<b>你常犯的编译错误和运行出错</b>，每种都写了是什么原因、怎么改。
-          </li>
-          <li>用时是改代码、运行或操作程序的分钟数，开着页面不动不算。老师也能看到这些。</li>
-        </ul>
+          <h3>9. 我的学习</h3>
+          <ul>
+            <li>
+              右上角自己的名字 →
+              <b>我的学习</b>：每个作业的得分和用时、自由练习过哪些实验、每天做了多久，还有<b>你常犯的编译错误和运行出错</b>，每种都写了是什么原因、怎么改。
+            </li>
+            <li>用时是改代码、运行或操作程序的分钟数，开着页面不动不算。老师也能看到这些。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/learning.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/learning.webp" alt="" loading="lazy" /></a>
-          <figcaption>我的学习：作业得分和用时、每天做了多久、常犯的错误和改法</figcaption>
-        </figure>
-      </section>
+          <figure class="shot">
+            <NImage src="/help-img/learning.webp" lazy />
+            <figcaption>我的学习：作业得分和用时、每天做了多久、常犯的错误和改法</figcaption>
+          </figure>
+        </section>
 
-      <section v-if="currentUser?.role === 'teacher'" id="teacher">
-        <h2>老师</h2>
+        <section v-if="currentUser?.role === 'teacher'" id="teacher">
+          <h2>老师</h2>
 
-        <h3>1. 建班、导入名单</h3>
-        <ul>
-          <li>右上角<b>班级管理</b> → <b>班级 ＋ 新建</b>，输入班级名。</li>
-          <li>
-            <b>学生</b>标签页 → <b>导入名单（CSV）</b>。CSV 两列：用户名、密码（可以点<b>下载名单模板</b>），用户名就是学生姓名，前面带的班级代号（如
-            ks241）会自动去掉；Excel 另存为 CSV 即可，GBK、UTF-8 都行。密码留空时自动生成 6 位数字。
-          </li>
-          <li>导入后点<b>导出名单（含密码）</b>，打印或发给学生。学生忘了密码，在名单里点<b>重置密码</b>。</li>
-        </ul>
+          <h3>1. 建班、导入名单</h3>
+          <ul>
+            <li>点右上角自己的名字 → <b>班级管理</b> → <b>班级 ＋ 新建</b>，输入班级名。</li>
+            <li>
+              <b>学生</b>标签页 → <b>导入名单（CSV）</b>。CSV 两列：用户名、密码（可以点<b>下载名单模板</b>），用户名就是学生姓名，前面带的班级代号（如
+              ks241）会自动去掉；Excel 另存为 CSV 即可，GBK、UTF-8 都行。密码留空时自动生成 6 位数字。
+            </li>
+            <li>导入后点<b>导出名单（含密码）</b>，打印或发给学生。学生忘了密码，在名单里点<b>重置密码</b>。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/students.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/students.webp" alt="" loading="lazy" /></a>
-          <figcaption>班级管理：导入名单后，用户名和密码都在这里，可以导出、重置密码</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/students.webp" lazy />
+            <figcaption>班级管理：导入名单后，用户名和密码都在这里，可以导出、重置密码</figcaption>
+          </figure>
 
-        <h3>2. 布置作业</h3>
-        <ul>
-          <li><b>作业</b>标签页 → <b>布置作业</b>：选实验、起点（界面已做好 / 空白工程）、截止时间（可以不限）。</li>
-          <li>自动评分项默认每项 10 分；老师评分项（界面、注释、命名）由你在评阅时打分，可以增删、改分值。</li>
-          <li><b>任务说明</b>预填实验的说明，可以改写，比如在最前面加一段"这次只做前 3 步"；布置后也能在<b>修改</b>里改。</li>
-        </ul>
+          <h3>2. 布置作业</h3>
+          <ul>
+            <li><b>作业</b>标签页 → <b>布置作业</b>：选实验、起点（界面已做好 / 空白工程）、截止时间（可以不限）。</li>
+            <li>自动评分项默认每项 10 分；老师评分项（界面、注释、命名）由你在评阅时打分，可以增删、改分值。</li>
+            <li><b>任务说明</b>预填实验的说明，可以改写，比如在最前面加一段"这次只做前 3 步"；布置后也能在<b>修改</b>里改。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/assign.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/assign.webp" alt="" loading="lazy" /></a>
-          <figcaption>布置作业：选实验和起点，自动评分项、任务说明、老师评分项都可以改</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/assign.webp" lazy />
+            <figcaption>布置作业：选实验和起点，自动评分项、任务说明、老师评分项都可以改</figcaption>
+          </figure>
 
-        <h3>3. 评阅、分析、成绩</h3>
-        <ul>
-          <li>作业列表里点<b>评阅</b>：左边是全班学生，右边是选中学生的界面截图、代码、自动评分结果和规范提示。</li>
-          <li><b>▶ 运行</b>标签页直接运行学生的程序，可以操作实训台（改动不保存）。</li>
-          <li>
-            <b>过程回放</b>标签页：一步步看学生的代码是怎么写出来的。第 0
-            步是布置的起点，之后每一步是学生运行时的代码（至少隔一分钟存一份），只显示和上一步比改了的地方；左边是这次运行的结果（编译报错、运行出错、自己检查、提交），点报错跳到那一行。<b
-              >▶ 播放</b
-            >自动往后走。
-          </li>
-          <li>配置了 AI 评阅时，右边有<b>AI 建议</b>的分数和评语，点<b>采纳 AI 建议</b>填进表单，改好后<b>保存并看下一个</b>。</li>
-          <li>
-            评阅页工具栏切到<b>分析</b>（或作业列表里点<b>分析</b>）：全班得分分布、每个评分项的通过率、常见编译错误和运行出错、每个学生做了多久、运行和自己检查了几次。点学生那一行回到评阅看他的提交。用时、运行次数这些过程数据从
-            2026 年 11 月 22 日开始记录。
-          </li>
-          <li>
-            <b>学习档案</b
-            >（名单里每个学生后面的按钮，或评阅页学生名字旁边）：这个学生所有作业的得分和用时、自由练习、每天做了多久、常犯的错误，和学生自己在"我的学习"里看到的一样。
-          </li>
-          <li><b>成绩</b>标签页是全班 × 全部作业的总分，<b>导出成绩表（CSV）</b>用 Excel 打开不乱码。</li>
-        </ul>
+          <h3>3. 评阅、分析、成绩</h3>
+          <ul>
+            <li>作业列表里点<b>评阅</b>：左边是全班学生，右边是选中学生的界面截图、代码、自动评分结果和规范提示。</li>
+            <li><b>▶ 运行</b>标签页直接运行学生的程序，可以操作实训台（改动不保存）。</li>
+            <li>
+              <b>过程回放</b>标签页：一步步看学生的代码是怎么写出来的。第 0
+              步是布置的起点，之后每一步是学生运行时的代码（至少隔一分钟存一份），只显示和上一步比改了的地方；左边是这次运行的结果（编译报错、运行出错、自己检查、提交），点报错跳到那一行。<b
+                >▶ 播放</b
+              >自动往后走。
+            </li>
+            <li>配置了 AI 评阅时，右边有<b>AI 建议</b>的分数和评语，点<b>采纳 AI 建议</b>填进表单，改好后<b>保存并看下一个</b>。</li>
+            <li>
+              评阅页工具栏切到<b>分析</b>（或作业列表里点<b>分析</b>）：全班得分分布、每个评分项的通过率、常见编译错误和运行出错、每个学生做了多久、运行和自己检查了几次。点学生那一行回到评阅看他的提交。用时、运行次数这些过程数据从
+              2026 年 11 月 22 日开始记录。
+            </li>
+            <li>
+              <b>学习档案</b
+              >（名单里每个学生后面的按钮，或评阅页学生名字旁边）：这个学生所有作业的得分和用时、自由练习、每天做了多久、常犯的错误，和学生自己在"我的学习"里看到的一样。
+            </li>
+            <li><b>成绩</b>标签页是全班 × 全部作业的总分，<b>导出成绩表（CSV）</b>用 Excel 打开不乱码。</li>
+          </ul>
 
-        <figure class="shot">
-          <a href="/help-img/review.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/review.webp" alt="" loading="lazy" /></a>
-          <figcaption>评阅：左边是学生列表，中间看界面截图、运行程序、看代码，右边打分写评语</figcaption>
-        </figure>
-        <figure class="shot">
-          <a href="/help-img/analysis.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/analysis.webp" alt="" loading="lazy" /></a>
-          <figcaption>分析：得分分布、评分项通过率、常见错误，下面是每个学生的用时和运行次数</figcaption>
-        </figure>
-        <figure class="shot">
-          <a href="/help-img/grades.webp" title="点击放大" @click.prevent="zoom"><img src="/help-img/grades.webp" alt="" loading="lazy" /></a>
-          <figcaption>成绩：全班 × 全部作业的总分，"待评"表示老师还没打分</figcaption>
-        </figure>
+          <figure class="shot">
+            <NImage src="/help-img/review.webp" lazy />
+            <figcaption>评阅：左边是学生列表，中间看界面截图、运行程序、看代码，右边打分写评语</figcaption>
+          </figure>
+          <figure class="shot">
+            <NImage src="/help-img/analysis.webp" lazy />
+            <figcaption>分析：得分分布、评分项通过率、常见错误，下面是每个学生的用时和运行次数</figcaption>
+          </figure>
+          <figure class="shot">
+            <NImage src="/help-img/grades.webp" lazy />
+            <figcaption>成绩：全班 × 全部作业的总分，"待评"表示老师还没打分</figcaption>
+          </figure>
 
-        <h3>4. 上课前后</h3>
-        <ul>
-          <li>第一次用之前，让学生提前打开一次网站：实验页第一次打开要下载约 1.5 MB，之后浏览器会缓存；全班同时第一次打开时会慢一些。</li>
-          <li>上课时间不要更新平台（推送代码）：更新会重启平台，正在运行的学生程序会结束（页面会提示并自动重连）。</li>
-          <li>全班同时"自己检查"或提交时要排队，项目 8 这种大任务最后一个人大约等 1.5 分钟。</li>
-          <li>重要节点前后备份数据：在服务器上执行 <code>deploy/backup.sh</code>（说明见 deploy/README.md）。</li>
-        </ul>
-      </section>
+          <h3>4. 上课前后</h3>
+          <ul>
+            <li>第一次用之前，让学生提前打开一次网站：实验页第一次打开要下载约 1.5 MB，之后浏览器会缓存；全班同时第一次打开时会慢一些。</li>
+            <li>上课时间不要更新平台（推送代码）：更新会重启平台，正在运行的学生程序会结束（页面会提示并自动重连）。</li>
+            <li>全班同时"自己检查"或提交时要排队，项目 8 这种大任务最后一个人大约等 1.5 分钟。</li>
+            <li>重要节点前后备份数据：在服务器上执行 <code>deploy/backup.sh</code>（说明见 deploy/README.md）。</li>
+          </ul>
+        </section>
 
-      <section id="faq">
-        <h2>常见问题</h2>
-        <dl>
-          <dt>点了运行，只显示"已停止"，没有窗体</dt>
-          <dd>代码有编译错误：看运行区窗体下面的红字，点它跳到出错的地方，照着<b>提示</b>改。</dd>
-          <dt>窗体上的按钮点了没反应</dt>
-          <dd>看运行区有没有显示"与服务器的连接断开了"。断开后程序已经结束，等它自动连上，再按 F5 重新运行。</dd>
-          <dt>代码改乱了，想重来</dt>
-          <dd>工具栏的<b>恢复原始代码</b>（做作业时是<b>恢复到作业起点</b>）把代码换回起点；已经提交的不受影响。</dd>
-          <dt>登录时提示密码输错太多次</dt>
-          <dd>同一个账号连续输错 10 次要等 10 分钟，或者请老师在名单里查看、重置密码。</dd>
-          <dt>网页打不开、一片空白</dt>
-          <dd>换新版的 Chrome 或 Edge</dd>
-          <dt>评分说"找不到名为 … 的控件"</dt>
-          <dd>控件名要和书上的一样（注意大小写），在设计器的属性里改<b>名称</b>；改名后代码里用到旧名字的地方也要改。</dd>
-        </dl>
-      </section>
-    </main>
-
-    <div v-if="zoomed" class="zoom" @click="zoomed = null">
-      <img :src="zoomed.src" alt="" @load="fit" />
-      <div class="zoom-caption">{{ zoomed.caption }}（点任意处或按 Esc 关闭）</div>
-    </div>
+        <section id="faq">
+          <h2>常见问题</h2>
+          <dl>
+            <dt>点了运行，只显示"已停止"，没有窗体</dt>
+            <dd>代码有编译错误：看运行区窗体下面的红字，点它跳到出错的地方，照着<b>提示</b>改。</dd>
+            <dt>窗体上的按钮点了没反应</dt>
+            <dd>看运行区有没有显示"与服务器的连接断开了"。断开后程序已经结束，等它自动连上，再按 F5 重新运行。</dd>
+            <dt>代码改乱了，想重来</dt>
+            <dd>工具栏的<b>恢复原始代码</b>（做作业时是<b>恢复到作业起点</b>）把代码换回起点；已经提交的不受影响。</dd>
+            <dt>登录时提示密码输错太多次</dt>
+            <dd>同一个账号连续输错 10 次要等 10 分钟，或者请老师在名单里查看、重置密码。</dd>
+            <dt>网页打不开、一片空白</dt>
+            <dd>换新版的 Chrome 或 Edge</dd>
+            <dt>评分说"找不到名为 … 的控件"</dt>
+            <dd>控件名要和书上的一样（注意大小写），在设计器的属性里改<b>名称</b>；改名后代码里用到旧名字的地方也要改。</dd>
+          </dl>
+        </section>
+      </main>
+    </NImageGroup>
   </div>
 </template>
 
@@ -376,47 +356,22 @@ code {
   font-size: 13px;
 }
 
-/* 截图：按原尺寸显示，比正文宽时缩小；点击在页面上放大 */
+/* 截图：按原尺寸显示，比正文宽时缩小；点击用 NImage 的预览放大（左右键看上一张、下一张） */
 .shot {
   margin: 12px 0 16px;
 }
 
-.shot img {
+.shot :deep(.n-image) {
+  display: block;
+}
+
+.shot :deep(img) {
   display: block;
   max-width: 100%;
   height: auto;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
-}
-
-.shot a {
-  cursor: zoom-in;
-}
-
-.zoom {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  background: rgb(0 0 0 / 0.88);
-  cursor: zoom-out;
-}
-
-.zoom img {
-  max-width: 100%;
-  border-radius: 4px;
-  background: #fff;
-}
-
-.zoom-caption {
-  color: #fff;
-  font-size: 14px;
 }
 
 .shot figcaption {

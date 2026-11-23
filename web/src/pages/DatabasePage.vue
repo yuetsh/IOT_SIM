@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 数据库页面（代替教材里的 SSMS）：左边对象资源管理器，右边查询窗口、编辑前 200 行、表设计器的标签页。
 // 每个学生一套自己的数据库，长期保存；可以按实验恢复初始数据。
-import { NButton, NInput, NModal, NSelect, NTabPane, NTabs, useDialog, useMessage } from 'naive-ui'
+import { NAlert, NButton, NEmpty, NInput, NModal, NSelect, NTabPane, NTabs, NText, useDialog, useMessage } from 'naive-ui'
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../api'
 import TopNav from '../TopNav.vue'
@@ -205,11 +205,15 @@ onMounted(refresh)
             <DesignTab v-else :key="tab.key" :database="tab.database" :table="tab.table" @saved="designSaved(tab, $event)" />
           </NTabPane>
         </NTabs>
-        <div v-else class="empty">
-          <p>左边是你的数据库：点“+ 新建库”“+ 新建表”建库建表，点表名编辑表里的数据，表右边的 ⋯ 里还能查询、设计表结构、删除。</p>
-          <p>也可以点"新建查询"，用 SQL 语句建库、建表、增删改查。</p>
-          <p>运行要用数据库的实验（教材项目 6 的任务 2、3，项目 8）时，平台会自动建好需要的库；把实验库恢复成初始数据，点"恢复实验初始数据"。</p>
-        </div>
+        <NEmpty v-else size="large" description="还没有打开表或查询" class="empty">
+          <template #extra>
+            <NText depth="3">
+              <p>左边是你的数据库：点“+ 新建库”“+ 新建表”建库建表，点表名编辑表里的数据，表右边的 ⋯ 里还能查询、设计表结构、删除。</p>
+              <p>也可以点"新建查询"，用 SQL 语句建库、建表、增删改查。</p>
+              <p>运行要用数据库的实验（教材项目 6 的任务 2、3，项目 8）时，平台会自动建好需要的库；把实验库恢复成初始数据，点"恢复实验初始数据"。</p>
+            </NText>
+          </template>
+        </NEmpty>
       </main>
     </div>
 
@@ -226,7 +230,9 @@ onMounted(refresh)
 
     <NModal :show="restoring !== null" preset="card" title="恢复实验初始数据" style="width: 460px" @update:show="restoring = null">
       <NSelect v-model:value="restoring" :options="sampleOptions(experiments)" :render-tag="renderSampleTag" />
-      <p class="warning">会用实验的初始数据替换实验用到的数据库（如"环境数据表"），你在这些库里做的改动会丢失；其他数据库不受影响。</p>
+      <NAlert type="warning" :show-icon="false" class="warning">
+        会用实验的初始数据替换实验用到的数据库（如"环境数据表"），你在这些库里做的改动会丢失；其他数据库不受影响。
+      </NAlert>
       <template #footer>
         <div class="dialog-buttons">
           <NButton type="warning" :loading="restoreBusy" :disabled="!restoring" @click="restore">恢复</NButton>
@@ -261,7 +267,6 @@ onMounted(refresh)
   font-size: 13px;
   color: #6b7280;
 }
-
 
 .workspace {
   flex: 1;
@@ -300,9 +305,8 @@ onMounted(refresh)
 
 .empty {
   margin: auto;
-  color: #6b7280;
-  font-size: 14px;
-  text-align: center;
+  max-width: 640px;
+  padding: 0 16px;
   line-height: 1.8;
 }
 
@@ -313,8 +317,7 @@ onMounted(refresh)
 }
 
 .warning {
-  color: #b45309;
-  font-size: 13px;
+  margin-top: 12px;
 }
 
 @media (max-width: 700px) {

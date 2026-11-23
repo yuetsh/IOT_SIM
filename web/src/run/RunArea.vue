@@ -2,6 +2,7 @@
 // 运行区：学生程序的窗体（在一块"桌面"上）、提示框、虚拟实训台，以及编译错误和控制台输出。
 // 实验页和老师的评阅页共用。
 import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
+import { NButton, NImage, NImageGroup } from 'naive-ui'
 import { loadGallery } from '../designer/resources'
 import TrainingBoard from '../scene/TrainingBoard.vue'
 import type { SizeValue } from '../winforms/format'
@@ -26,7 +27,6 @@ provide(
 void loadGallery()
 
 /** 照片列表里点开看大图 */
-const viewing = ref<{ path: string; url: string } | null>(null)
 
 // ---------- 窗体比桌面大时整体缩小（项目 8 的窗体有 1000 多像素宽），"放大"后运行区占满整个网页 ----------
 const maximized = ref(false)
@@ -74,17 +74,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     <div class="stage">
       <div class="desktop-tools">
         <span v-if="scale < 1" class="desktop-scale" title='窗体比运行区大，按比例缩小显示；点"放大"可以看得更清楚'>缩放 {{ Math.round(scale * 100) }}%</span>
-        <button
+        <NButton
           v-if="maximized && (state.status === 'compiling' || state.status === 'running')"
-          type="button"
+          size="tiny"
           title="结束正在运行的程序（Shift+F5）"
           @click="session.stop()"
         >
           ■ 停止
-        </button>
-        <button type="button" :title="maximized ? '还原（Esc）' : '运行区占满整个网页'" @click="maximized = !maximized">
+        </NButton>
+        <NButton size="tiny" :title="maximized ? '还原（Esc）' : '运行区占满整个网页'" @click="maximized = !maximized">
           {{ maximized ? '还原' : '放大' }}
-        </button>
+        </NButton>
       </div>
       <div ref="desktop" class="desktop">
         <div
@@ -140,30 +140,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     </div>
     <div v-if="state.savedImages.length" class="photos">
       <div class="photos-title">程序保存的图片（{{ state.savedImages.length }}）<span>只在这次运行中保留</span></div>
-      <div class="photos-list">
-        <figure
-          v-for="(photo, i) in state.savedImages"
-          :key="i"
-          :title="`${photo.path}（点击查看大图）`"
-          @click="
-            viewing = {
-              path: photo.path,
-              url: session.images.get(photo.image) ?? '',
-            }
-          "
-        >
-          <img :src="session.images.get(photo.image)" alt="" />
-          <figcaption>{{ photo.path }}</figcaption>
-        </figure>
-      </div>
+      <NImageGroup>
+        <div class="photos-list">
+          <figure v-for="(photo, i) in state.savedImages" :key="i" :title="`${photo.path}（点击查看大图）`">
+            <NImage :src="session.images.get(photo.image)" width="120" height="90" object-fit="cover" />
+            <figcaption>{{ photo.path }}</figcaption>
+          </figure>
+        </div>
+      </NImageGroup>
     </div>
     <TrainingBoard :board="state.board" :playing="state.playing" @set="session.setBoard" @reset="session.resetBoard" />
-    <div v-if="viewing" class="photo-viewer" @click="viewing = null">
-      <figure>
-        <img :src="viewing.url" alt="" />
-        <figcaption>{{ viewing.path }}（点击任意处关闭）</figcaption>
-      </figure>
-    </div>
   </section>
 </template>
 
@@ -220,16 +206,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 .desktop-scale {
   color: #6b7280;
-}
-
-.desktop-tools button {
-  padding: 1px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 3px;
-  background: #fff;
-  color: #374151;
-  font-size: 12px;
-  cursor: pointer;
 }
 
 .desktop-tools button:hover {
@@ -297,16 +273,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   flex: none;
   width: 120px;
   margin: 0;
-  cursor: zoom-in;
 }
 
-.photos-list img {
+.photos-list :deep(.n-image) {
   display: block;
-  width: 120px;
-  height: 90px;
-  object-fit: cover;
   border-radius: 3px;
   border: 1px solid #d1d5db;
+  overflow: hidden;
 }
 
 .photos-list figcaption {
@@ -314,30 +287,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #4b5563;
-}
-
-.photo-viewer {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(0 0 0 / 0.6);
-  cursor: zoom-out;
-}
-
-.photo-viewer figure {
-  margin: 0;
-  max-width: 90vw;
-  text-align: center;
-  color: #fff;
-}
-
-.photo-viewer img {
-  max-width: 90vw;
-  max-height: 80vh;
-  border-radius: 4px;
 }
 
 .output {
