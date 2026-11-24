@@ -75,6 +75,7 @@
 - **push 时开发机得开着。** 没开的话任务在 Gitea 里排队，开机后 runner 连上就接着跑；排队超过 24 小时会被作废，要在 Actions 页面重跑。
 - 在 Gitea 的 Actions 页面点 Run workflow 可以手动重新部署（比如改了服务器上的 `.env` 之后）。
 - `prebuilt/COMMIT` 记着产物是哪个提交编的，和要部署的提交对不上时 `update.sh` 直接失败，不会把旧产物配新代码。
+- 服务器部署成功后，最后一步把网页同步到**机房（debian114）**：那边只有 Caddy，接口和 WebSocket 反代回 iot.xuyue.cc，学生访问 `http://10.13.114.114:86`，见 [school/README.md](../school/README.md)。机房连不上时只有这一步红，服务器已经部署好了。
 
 为什么不在服务器或 GitHub 上编：服务器只有 2 核，学生程序也在上面跑，以前服务器自己编约一分钟，dotnet 和 vite 把两个核占满；GitHub 上测试约 5 分钟，push 后 6 分钟多才上线。开发机 16 核，服务端测试同时跑（`bun test --parallel`，评分测试标了 `describe.concurrent`）约半分钟。
 

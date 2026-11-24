@@ -1,0 +1,25 @@
+# 机房（debian114）的 IOT：只放网页，/api、/ws、/resources 转给服务器（iot.xuyue.cc），
+# 账号、作品、作业、提交都只有服务器上那一份 SQLite，学生程序也在服务器上编译、运行。
+# 学生机出不了外网，是这台机器替它们去连服务器。那条线断了，机房的 IOT 就用不了。
+:80 {
+	encode zstd gzip
+
+	# 接口、运行程序的 WebSocket、设计器的素材库。Caddy 自动处理 WebSocket 升级，长连接不设超时
+	@backend path /api /api/* /ws /resources/*
+	handle @backend {
+		reverse_proxy https://iot.xuyue.cc {
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	# 打包好的网页：带哈希的 assets 长期缓存，其余（index.html、使用说明截图）每次都检查更新，和服务器上一样
+	handle {
+		root * /usr/share/caddy
+		@assets path /assets/*
+		@other not path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header @other Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

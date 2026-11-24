@@ -1,5 +1,5 @@
 # push 到 origin（git.xuyue.cc）的 main 就部署：在开发机上编好产物、跑测试 → 产物 rsync 到服务器的 prebuilt/ →
-# 服务器上 deploy/update.sh --prebuilt（拉代码、用现成产物构建镜像、重启）。
+# 服务器上 deploy/update.sh --prebuilt（拉代码、用现成产物构建镜像、重启）→ 网页同步到机房（school/）。
 #
 # 跑在哪：开发机上的 gitea-runner（host 模式，标签 iot-deploy；和 OJ2 共用一个 runner，一次只跑一个任务，
 # 两边的部署排队，不会同时挤服务器）。runner 的装法见 deploy/README.md「自动部署」。
@@ -133,3 +133,26 @@ jobs:
             esac
           done
           exit $code
+
+      # 机房（debian114）只放网页 + Caddy，/api、/ws、/resources 反代回服务器，见 school/README.md。
+      # 放在服务器部署成功之后：网页和后端是同一个提交。机房关机、断网时只有这一步红，服务器已经部署好了，
+      # 修好后重跑这个任务就行（这期间机房还是上一版网页，接口变了的话可能有页面出错）。
+      # fschool 是开发机 ~/.ssh/config 里经 debian 跳板的机房。
+      - name: 机房：网页 + Caddy
+        timeout-minutes: 5
+        run: |
+          ssh_opts="-o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8"
+          ssh $ssh_opts fschool 'mkdir -p /root/IOT/build'
+          rsync -az -c --delete-delay --delay-updates --no-owner --no-group -e "ssh $ssh_opts" \
+            web/dist/ fschool:/root/IOT/build/
+          # Caddyfile 是单文件挂载：rsync 换了 inode，容器里看到的还是旧的，变了就重启容器
+          changed=$(rsync -ac --no-owner --no-group -i -e "ssh $ssh_opts" \
+            school/Caddyfile school/compose.yaml fschool:/root/IOT/)
+          ssh $ssh_opts fschool "set -e
+            cd /root/IOT
+            docker compose up -d
+            if [ -n '$changed' ]; then docker compose restart; fi
+            sleep 2
+            code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:86/api/me)
+            [ \"\$code\" = 401 ] || { docker logs --tail 30 iot-web; echo \"机房反代接口不是 401（未登录）：\$code\"; exit 1; }
+            echo '机房 OK'"
