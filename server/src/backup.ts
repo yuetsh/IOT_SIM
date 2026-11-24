@@ -1,7 +1,7 @@
 // 手动备份：平台数据库（账号、班级、作品、作业、提交、评阅）和每个学生的数据库，导出到一个目录，
 // 目录结构和 data/ 一样。服务器上用 deploy/backup.sh 备份、deploy/restore.sh 恢复（见 deploy/README.md）。
 import { Database } from 'bun:sqlite'
-import { mkdir, readdir, rename, rm } from 'node:fs/promises'
+import { lstat, mkdir, readdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { config } from './config'
 
@@ -31,7 +31,15 @@ export async function backupTo(target: string) {
   for (const user of await readdir(databases).catch(() => [] as string[])) {
     const files = (await readdir(join(databases, user)).catch(() => [] as string[])).filter((f) => f.endsWith('.db'))
     if (files.length > 0) await mkdir(join(temp, 'databases', user), { recursive: true })
-    for (const file of files) await saveCopy(join(databases, user, file), join(temp, 'databases', user, file))
+    for (const file of files) {
+      const path = join(databases, user, file)
+      // 学生的库目录里是学生程序写的文件：链接文件不跟（可能指向别处），不是 SQLite 的跳过，一个坏文件不能让整个备份失败
+      if (!(await lstat(path)).isFile()) {
+        console.warn(`备份跳过 ${path}：不是普通文件`)
+        continue
+      }
+      await saveCopy(path, join(temp, 'databases', user, file)).catch((error) => console.warn(`备份跳过 ${path}：${error}`))
+    }
   }
   await rm(target, { recursive: true, force: true })
   await rename(temp, target)

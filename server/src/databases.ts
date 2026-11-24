@@ -72,7 +72,8 @@ export async function gradingDatabaseDir(sampleId: string): Promise<string | und
     template = (async () => {
       const script = await experimentScript(sampleId)
       if (script === undefined) return undefined
-      const dir = resolve(config.runsDir, 'db-templates', sampleId)
+      // 目录带上进程号：同一台机器上的几个进程（测试并行、服务器和计算节点）各建各的，不会互相删掉
+      const dir = resolve(config.runsDir, `db-templates-${process.pid}`, sampleId)
       await rm(dir, { recursive: true, force: true })
       await runScript(dir, script)
       return dir

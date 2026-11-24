@@ -53,7 +53,11 @@ export class RunSession {
     })
     // 编译期间又点了一次"运行"或"停止"：这次结果作废
     if (generation !== this.generation) {
-      program?.kill()
+      // 等它真的结束再让下一次运行开始，免得两个程序同时用学生的数据库
+      if (program) {
+        program.kill()
+        await program.exited
+      }
       return
     }
     this.send({ type: 'compiled', ...compiled })

@@ -39,7 +39,7 @@ internal sealed class DatabaseStore
 
     public IEnumerable<string> List() =>
         System.IO.Directory.Exists(Directory)
-            ? System.IO.Directory.EnumerateFiles(Directory, "*.db").Select(f => Path.GetFileNameWithoutExtension(f)!).Where(n => n != Master).Order(StringComparer.Ordinal)
+            ? System.IO.Directory.EnumerateFiles(Directory, "*.db").Where(f => !IsLink(f)).Select(f => Path.GetFileNameWithoutExtension(f)!).Where(n => n != Master).Order(StringComparer.Ordinal)
             : Enumerable.Empty<string>();
 
     /// <summary>库名大小写不敏感（和 SQL Server 一样），返回磁盘上实际的名字</summary>
@@ -53,6 +53,7 @@ internal sealed class DatabaseStore
     {
         var resolved = Resolve(name);
         if (resolved == null) throw SqlException.CannotOpenDatabase(name);
+        RefuseLinks(resolved);
         if (resolved == Master && !File.Exists(PathOf(Master))) Create(Master, allowMaster: true);
         // 不用连接池：最后一个连接关闭时 WAL 里的数据写回主文件，复制、恢复数据库文件时不会丢数据
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = PathOf(resolved), Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString());
@@ -70,6 +71,7 @@ internal sealed class DatabaseStore
         if (!allowMaster && Resolve(name) != null) throw SqlException.DatabaseExists(name);
         if (List().Count() >= MaxDatabases) throw new SqlException(1105, $"最多只能建 {MaxDatabases} 个数据库，先删除不用的数据库。");
         System.IO.Directory.CreateDirectory(Directory);
+        RefuseLinks(name);
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = PathOf(name), Mode = SqliteOpenMode.ReadWriteCreate, Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
@@ -89,6 +91,20 @@ internal sealed class DatabaseStore
     }
 
     private string PathOf(string name) => Path.Combine(Directory, name + ".db");
+
+    /// <summary>
+    /// 数据库文件不能是链接：学生程序能在自己的数据库目录里建文件（编译时已禁止建链接，这里再挡一道），
+    /// 链接可能指向服务器上的其他文件（平台的数据库、别的学生的库）。数据库页面的 SQL 服务不在沙箱里，跟着链接就会读写到它们
+    /// </summary>
+    private void RefuseLinks(string name)
+    {
+        foreach (var suffix in new[] { "", "-wal", "-shm", "-journal" })
+        {
+            if (IsLink(PathOf(name) + suffix)) throw new SqlException(5120, $"无法打开数据库 '{name}'：数据库文件是链接，不允许使用。");
+        }
+    }
+
+    private static bool IsLink(string path) => new FileInfo(path).LinkTarget != null;
 
     /// <summary>库名就是文件名：不能有路径分隔符等字符</summary>
     private static void CheckName(string name)

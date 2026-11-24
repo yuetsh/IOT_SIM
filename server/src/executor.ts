@@ -10,6 +10,8 @@ import { readLines } from './runner-process'
 import { safeJoin } from './paths'
 import { runCommand, sandboxError } from './sandbox'
 
+export type LineListener = (line: string) => void | Promise<void>
+
 export interface ProgramExit {
   code: number | null
   signal: string | number | null
@@ -19,8 +21,11 @@ export interface ProgramExit {
 
 /** 一个正在运行的学生程序 */
 export interface ProgramHandle {
-  /** 开始接收输出。之前收到的行先存着，调用时一并交出 */
-  listen(onStdout: (line: string) => void, onStderr: (line: string) => void): void
+  /**
+   * 开始接收输出。之前收到的行先存着，调用时一并交出。
+   * 回调返回 Promise 时（本机运行），等它完成再读下一行，用来给太快的输出降速
+   */
+  listen(onStdout: LineListener, onStderr: LineListener): void
   /** 写一行到标准输入 */
   write(line: string): void
   kill(): void
@@ -85,21 +90,21 @@ export async function writeFiles(dir: string, files: SourceFile[]) {
 
 /** 收到的行先存着，等 listen 之后再交出去 */
 export class LineBuffer {
-  private stdout?: (line: string) => void
-  private stderr?: (line: string) => void
+  private stdout?: LineListener
+  private stderr?: LineListener
   private pending: [boolean, string][] = []
 
-  listen(onStdout: (line: string) => void, onStderr: (line: string) => void) {
+  listen(onStdout: LineListener, onStderr: LineListener) {
     this.stdout = onStdout
     this.stderr = onStderr
-    for (const [isErr, line] of this.pending) (isErr ? onStderr : onStdout)(line)
+    for (const [isErr, line] of this.pending) void (isErr ? onStderr : onStdout)(line)
     this.pending = []
   }
 
-  push(isErr: boolean, line: string) {
+  push(isErr: boolean, line: string): void | Promise<void> {
     const target = isErr ? this.stderr : this.stdout
-    if (target) target(line)
-    else this.pending.push([isErr, line])
+    if (target) return target(line)
+    this.pending.push([isErr, line])
   }
 }
 
@@ -120,7 +125,7 @@ class LocalProgram implements ProgramHandle {
     })
   }
 
-  listen(onStdout: (line: string) => void, onStderr: (line: string) => void) {
+  listen(onStdout: LineListener, onStderr: LineListener) {
     this.lines.listen(onStdout, onStderr)
   }
 

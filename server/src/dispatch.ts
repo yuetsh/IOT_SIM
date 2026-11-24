@@ -10,11 +10,15 @@ import { grade } from './grading/grader'
 import { languageService } from './language-service'
 import { workerHub, WorkerUnavailable } from './worker-hub'
 
-/** 编译并启动学生程序 */
+/**
+ * 编译并启动学生程序。用到数据库的程序在服务器上运行：学生的库只在服务器上，数据库页面随时可能在改它，
+ * 拷到 worker 再拷回来会互相覆盖（还有 WAL 文件对不上、学生被删除后目录又被建出来等问题）。
+ * 交给 worker 的运行不带数据库目录：没写 SqlConnection 等却连了数据库的程序只会连不上，不会碰到别人的数据
+ */
 export async function startProgram(request: RunRequest): Promise<RunOutcome> {
-  if (workerHub.available) {
+  if (workerHub.available && !usesDatabase(request.files)) {
     try {
-      return await workerHub.run(request)
+      return await workerHub.run({ ...request, dbDir: undefined })
     } catch (error) {
       if (!(error instanceof WorkerUnavailable)) throw error
       console.warn(`运行改在服务器上：${error.message}`)
@@ -23,7 +27,15 @@ export async function startProgram(request: RunRequest): Promise<RunOutcome> {
   return runLocally(request)
 }
 
-/** 给作品评分（提交评分、自己检查） */
+/** 代码里用到了数据库（教材的写法都是 System.Data.SqlClient 里的这几个类） */
+export function usesDatabase(files: SourceFile[]) {
+  return files.some((file) => /\bSql(Client|Connection|Command|DataAdapter|DataReader|CommandBuilder|Parameter|Transaction)\b/.test(file.content))
+}
+
+/**
+ * 给作品评分（提交评分、自己检查）。评分用的是按实验的 database.sql 新建的库，不碰学生自己的库，
+ * 用到数据库的作品也可以交给 worker
+ */
 export async function gradeFiles(files: SourceFile[], checks: Check[], sampleId?: string): Promise<GradeResult> {
   if (workerHub.available) {
     try {

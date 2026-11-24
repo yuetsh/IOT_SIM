@@ -4,16 +4,16 @@
 // worker 随时可能不在（学校关机、断网、正在部署）：
 //   - 没连上：全部在服务器上自己做，和没有 worker 时一样
 //   - 运行中断了：程序结束，提示学生重新运行（下一次就在服务器上运行）
-//   - 评分、启动中断了：改在服务器上做，学生和老师感觉不到
+//   - 评分、启动中断了，或者 worker 那边出错（磁盘满等）：改在服务器上做，学生和老师感觉不到
 // 同时只用一个 worker；新的连上来时替换旧的（比如 worker 重启后旧连接还没超时）。
 import { timingSafeEqual } from 'node:crypto'
 import type { Server, ServerWebSocket } from 'bun'
 import type { GradeResult, SourceFile } from '@iot/shared'
 import { config } from './config'
-import type { ProgramExit, ProgramHandle, RunOutcome, RunRequest } from './executor'
+import type { LineListener, ProgramExit, ProgramHandle, RunOutcome, RunRequest } from './executor'
 import { LineBuffer } from './executor'
 import type { Check } from './grading/checks'
-import { encodeChecks, type HubMessage, readDbDir, VERSION_HEADER, type WorkerMessage, writeDbFiles } from './worker-protocol'
+import { encodeChecks, type HubMessage, VERSION_HEADER, type WorkerMessage } from './worker-protocol'
 
 /** 交给 worker 的事情没法在那边完成，调用方改在服务器上做 */
 export class WorkerUnavailable extends Error {}
@@ -22,6 +22,8 @@ export class WorkerUnavailable extends Error {}
 const START_TIMEOUT_MS = 60_000
 const GRADE_TIMEOUT_MS = 10 * 60_000
 const LANGUAGE_TIMEOUT_MS = 10_000
+/** 发给 worker 的数据积压超过这么多时不再转发学生的操作（Bun 默认积压到 16 MB 就开始丢消息） */
+const MAX_INPUT_BACKLOG = 4 * 1024 * 1024
 
 export interface WorkerSocketData {
   kind: 'worker'
@@ -44,8 +46,6 @@ class RemoteProgram implements ProgramHandle {
   constructor(
     private readonly hub: WorkerHub,
     readonly id: number,
-    /** 写回数据库改动的目录 */
-    readonly dbDir: string | undefined,
   ) {
     this.exited = new Promise((resolve) => {
       this.finish = (exit) => {
@@ -56,12 +56,13 @@ class RemoteProgram implements ProgramHandle {
     })
   }
 
-  listen(onStdout: (line: string) => void, onStderr: (line: string) => void) {
+  listen(onStdout: LineListener, onStderr: LineListener) {
     this.lines.listen(onStdout, onStderr)
   }
 
   write(line: string) {
-    if (!this.ended) this.hub.send({ t: 'in', id: this.id, line })
+    // 链路堵了就丢掉学生的操作（像点了没反应），免得缓冲满了 Bun 丢掉别人的 kill、启动
+    if (!this.ended && !this.hub.congested) this.hub.send({ t: 'in', id: this.id, line })
   }
 
   kill() {
@@ -80,6 +81,11 @@ class WorkerHub {
   /** worker 在不在 */
   get available() {
     return this.socket !== undefined
+  }
+
+  /** 发给 worker 的数据积压太多（链路慢、有人一直发大消息）：学生的操作先不转发 */
+  get congested() {
+    return (this.socket?.getBufferedAmount() ?? 0) > MAX_INPUT_BACKLOG
   }
 
   /**
@@ -127,11 +133,21 @@ class WorkerHub {
       case 'err':
         this.programs.get(message.id)?.lines.push(message.t === 'err', message.line)
         return
-      case 'exit':
-        void this.programExited(message)
+      case 'exit': {
+        const program = this.programs.get(message.id)
+        this.programs.delete(message.id)
+        program?.finish({ code: message.code, signal: message.signal })
         return
+      }
       default:
-        this.settle(message.id, message)
+        if (this.pending.has(message.id)) {
+          this.settle(message.id, message)
+        } else if (message.t === 'startFailed') {
+          // 程序启动之后 worker 那边出错：当作程序结束，免得学生那边一直显示"运行中"
+          const program = this.programs.get(message.id)
+          this.programs.delete(message.id)
+          program?.finish({ code: null, signal: null, lost: true })
+        }
     }
   }
 
@@ -141,35 +157,40 @@ class WorkerHub {
     console.warn('计算节点断开了，编译运行、评分改在服务器上做')
   }
 
-  /** 发给 worker；不在时什么也不做（等它的事情会因为断开或超时失败） */
+  /**
+   * 发给 worker；不在时什么也不做（等它的事情会因为断开或超时失败）。
+   * 发送缓冲满了 Bun 会直接丢掉这条消息（send 返回 0）：丢了 kill、输入就乱了，所以干脆断开，改在服务器上做
+   */
   send(message: HubMessage) {
-    this.socket?.send(JSON.stringify(message))
+    const socket = this.socket
+    if (!socket) return
+    if (socket.send(JSON.stringify(message)) === 0) {
+      console.warn('发给计算节点的消息发不出去（发送缓冲满了），断开它')
+      this.detach(socket)
+      socket.close(1011, '发送缓冲满了')
+    }
   }
 
-  /** 编译并启动；worker 不在、中途断开或超时抛出 WorkerUnavailable */
+  /** 编译并启动（不带数据库，见 dispatch.ts）；worker 不在、出错、中途断开或超时抛出 WorkerUnavailable */
   async run(request: RunRequest): Promise<RunOutcome> {
     if (!this.socket) throw new WorkerUnavailable('计算节点不在')
-    let db = null
-    if (request.dbDir) {
-      db = await readDbDir(request.dbDir)
-      if (!db) throw new WorkerUnavailable('数据库太大，不发给计算节点')
-    }
+    if (request.dbDir) throw new WorkerUnavailable('用到数据库的程序在服务器上运行')
     const id = this.nextId++
     // 先登记，编译一通过 worker 马上就会发来程序的输出
-    const program = new RemoteProgram(this, id, request.dbDir)
+    const program = new RemoteProgram(this, id)
     this.programs.set(id, program)
     let reply: WorkerMessage
     try {
-      reply = await this.request({ t: 'run', id, files: request.files, env: request.env, db }, START_TIMEOUT_MS)
+      reply = await this.request({ t: 'run', id, files: request.files, env: request.env, maxMinutes: config.maxRunMinutes }, START_TIMEOUT_MS)
     } catch (error) {
       this.programs.delete(id)
+      // 超时的话 worker 可能过一会儿还是把程序启动了：让它启动后马上结束
       this.send({ t: 'kill', id })
       throw error
     }
     if (reply.t !== 'started') {
       this.programs.delete(id)
-      if (reply.t === 'startFailed') throw new Error(reply.message)
-      throw new WorkerUnavailable(`计算节点回复不对：${reply.t}`)
+      throw new WorkerUnavailable(reply.t === 'startFailed' ? `计算节点出错：${reply.message}` : `计算节点回复不对：${reply.t}`)
     }
     this.stats.runs++
     const compiled = { ok: reply.ok, diagnostics: reply.diagnostics, ms: reply.ms }
@@ -180,12 +201,13 @@ class WorkerHub {
     return { compiled, program }
   }
 
-  /** 评分；worker 不在、中途断开或超时抛出 WorkerUnavailable */
+  /** 评分；worker 不在、出错、中途断开或超时抛出 WorkerUnavailable */
   async grade(files: SourceFile[], checks: Check[], sampleId?: string): Promise<GradeResult> {
     if (!this.socket) throw new WorkerUnavailable('计算节点不在')
     const reply = await this.request({ t: 'grade', id: this.nextId++, files, checks: encodeChecks(checks), sampleId }, GRADE_TIMEOUT_MS)
-    if (reply.t === 'gradeFailed') throw new Error(reply.message)
-    if (reply.t !== 'graded') throw new WorkerUnavailable(`计算节点回复不对：${reply.t}`)
+    if (reply.t !== 'graded') {
+      throw new WorkerUnavailable(reply.t === 'gradeFailed' ? `计算节点评分出错：${reply.message}` : `计算节点回复不对：${reply.t}`)
+    }
     this.stats.grades++
     return reply.result
   }
@@ -204,15 +226,15 @@ class WorkerHub {
   }
 
   private request(message: Extract<HubMessage, { id: number }>, timeoutMs: number): Promise<WorkerMessage> {
-    const socket = this.socket
-    if (!socket) return Promise.reject(new WorkerUnavailable('计算节点不在'))
+    if (!this.socket) return Promise.reject(new WorkerUnavailable('计算节点不在'))
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(message.id)
         reject(new Timeout(`计算节点 ${Math.round(timeoutMs / 1000)} 秒没有回复`))
       }, timeoutMs)
       this.pending.set(message.id, { resolve, reject, timer })
-      socket.send(JSON.stringify(message))
+      // 发不出去时 send 会断开连接，上面登记的等待随之失败
+      this.send(message)
     })
   }
 
@@ -222,17 +244,6 @@ class WorkerHub {
     this.pending.delete(id)
     clearTimeout(waiter.timer)
     waiter.resolve(message)
-  }
-
-  private async programExited(message: Extract<WorkerMessage, { t: 'exit' }>) {
-    const program = this.programs.get(message.id)
-    if (!program) return
-    this.programs.delete(message.id)
-    if (message.db && program.dbDir) {
-      // 写回失败（比如磁盘满）不影响结束程序，学生这次的改动丢了
-      await writeDbFiles(program.dbDir, message.db).catch((error) => console.error('写回学生数据库失败', error))
-    }
-    program.finish({ code: message.code, signal: message.signal })
   }
 
   /** 连接断了：等回复的都失败（调用方改在服务器上做），正在运行的程序都算结束 */

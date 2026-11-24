@@ -26,6 +26,8 @@ internal static class ApiPolicy
         ("System.Runtime.Loader", "加载程序集"),
         ("System.IO.Pipes", "进程间通信"),
         ("System.IO.MemoryMappedFiles", "进程间通信"),
+        // 解压 tar 包能建出链接文件（见下面的 DeniedMethods），课程也用不到
+        ("System.Formats.Tar", "解压 tar 包"),
     };
 
     /// <summary>单个类型不允许（所在命名空间的其他类型可以用）</summary>
@@ -39,6 +41,17 @@ internal static class ApiPolicy
         ["System.Runtime.InteropServices.LibraryImportAttribute"] = "调用本机代码",
         ["System.Runtime.InteropServices.NativeLibrary"] = "调用本机代码",
         ["System.Runtime.InteropServices.NativeMemory"] = "调用本机代码",
+    };
+
+    /// <summary>
+    /// 单个方法不允许：建链接文件。链接能指向沙箱外面的路径，沙箱里的程序跟不过去，
+    /// 但服务器上不在沙箱里的 SQL 服务（数据库页面）打开学生的库时会跟着走，读写到平台的数据库或别的学生的库
+    /// </summary>
+    private static readonly Dictionary<string, string> DeniedMethods = new()
+    {
+        ["System.IO.File.CreateSymbolicLink"] = "创建链接文件",
+        ["System.IO.Directory.CreateSymbolicLink"] = "创建链接文件",
+        ["System.IO.FileSystemInfo.CreateAsSymbolicLink"] = "创建链接文件",
     };
 
     /// <summary>
@@ -84,6 +97,7 @@ internal static class ApiPolicy
         // using 指令里的命名空间不算：VS 生成的 AssemblyInfo.cs 会 using System.Runtime.InteropServices
         if (symbol is INamespaceSymbol) return null;
         if (symbol is IPropertySymbol && AllowedMembers.Contains($"{symbol.ContainingType.ToDisplayString()}.{symbol.Name}")) return null;
+        if (symbol is IMethodSymbol method && DeniedMethods.TryGetValue($"{method.ContainingType.OriginalDefinition.ToDisplayString()}.{method.Name}", out var methodReason)) return methodReason;
         var type = symbol as INamedTypeSymbol ?? symbol.ContainingType;
         // 方法的返回值、参数类型由调用处检查；这里看符号本身属于哪个类型
         for (var t = type; t != null; t = t.ContainingType)

@@ -19,7 +19,7 @@ COPY runtime/ runtime/
 RUN dotnet build runtime/Runtime.slnx -c Release
 
 # ---- 网页和服务端 ----
-FROM oven/bun:1.4.4 AS web-build
+FROM oven/bun:1.4.5 AS web-build
 WORKDIR /src
 COPY package.json bun.lock ./
 COPY shared/package.json shared/
@@ -52,7 +52,7 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends bubblewrap tzdata \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=oven/bun:1.4.4 /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.4.5 /usr/local/bin/bun /usr/local/bin/bun
 
 # ---- 运行镜像 ----
 FROM ${BASE}

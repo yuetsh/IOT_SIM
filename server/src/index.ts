@@ -17,6 +17,8 @@ import { sqlService } from './sql-service'
 import { checkSandbox, sandboxError } from './sandbox'
 import { runWorker } from './worker'
 import { workerHub, type WorkerSocketData } from './worker-hub'
+import { MAX_PAYLOAD } from './worker-protocol'
+import { validFiles } from './works'
 
 // 手动备份：bun server.js backup <目录>（deploy/backup.sh 调用），导出数据库后退出，不启动服务器
 if (process.argv[2] === 'backup') {
@@ -62,6 +64,9 @@ async function startServer() {
     exceptions?: Set<string>
   }
 
+  /** 浏览器发来的一条消息最多多少（作品最多约 1 MB 字，编码成 JSON 后最多几 MB） */
+  const MAX_CLIENT_MESSAGE = 8 * 1024 * 1024
+
   /** 一次运行最多记几条不同的异常 */
   const MAX_EXCEPTIONS_PER_RUN = 5
 
@@ -86,6 +91,8 @@ async function startServer() {
       // nginx 默认 60 秒没数据就断开 WebSocket，学生的窗体开着不操作一分钟程序就会被结束
       idleTimeout: 30,
       sendPings: true,
+      // 计算节点发来的一条消息可能比较大（学生程序一次输出很多），默认 16 MB 超了会断开整条连接
+      maxPayloadLength: MAX_PAYLOAD,
       open(ws) {
         if (ws.data.kind === 'worker') return workerHub.open(ws as ServerWebSocket<WorkerSocketData>)
         const data = ws.data
@@ -100,6 +107,8 @@ async function startServer() {
       },
       async message(ws, raw) {
         if (ws.data.kind === 'worker') return workerHub.message(ws as ServerWebSocket<WorkerSocketData>, raw)
+        // 计算节点要用大消息，maxPayloadLength 调大了；浏览器发来的正常消息（最大的是带作品的"运行"）远小于这个
+        if ((typeof raw === 'string' ? raw.length : raw.byteLength) > MAX_CLIENT_MESSAGE) return
         let message: ClientMessage
         try {
           message = JSON.parse(String(raw))
@@ -109,6 +118,10 @@ async function startServer() {
         const session = ws.data.session
         if (!session) return
         if (message.type === 'run') {
+          if (!validFiles(message.files)) {
+            ws.send(JSON.stringify({ type: 'serverError', message: '作品格式不对或太大' } satisfies ServerMessage))
+            return
+          }
           ws.data.workKey = ws.data.student && validWorkKey(message.workKey) ? message.workKey : undefined
           ws.data.exceptions = new Set()
           if (ws.data.workKey) learningLog.snapshot(ws.data.userId!, ws.data.workKey, message.files)
