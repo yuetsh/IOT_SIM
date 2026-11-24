@@ -49,4 +49,13 @@ export const config = {
   aiApiKey: env.DEEPSEEK_API_KEY ?? '',
   aiBaseUrl: env.AI_BASE_URL ?? 'https://api.deepseek.com',
   aiModel: env.AI_MODEL ?? 'deepseek-flash',
+  /**
+   * 计算节点（学校的机器）和服务器之间的令牌，两边一样。服务器上设置了才接受计算节点连接（/worker），
+   * 没设置时编译运行、评分都在服务器上做。见 deploy/README.md「计算节点」
+   */
+  workerToken: env.WORKER_TOKEN ?? '',
+  /** 计算节点要连的服务器地址（wss://…/worker）；只有 bun server.js worker 用 */
+  workerHubUrl: env.WORKER_HUB_URL ?? '',
+  /** 部署的提交号（deploy/update.sh 设置）。计算节点和服务器不一样时不用计算节点（消息格式、示例可能变了） */
+  appVersion: env.APP_VERSION ?? '',
 }

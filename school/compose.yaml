@@ -1,10 +1,14 @@
-# 机房的 IOT：只有网页 + 反代，后端和数据库在服务器上（见 Caddyfile、README.md）
+# 机房（debian114）的 IOT，见 README.md：
+#   iot-web     网页 + 反代：/api、/ws、/resources 转给服务器（iot.xuyue.cc），数据都在服务器上
+#   iot-worker  计算节点：主动连服务器的 /worker，替服务器编译运行学生程序、评分、提供语言服务；不开端口、不存数据
+# .env 里要有 WORKER_TOKEN（和服务器 .env 里的一样）。镜像在这台机器上用 worker/ 里的产物构建，
+# 底子 IOT_BASE 是开发机编好传过来的（这台机器拉不到 Docker Hub、装不了 apt 包），部署工作流会自动处理。
 services:
   iot-web:
     image: caddy:alpine
     container_name: iot-web
     restart: unless-stopped
-    logging:
+    logging: &logging
       driver: json-file
       options:
         max-size: 10m
@@ -14,3 +18,35 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     ports:
       - '86:80'
+
+  iot-worker:
+    image: iot-sim-worker:latest
+    build:
+      # 部署工作流把 Dockerfile、.dockerignore、samples/、prebuilt/ 同步到这里
+      context: ./worker
+      args:
+        ARTIFACTS: prebuilt
+        BASE: ${IOT_BASE:-iot-sim-base:latest}
+        APP_VERSION: ${APP_VERSION:-}
+    container_name: iot-worker
+    command: ['bun', 'server.js', 'worker']
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      WORKER_HUB_URL: wss://iot.xuyue.cc/worker
+      WORKER_TOKEN: ${WORKER_TOKEN:?请在 .env 里设置 WORKER_TOKEN（和服务器的一样）}
+      # 这台机器 28 核、62 GB（还跑着 OJ2 等），比服务器（2 核）宽裕得多
+      SIM_MAX_RUNS: ${SIM_MAX_RUNS:-400}
+      SIM_GRADE_CONCURRENCY: ${SIM_GRADE_CONCURRENCY:-64}
+    # 和服务器上的 app 一样：只读文件系统，学生程序放进 bubblewrap 沙箱
+    read_only: true
+    tmpfs:
+      - /tmp:size=4g
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=unconfined
+      - apparmor=unconfined
+      - systempaths=unconfined
+    mem_limit: ${WORKER_MEM_LIMIT:-16g}
+    pids_limit: 16384

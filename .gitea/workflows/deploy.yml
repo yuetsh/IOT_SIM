@@ -1,5 +1,5 @@
 # push 到 origin（git.xuyue.cc）的 main 就部署：在开发机上编好产物、跑测试 → 产物 rsync 到服务器的 prebuilt/ →
-# 服务器上 deploy/update.sh --prebuilt（拉代码、用现成产物构建镜像、重启）→ 网页同步到机房（school/）。
+# 服务器上 deploy/update.sh --prebuilt（拉代码、用现成产物构建镜像、重启）→ 机房的网页和计算节点（school/）。
 #
 # 跑在哪：开发机上的 gitea-runner（host 模式，标签 iot-deploy；和 OJ2 共用一个 runner，一次只跑一个任务，
 # 两边的部署排队，不会同时挤服务器）。runner 的装法见 deploy/README.md「自动部署」。
@@ -134,25 +134,37 @@ jobs:
           done
           exit $code
 
-      # 机房（debian114）只放网页 + Caddy，/api、/ws、/resources 反代回服务器，见 school/README.md。
-      # 放在服务器部署成功之后：网页和后端是同一个提交。机房关机、断网时只有这一步红，服务器已经部署好了，
-      # 修好后重跑这个任务就行（这期间机房还是上一版网页，接口变了的话可能有页面出错）。
-      # fschool 是开发机 ~/.ssh/config 里经 debian 跳板的机房。
-      - name: 机房：网页 + Caddy
-        timeout-minutes: 5
+      # 机房（debian114）：网页 + Caddy（/api、/ws、/resources 反代回服务器），还有计算节点 iot-worker：
+      # 主动连服务器的 /worker，替服务器编译运行学生程序、评分。见 school/README.md。
+      # 放在服务器部署成功之后：服务器换了版本，旧的计算节点会被拒绝（版本不一样），服务器先自己做，
+      # 这一步把计算节点换成同一个提交后它再连上。机房关机、断网时只有这一步红，服务器已经部署好了、自己做，
+      # 修好后重跑这个任务就行。fschool 是开发机 ~/.ssh/config 里经 debian 跳板的机房（开发机到机房约 1 MB/s）。
+      - name: 机房：网页 + 计算节点
+        timeout-minutes: 20
+        env:
+          SHA: ${{ gitea.sha }}
         run: |
           ssh_opts="-o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8"
-          ssh $ssh_opts fschool 'mkdir -p /root/IOT/build'
-          rsync -az -c --delete-delay --delay-updates --no-owner --no-group -e "ssh $ssh_opts" \
-            web/dist/ fschool:/root/IOT/build/
-          # Caddyfile 是单文件挂载：rsync 换了 inode，容器里看到的还是旧的，变了就重启容器
-          changed=$(rsync -ac --no-owner --no-group -i -e "ssh $ssh_opts" \
-            school/Caddyfile school/compose.yaml fschool:/root/IOT/)
-          ssh $ssh_opts fschool "set -e
-            cd /root/IOT
-            docker compose up -d
-            if [ -n '$changed' ]; then docker compose restart; fi
-            sleep 2
-            code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:86/api/me)
-            [ \"\$code\" = 401 ] || { docker logs --tail 30 iot-web; echo \"机房反代接口不是 401（未登录）：\$code\"; exit 1; }
-            echo '机房 OK'"
+          rs() { rsync -e "ssh $ssh_opts" --no-owner --no-group --timeout=60 "$@"; }
+
+          # 镜像的底子（.NET 运行时 + bubblewrap + bun）：机房拉不到 Docker Hub、装不了 apt 包，在开发机编好传过去。
+          # 标签是 Dockerfile 里 runtime-base 那一段的哈希，那一段没改就不用再传（约 110 MB，传一次几分钟）
+          base=iot-sim-base:$(sed -n '/AS runtime-base$/,/^# ---- 运行镜像 ----$/p' Dockerfile | sha256sum | cut -c1-12)
+          if ! ssh $ssh_opts fschool "docker image inspect $base >/dev/null 2>&1"; then
+            echo "机房没有 $base，编好传过去"
+            docker build -q --target runtime-base -t "$base" .
+            docker save "$base" | zstd -T0 -10 -q >base.tar.zst
+            for attempt in 1 2 3 4 5; do rs --partial base.tar.zst fschool:/root/iot-base.tar.zst && break; sleep 10; done
+            ssh $ssh_opts fschool "zstd -dc /root/iot-base.tar.zst | docker load && rm /root/iot-base.tar.zst"
+            rm base.tar.zst
+          fi
+
+          ssh $ssh_opts fschool 'mkdir -p /root/IOT/build /root/IOT/worker'
+          rs -az -c --delete-delay --delay-updates web/dist/ fschool:/root/IOT/build/
+          # 计算节点的构建材料：和服务器一样用 prebuilt/ 里的产物，只传变了的文件
+          rs -az -c --delete-delay --relative Dockerfile .dockerignore samples prebuilt fschool:/root/IOT/worker/
+          # 不带 -t：内容没变的文件不传也不列出来；列出来的（<f）就是变了的
+          changed=$(rs -rc -i school/Caddyfile school/compose.yaml school/deploy.sh fschool:/root/IOT/)
+          echo "$changed"
+          restart=; if grep -q '^<f.* Caddyfile$' <<<"$changed"; then restart=restart-web; fi
+          ssh $ssh_opts fschool "bash /root/IOT/deploy.sh $base $SHA $restart"

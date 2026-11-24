@@ -75,7 +75,7 @@
 - **push 时开发机得开着。** 没开的话任务在 Gitea 里排队，开机后 runner 连上就接着跑；排队超过 24 小时会被作废，要在 Actions 页面重跑。
 - 在 Gitea 的 Actions 页面点 Run workflow 可以手动重新部署（比如改了服务器上的 `.env` 之后）。
 - `prebuilt/COMMIT` 记着产物是哪个提交编的，和要部署的提交对不上时 `update.sh` 直接失败，不会把旧产物配新代码。
-- 服务器部署成功后，最后一步把网页同步到**机房（debian114）**：那边只有 Caddy，接口和 WebSocket 反代回 iot.xuyue.cc，学生访问 `http://10.13.114.114:86`，见 [school/README.md](../school/README.md)。机房连不上时只有这一步红，服务器已经部署好了。
+- 服务器部署成功后，最后一步部署**机房（debian114）**：网页（学生访问 `http://10.13.114.114:86`）和计算节点，见下面「计算节点」。机房连不上时只有这一步红，服务器已经部署好了，自己编译运行。
 
 为什么不在服务器或 GitHub 上编：服务器只有 2 核，学生程序也在上面跑，以前服务器自己编约一分钟，dotnet 和 vite 把两个核占满；GitHub 上测试约 5 分钟，push 后 6 分钟多才上线。开发机 16 核，服务端测试同时跑（`bun test --parallel`，评分测试标了 `describe.concurrent`）约半分钟。
 
@@ -113,7 +113,17 @@ host 模式直接用开发机自己的东西，所以**不需要配任何 secret
 
    SSH 端口不是 22 时，再设置 `DEPLOY_PORT`；服务器目录不是 `~/IOT_SIM` 时，设置变量 `gh variable set DEPLOY_DIR -R yuetsh/IOT_SIM -b 目录`。
 
-## 日常操作
+## 计算节点（学校的机器替服务器编译运行）
+
+服务器只有 2 核，学生程序也在上面跑。机房那台（debian114，28 核）上的计算节点 `iot-worker` 主动连服务器的 `/worker`，服务器把**编译运行、评分（提交评分、自己检查）、语言服务**交给它，自己只管账号、作业、数据库和实训台状态。数据库页面、导出 EXE 仍在服务器上做。
+
+**计算节点不在（学校关机、断网、正在部署）时服务器自己做**，和没有计算节点时一样；正在运行的程序会结束，提示学生重新运行。细节见 [school/README.md](../school/README.md)。
+
+- 服务器 `.env` 里的 `WORKER_TOKEN` 和机房的一样才接受；不设置就不接受计算节点（`/worker` 返回 404）。
+- 两边要是同一个提交：`deploy/update.sh` 把提交号写进镜像（`APP_VERSION`），不一样时服务器拒绝计算节点。所以要用 `deploy/update.sh` 部署（或部署工作流）；直接 `docker compose build` 编出来的镜像没有提交号，计算节点连不上，服务器就自己做。
+- 看连接情况：`docker compose logs app | grep 计算节点`。
+
+
 
 在服务器的 `~/IOT_SIM` 目录下：
 

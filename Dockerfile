@@ -6,6 +6,11 @@
 #   prebuilt  用 prebuilt/ 里现成的产物（开发机上的 gitea-runner 编好、测过后 rsync 过来，见 .gitea/workflows/deploy.yml），
 #             镜像构建只剩几条 COPY。buildx 不会去跑用不到的 runtime-build / web-build 阶段
 ARG ARTIFACTS=build
+# 运行镜像的底子（.NET 运行时 + bubblewrap + bun）。默认就是下面的 runtime-base 阶段；
+# 学校的计算节点拉不到 Docker Hub、装不了 apt 包，用开发机编好传过去的现成镜像（BASE=iot-sim-base:<标签>，见 school/README.md）
+ARG BASE=runtime-base
+# 部署的提交号，计算节点和服务器靠它确认是同一个版本（deploy/update.sh 设置）
+ARG APP_VERSION=
 
 # ---- C# 运行时（编译服务 + 仿真库） ----
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS runtime-build
@@ -42,18 +47,23 @@ COPY prebuilt/server.js /server.js
 
 FROM artifacts-${ARTIFACTS} AS artifacts
 
-# ---- 运行镜像 ----
-FROM mcr.microsoft.com/dotnet/runtime:10.0
+# ---- 运行镜像的底子：只在这一段变了时才需要重新传给学校的计算节点 ----
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends bubblewrap tzdata \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=oven/bun:1.4.4 /usr/local/bin/bun /usr/local/bin/bun
+
+# ---- 运行镜像 ----
+FROM ${BASE}
 WORKDIR /app
 COPY --from=artifacts /runtime/ runtime/
 COPY --from=artifacts /web/ web/dist/
 COPY --from=artifacts /server.js ./
 COPY samples/ samples/
+ARG APP_VERSION
 ENV APP_ROOT=/app \
+    APP_VERSION=${APP_VERSION} \
     RUNNER_DLL=runtime/Sim.Runner.dll \
     RUNS_DIR=/tmp/runs \
     SIM_SANDBOX=bwrap \

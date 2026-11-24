@@ -2,12 +2,8 @@
 // 每人同时只能有一次，结果放在内存里，保留到下一次自测（服务器重启后就没有了）。
 // 检查项和提交评分一样受全站并发上限（config.gradeConcurrency）约束，机器忙时排队。
 import type { GradeResult, SelfCheck, SourceFile } from '@iot/shared'
-import { rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { config } from '../config'
+import { gradeFiles } from '../dispatch'
 import type { Check } from './checks'
-import { grade } from './grader'
-import { writeProject } from './queue'
 
 export function createSelfCheck(onDone?: (userId: number, target: string, result: GradeResult) => void) {
   const states = new Map<number, SelfCheck>()
@@ -18,18 +14,15 @@ export function createSelfCheck(onDone?: (userId: number, target: string, result
       if (states.get(userId)?.status === 'running') return false
       const state: SelfCheck = { status: 'running', target, result: null, startedAt: Date.now() }
       states.set(userId, state)
-      const dir = join(config.runsDir, `selfcheck-${userId}`)
       void (async () => {
         try {
-          await writeProject(dir, files)
-          state.result = await grade(dir, checks, sampleId)
+          // 计算节点在就交给它评（见 dispatch.ts）
+          state.result = await gradeFiles(files, checks, sampleId)
           state.status = 'done'
           if (record) onDone?.(userId, target, state.result)
         } catch (error) {
           console.error(`自测出错（用户 ${userId}）：`, error)
           state.status = 'error'
-        } finally {
-          await rm(dir, { recursive: true, force: true })
         }
       })()
       return true

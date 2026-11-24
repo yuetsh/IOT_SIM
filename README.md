@@ -40,6 +40,8 @@ BASE=http://localhost:3000 bun test/classroom.ts 45  # 全班模拟：45 个学�
 
 Docker Compose，HTTPS 由服务器上的 Nginx Proxy Manager 负责。push 到 origin（git.xuyue.cc）的 main 后，开发机上的 gitea-runner 跑完测试、编好产物传到服务器，服务器拉代码、用现成产物构建镜像、重启（`deploy/update.sh --prebuilt`）；GitHub 上手动触发是备用路线，由服务器自己编。详见 [deploy/README.md](deploy/README.md)。
 
+学校机房的机器（28 核）上有一个**计算节点**（`bun server.js worker`，`server/src/worker.ts`），主动连服务器，替服务器编译运行学生程序、评分、提供语言服务；数据都在服务器上。计算节点不在时服务器自己做（`server/src/dispatch.ts`）。见 [school/README.md](school/README.md)。
+
 ## 运行器的四种模式
 
 `Sim.Runner` 通过标准输入输出与 Bun 服务器交换 JSON 消息（每行一条）：

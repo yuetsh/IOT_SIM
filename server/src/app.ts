@@ -22,7 +22,7 @@ import { assignmentAnalysis } from './analysis'
 import { studentLearning } from './learning-report'
 import { parseChecks } from './grading/checks'
 import { createSelfCheck } from './grading/selfcheck'
-import { languageService } from './language-service'
+import { languageRequest } from './dispatch'
 import { createLearningLog, deleteWorkRecords, type LearningLog, validWorkKey, workEvents, workSnapshotChanges } from './learning-log'
 import { getReview, gradebook, manualScore, saveReview, studentDetail, submissionFiles } from './reviews'
 import type { GradingQueue } from './grading/queue'
@@ -175,7 +175,7 @@ export function createApp(db: Database, gradingQueue: GradingQueue, aiQueue: AiQ
     if (!LANGUAGE_REQUESTS.has(String(r.type)) || typeof r.session !== 'string') return c.json({ message: '请求格式不对' }, 400)
     if (r.files !== undefined && !validFiles(r.files)) return c.json({ message: '作品格式不对或太大' }, 400)
     // 会话按用户区分，不同学生的工程不会混在一起
-    const reply = await languageService.request({ ...r, session: `${c.get('user').id}:${r.session.slice(0, 64)}` })
+    const reply = await languageRequest({ ...r, session: `${c.get('user').id}:${r.session.slice(0, 64)}` })
     return c.json(reply ?? { type: 'empty' })
   })
 

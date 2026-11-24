@@ -1,23 +1,9 @@
 // 评分队列：学生提交后立即返回，后台按提交顺序评分（同时评的份数不超过检查项的并发上限，保证评分槽位能用满），结果写回数据库。
 // 服务器重启前没评完的提交，启动时继续评。评完调用 onGraded（接着做 AI 评阅）。
 import type { Database } from 'bun:sqlite'
-import type { SourceFile } from '@iot/shared'
-import { mkdir, rm } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
 import { assignmentChecks, pendingSubmissionIds, saveGrade, submissionForGrading } from '../assignments'
 import { config } from '../config'
-import { safeJoin } from '../run-session'
-import { grade } from './grader'
-
-/** 把作品写进一个干净的工程目录（评分和自测用） */
-export async function writeProject(dir: string, files: SourceFile[]) {
-  await rm(dir, { recursive: true, force: true })
-  for (const file of files) {
-    const target = safeJoin(dir, file.path)
-    await mkdir(dirname(target), { recursive: true })
-    await Bun.write(target, file.content)
-  }
-}
+import { gradeFiles } from '../dispatch'
 
 export function createGradingQueue(db: Database, onGraded: (submissionId: number) => void = () => {}) {
   const queue: number[] = []
@@ -28,16 +14,13 @@ export function createGradingQueue(db: Database, onGraded: (submissionId: number
     const submission = submissionForGrading(db, id)
     const checks = submission && assignmentChecks(db, submission.assignmentId)
     if (!submission || !checks) return
-    const dir = join(config.runsDir, `grade-${id}`)
     try {
-      await writeProject(dir, submission.files)
-      saveGrade(db, id, await grade(dir, checks, submission.sampleId))
+      // 计算节点在就交给它评（见 dispatch.ts）
+      saveGrade(db, id, await gradeFiles(submission.files, checks, submission.sampleId))
       onGraded(id)
     } catch (error) {
       console.error(`评分出错（提交 ${id}）：`, error)
       saveGrade(db, id, null)
-    } finally {
-      await rm(dir, { recursive: true, force: true })
     }
   }
 

@@ -63,6 +63,10 @@ main() {
     export ARTIFACTS=build
   fi
 
+  # 提交号写进镜像（compose.yaml 的构建参数），学校的计算节点靠它确认和服务器是同一个版本
+  APP_VERSION=$(git rev-parse HEAD)
+  export APP_VERSION
+
   echo "== 构建镜像并重启"
   # caddy 用的是现成镜像，up 不会去拉新版，不拉的话永远是第一次部署时那份
   docker compose pull --quiet caddy

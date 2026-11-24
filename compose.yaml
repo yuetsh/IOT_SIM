@@ -10,6 +10,8 @@ services:
       # build：在镜像里编（默认）；prebuilt：用 prebuilt/ 里开发机编好的产物，见 Dockerfile 开头
       args:
         ARTIFACTS: ${ARTIFACTS:-build}
+        # 部署的提交号写进镜像（deploy/update.sh 设置），学校的计算节点要和它一样才用
+        APP_VERSION: ${APP_VERSION:-}
     user: root
     command: ['sh', '-c', 'chown -R "$$APP_UID" /data']
     volumes:
@@ -43,6 +45,8 @@ services:
       SIM_CPU_LIMIT_SECONDS: ${SIM_CPU_LIMIT_SECONDS:-120}
       SIM_MAX_RUN_MINUTES: ${SIM_MAX_RUN_MINUTES:-60}
       SIM_GRADE_CONCURRENCY: ${SIM_GRADE_CONCURRENCY:-16}
+      # 学校的计算节点（school/）连上来用的令牌；设置了才接受，编译运行、评分交给它，它不在时自己做
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
     # 容器文件系统只读，只有 /tmp（学生工程的临时目录）和数据卷可写
     read_only: true
     tmpfs:

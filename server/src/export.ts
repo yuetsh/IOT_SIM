@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import type { Diagnostic, SourceFile } from '@iot/shared'
 import { compileService, EXPORT_FILE, EXPORT_PROJECT_FILE } from './compile-service'
 import { config } from './config'
-import { safeJoin } from './run-session'
+import { safeJoin } from './paths'
 
 export type ExportResult = { ok: true; file: Uint8Array; name: string } | { ok: false; diagnostics: Diagnostic[] }
 
