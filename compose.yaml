@@ -71,7 +71,7 @@ services:
     networks: [default]
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:alpine
     restart: unless-stopped
     logging: *logging
     depends_on: [app]
