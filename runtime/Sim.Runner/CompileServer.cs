@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Sim.Runner;
 
@@ -13,7 +16,7 @@ namespace Sim.Runner;
 /// 成功时把 StudentApp.dll / StudentApp.pdb 写到同一目录，回复 {"id":…,"type":"compiled",…}。
 /// 请求带 "export":{"libs":…,"name":…} 时导出 EXE（见 ExeExporter），写到同一目录的 export.exe；
 /// 带 "export":{"kind":"project",…} 时导出 VS 工程（见 ProjectExporter），写到同一目录的 export.zip。
-/// 编译器常驻，第一次之后的编译不再有加载和预热开销。
+/// 编译器常驻，第一次之后的编译不再有加载和预热开销。可以同时编译几个（SIM_COMPILE_CONCURRENCY），回复不一定按请求的顺序。
 /// </summary>
 internal static class CompileServer
 {
@@ -28,32 +31,52 @@ internal static class CompileServer
     {
         using var input = new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false));
         using var output = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true };
+        var writeLock = new object();
+        var concurrency = Concurrency();
+        using var slots = new SemaphoreSlim(concurrency);
 
         WarmUp();
         output.WriteLine(new JsonObject { ["type"] = "ready" }.ToJsonString(JsonOptions));
 
+        // 同时编译多个工程（Roslyn 的编译互不影响），回复按编号对应，先编完的先回
+        var running = new List<Task>();
         while (input.ReadLine() is { } line)
         {
-            JsonObject reply;
-            JsonNode? id = null;
-            try
+            slots.Wait();
+            running.RemoveAll(task => task.IsCompleted);
+            running.Add(Task.Run(() =>
             {
-                var request = JsonNode.Parse(line)!.AsObject();
-                id = request["id"]?.DeepClone();
-                var dir = (string?)request["dir"] ?? throw new ArgumentException("缺少 dir");
-                reply = request["export"] is JsonObject export
-                    ? Export(dir, (string?)export["kind"] == "project", (string?)export["libs"] ?? "", (string?)export["name"] ?? "")
-                    : Compile(dir);
-            }
-            catch (Exception ex)
-            {
-                reply = new JsonObject { ["type"] = "compileFailed", ["message"] = ex.Message };
-            }
-            reply["id"] = id;
-            output.WriteLine(reply.ToJsonString(JsonOptions));
+                JsonObject reply;
+                JsonNode? id = null;
+                try
+                {
+                    var request = JsonNode.Parse(line)!.AsObject();
+                    id = request["id"]?.DeepClone();
+                    var dir = (string?)request["dir"] ?? throw new ArgumentException("缺少 dir");
+                    reply = request["export"] is JsonObject export
+                        ? Export(dir, (string?)export["kind"] == "project", (string?)export["libs"] ?? "", (string?)export["name"] ?? "")
+                        : Compile(dir);
+                }
+                catch (Exception ex)
+                {
+                    reply = new JsonObject { ["type"] = "compileFailed", ["message"] = ex.Message };
+                }
+                finally
+                {
+                    slots.Release();
+                }
+                reply["id"] = id;
+                lock (writeLock) output.WriteLine(reply.ToJsonString(JsonOptions));
+            }));
         }
+        // 输入关闭后，等手上的编完再退出（回复写完才算数）
+        Task.WaitAll(running.ToArray());
         return 0;
     }
+
+    /// <summary>同时编译几个工程：环境变量 SIM_COMPILE_CONCURRENCY（服务器设置，见 config.ts），不设置时一次一个</summary>
+    private static int Concurrency() =>
+        int.TryParse(Environment.GetEnvironmentVariable("SIM_COMPILE_CONCURRENCY"), out var n) && n > 0 ? n : 1;
 
     private static JsonObject Compile(string dir)
     {

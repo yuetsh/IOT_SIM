@@ -16,7 +16,7 @@ export const EXPORT_PROJECT_FILE = 'export.zip'
 type Reply = ({ type: 'compiled' } & CompileResult) | { type: 'compileFailed'; message: string }
 
 /**
- * 常驻编译服务：全服务器共用一个 C# 编译进程（Roslyn 只加载一次），按请求编号对应回复。
+ * 常驻编译服务：全服务器共用一个 C# 编译进程（Roslyn 只加载一次），可以同时编译 config.compileConcurrency 个，按请求编号对应回复。
  * 进程意外退出时，挂起的请求全部失败，下一次请求自动重启。
  */
 class CompileService {
@@ -72,7 +72,13 @@ class CompileService {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'inherit',
-      env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME ?? '/tmp', DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' },
+      env: {
+        PATH: process.env.PATH ?? '/usr/bin:/bin',
+        HOME: process.env.HOME ?? '/tmp',
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1',
+        DOTNET_NOLOGO: '1',
+        SIM_COMPILE_CONCURRENCY: String(config.compileConcurrency),
+      },
     })
     this.proc = proc
     this.ready = new Promise<void>((resolveReady) => {

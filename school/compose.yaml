@@ -38,6 +38,8 @@ services:
       # 这台机器 28 核、62 GB（还跑着 OJ2 等），比服务器（2 核）宽裕得多
       SIM_MAX_RUNS: ${SIM_MAX_RUNS:-400}
       SIM_GRADE_CONCURRENCY: ${SIM_GRADE_CONCURRENCY:-64}
+      # 同时编译几个工程（服务器上一次一个）：全班同时点"运行"时不用排队等编译
+      SIM_COMPILE_CONCURRENCY: ${SIM_COMPILE_CONCURRENCY:-8}
     # 和服务器上的 app 一样：只读文件系统，学生程序放进 bubblewrap 沙箱
     read_only: true
     tmpfs:

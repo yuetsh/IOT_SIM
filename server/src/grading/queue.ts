@@ -1,9 +1,11 @@
 // 评分队列：学生提交后立即返回，后台按提交顺序评分（同时评的份数不超过检查项的并发上限，保证评分槽位能用满），结果写回数据库。
+// 计算节点在时按它的检查项上限放行（机房的比服务器的大得多）；评到一半它断了，改在服务器上评，检查项仍受服务器的上限约束。
 // 服务器重启前没评完的提交，启动时继续评。评完调用 onGraded（接着做 AI 评阅）。
 import type { Database } from 'bun:sqlite'
 import { assignmentChecks, pendingSubmissionIds, saveGrade, submissionForGrading } from '../assignments'
 import { config } from '../config'
 import { gradeFiles } from '../dispatch'
+import { workerHub } from '../worker-hub'
 
 export function createGradingQueue(db: Database, onGraded: (submissionId: number) => void = () => {}) {
   const queue: number[] = []
@@ -25,7 +27,8 @@ export function createGradingQueue(db: Database, onGraded: (submissionId: number
   }
 
   function pump() {
-    while (active < config.gradeConcurrency && queue.length > 0) {
+    const limit = Math.max(config.gradeConcurrency, workerHub.gradeConcurrency)
+    while (active < limit && queue.length > 0) {
       const id = queue.shift()!
       active++
       void gradeOne(id).finally(() => {

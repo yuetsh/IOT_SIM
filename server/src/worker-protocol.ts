@@ -39,6 +39,8 @@ export type WorkerMessage =
 
 /** worker 发起连接时带的请求头：版本（部署的提交号）要和 hub 一样，不一样时 hub 拒绝，自己做 */
 export const VERSION_HEADER = 'x-worker-version'
+/** worker 同时能跑多少个评分检查项（它的 SIM_GRADE_CONCURRENCY）；hub 的提交评分队列按它放行，见 grading/queue.ts */
+export const GRADE_CONCURRENCY_HEADER = 'x-worker-grade-concurrency'
 
 /**
  * 一条消息最大多少字节（hub 的 WebSocket maxPayloadLength）。worker 转发学生程序的输出时，

@@ -10,7 +10,7 @@ import { languageService } from './language-service'
 import { cleanupStaleRuns } from './run-session'
 import { checkSandbox, sandboxError } from './sandbox'
 import { sqlService } from './sql-service'
-import { decodeChecks, type HubMessage, MAX_LINE, VERSION_HEADER, type WorkerMessage } from './worker-protocol'
+import { decodeChecks, GRADE_CONCURRENCY_HEADER, type HubMessage, MAX_LINE, VERSION_HEADER, type WorkerMessage } from './worker-protocol'
 
 /** 多久发一次心跳；多久没收到服务器的任何消息就当连接已经断了（服务器每次都回 pong） */
 const PING_MS = 10_000
@@ -99,7 +99,11 @@ export function startWorker(options: WorkerOptions): Worker {
   function connect() {
     if (stopped) return
     const ws = new WebSocket(options.url, {
-      headers: { authorization: `Bearer ${options.token}`, [VERSION_HEADER]: options.version },
+      headers: {
+        authorization: `Bearer ${options.token}`,
+        [VERSION_HEADER]: options.version,
+        [GRADE_CONCURRENCY_HEADER]: String(config.gradeConcurrency),
+      },
     } as unknown as string[])
     const conn: Connection = { ws, alive: true, programs: new Map(), cancelled: new Set() }
     current = conn

@@ -45,6 +45,7 @@ services:
       SIM_CPU_LIMIT_SECONDS: ${SIM_CPU_LIMIT_SECONDS:-120}
       SIM_MAX_RUN_MINUTES: ${SIM_MAX_RUN_MINUTES:-60}
       SIM_GRADE_CONCURRENCY: ${SIM_GRADE_CONCURRENCY:-16}
+      SIM_COMPILE_CONCURRENCY: ${SIM_COMPILE_CONCURRENCY:-1}
       # 学校的计算节点（school/）连上来用的令牌；设置了才接受，编译运行、评分交给它，它不在时自己做
       WORKER_TOKEN: ${WORKER_TOKEN:-}
     # 容器文件系统只读，只有 /tmp（学生工程的临时目录）和数据卷可写

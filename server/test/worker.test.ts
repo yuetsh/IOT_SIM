@@ -128,6 +128,11 @@ describe.serial('交给计算节点', () => {
     await until(() => workerHub.available)
   })
 
+  test('连上时报告自己同时能跑多少个评分检查项（服务器的提交评分队列照它放行）', () => {
+    expect(workerHub.gradeConcurrency).toBe(config.gradeConcurrency)
+    expect(workerHub.gradeConcurrency).toBeGreaterThan(0)
+  })
+
   test('运行：编译、启动，输出经 worker 转回来', async () => {
     const runs = workerHub.stats.runs
     const s = session()

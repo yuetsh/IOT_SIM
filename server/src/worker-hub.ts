@@ -13,7 +13,7 @@ import { config } from './config'
 import type { LineListener, ProgramExit, ProgramHandle, RunOutcome, RunRequest } from './executor'
 import { LineBuffer } from './executor'
 import type { Check } from './grading/checks'
-import { encodeChecks, type HubMessage, VERSION_HEADER, type WorkerMessage } from './worker-protocol'
+import { encodeChecks, GRADE_CONCURRENCY_HEADER, type HubMessage, VERSION_HEADER, type WorkerMessage } from './worker-protocol'
 
 /** 交给 worker 的事情没法在那边完成，调用方改在服务器上做 */
 export class WorkerUnavailable extends Error {}
@@ -29,6 +29,8 @@ export interface WorkerSocketData {
   kind: 'worker'
   /** 连接上来的 worker 的地址（日志用） */
   address: string
+  /** worker 同时能跑多少个评分检查项；没报告时为 0 */
+  gradeConcurrency: number
 }
 
 interface Pending {
@@ -83,6 +85,11 @@ class WorkerHub {
     return this.socket !== undefined
   }
 
+  /** worker 同时能跑多少个评分检查项；不在或没报告时为 0 */
+  get gradeConcurrency() {
+    return this.socket?.data.gradeConcurrency ?? 0
+  }
+
   /** 发给 worker 的数据积压太多（链路慢、有人一直发大消息）：学生的操作先不转发 */
   get congested() {
     return (this.socket?.getBufferedAmount() ?? 0) > MAX_INPUT_BACKLOG
@@ -101,7 +108,8 @@ class WorkerHub {
       return new Response(`版本不一样：服务器是 ${config.appVersion || '（无）'}`, { status: 409 })
     }
     const address = req.headers.get('x-real-ip') ?? server.requestIP(req)?.address ?? ''
-    const data: WorkerSocketData = { kind: 'worker', address }
+    const gradeConcurrency = Math.max(0, Math.floor(Number(req.headers.get(GRADE_CONCURRENCY_HEADER)) || 0))
+    const data: WorkerSocketData = { kind: 'worker', address, gradeConcurrency }
     if (server.upgrade(req, { data })) return undefined
     return new Response('WebSocket 升级失败', { status: 400 })
   }

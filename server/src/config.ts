@@ -37,6 +37,11 @@ export const config = {
    * 24 个时 CPU 接近 80%，定时器来不及触发，参考答案被误判不通过（test/classroom.ts）
    */
   gradeConcurrency: Number(env.SIM_GRADE_CONCURRENCY ?? 16),
+  /**
+   * 编译服务同时编译几个工程（运行、评分都要先编译）。一次编译本身已经会用上多个核，
+   * 服务器（2 核）上一次一个就够；核多的机器（计算节点）调大，全班同时点"运行"时不用排队等编译
+   */
+  compileConcurrency: Number(env.SIM_COMPILE_CONCURRENCY ?? 1),
   /** 一次运行最长多少分钟，到时自动结束 */
   maxRunMinutes: Number(env.SIM_MAX_RUN_MINUTES ?? 60),
   /** SQLite 数据库所在目录（账号、班级、学生作品）；部署时放在数据卷里 */
